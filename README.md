@@ -12,7 +12,7 @@ The installable script is `re_om_midi.jsx`, generated from smaller modular sourc
 
 ## Key Features & Capabilities
 
-ReOm MIDI is organized into a tabbed interface in After Effects, offering five functional panels:
+ReOm MIDI is organized into a tabbed interface in After Effects, offering seven functional panels:
 
 ### 1. Import Tab
 
@@ -49,7 +49,32 @@ Apply live expressions or bake keyframes onto selected properties based on impor
 * **Curve Customization**: Adjust parameters including Base/Active values, amount, duration, and falloff profiles (instant, linear, ease, exponential).
 * **Bake Keyframes**: Instead of live expressions, you can write hold keyframes (for toggle/interpolate) or sampled values on the comp frame grid (for pump/accumulate).
 
-### 4. MIDI Map Tab
+### 4. Drum Machine Tab
+
+Build a visual drum-pad grid from imported MIDI null layers.
+
+* Select one imported MIDI null layer, or multiple non-drum MIDI layers. Each selection mode maps hits to pads differently:
+  * *Named drum import sliders*: One pad per drum effect (e.g., T01 Ch10 d36 Bass Drum), preserving overlapping hits.
+  * *Single melodic or pitch-only drum layer*: One pad per MIDI pitch.
+  * *Multiple non-drum layers*: One pad per layer — any note on that layer triggers its pad, regardless of pitch.
+* Pads are colored squares arranged in a grid and parented to a controller Null with stroke and master opacity sliders (similar to Piano Roll Map).
+* **Response Settings**: Configure square size, hit duration, and optional animation of Scale, Opacity, and Rotation with falloff curves (instant, linear, ease, exponential).
+* **Filtering**: Limit to the composition work area, cap the maximum number of hits, and optionally restrict to specific drum pitches.
+* **Create with Expression** or **Bake** keyframes onto the pad shapes.
+
+### 5. Drum Sequencer Tab
+
+Map drum MIDI hits to frame-based sample footage using Time Remap expressions.
+
+* Select an imported drum MIDI null layer with named drum sliders, plus a footage or precomp layer containing frame-based drum samples.
+* **Generate from Layer** analyzes the drum null and builds a Time Remap expression template with per-drum frame zones.
+* Edit the generated expression to reorder `drumFrameList` entries (overlap priority) and adjust `startFrame` / `endFrame` ranges as needed.
+* **Apply to Selected Layer** enables Time Remap on the footage layer and installs the expression.
+* **Total Frames** option divides footage frames evenly across all drum pads on generate; use `0` for automatic incrementing zones (default kick/snare/hat spacing).
+* Legacy layers without named drum sliders still use the pitch-slider map.
+* Zone reference: Kick frames ~11–30, Snare ~33–52, Hats ~86–128.
+
+### 6. MIDI Map Tab
 
 Quickly set up dynamic text layers that display MIDI note labels.
 
@@ -58,7 +83,7 @@ Quickly set up dynamic text layers that display MIDI note labels.
 * Switch between Note Names (e.g., C4, D#4) and General MIDI Drum Names.
 * Create a Text Null with the expression pre-applied or copy the expression to your clipboard.
 
-### 5. Misc Tab
+### 7. Misc Tab
 
 Contains utility tools to quickly generate audio and screen animations:
 
