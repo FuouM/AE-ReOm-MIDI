@@ -1,0 +1,21 @@
+{
+  "name": "reom-midi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Modernized After Effects MIDI import script with a testable MIDI parser and JSX build.",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "preview:actions": "node scripts/preview-actions.js",
+    "preview:map": "node scripts/preview-map.js",
+    "test": "node scripts/test-midi.js && node scripts/test-bundle-smoke.js",
+    "check": "npm run build && npm test"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

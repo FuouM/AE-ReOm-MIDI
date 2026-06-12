@@ -1,0 +1,3 @@
+# Standard MIDI test fixtures are binary; keep line-ending and merge behavior safe.
+test_midis/*.mid  binary -text
+test_midis/*.midi binary -text
