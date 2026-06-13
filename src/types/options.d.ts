@@ -23,6 +23,19 @@ interface ImportOptions extends QuantizeOptions {
 /** Options for timing-layer builders (metronome, BPM). */
 interface TimingLayerOptions extends QuantizeOptions {}
 
+/** ImportOptions after normalizeOptions fills defaults. */
+interface ResolvedImportOptions extends ImportOptions {
+    layerMode: LayerMode;
+    layerNamePrefix: string;
+    importNamedDrumSliders: boolean;
+}
+
+/** TimingLayerOptions after resolveTimingLayerOptions. */
+interface ResolvedTimingLayerOptions {
+    quantizeToFrames: boolean;
+    frameDuration?: number;
+}
+
 /** User-facing MIDI file selection options from the UI / main runner. */
 interface MidiFileRunnerOptions {
     midiFileName?: string;

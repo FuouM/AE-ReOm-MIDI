@@ -1,28 +1,27 @@
-// @ts-nocheck
-(function (api) {
-    api.quantizeTimeToFrame = function (time, frameDuration) {
+(function (api: ReOmMIDIApi) {
+    api.quantizeTimeToFrame = function (time: number, frameDuration?: number): number {
         if (!frameDuration || frameDuration <= 0) {
             return time;
         }
         return Math.round(time / frameDuration) * frameDuration;
     };
 
-    function normalizeOptions(comp, options) {
-        options = options || {};
-        if (!options.layerMode) {
-            options.layerMode = "per-channel";
+    function normalizeOptions(comp: CompItem | null, options?: ImportOptions): ResolvedImportOptions {
+        var resolved = (options || {}) as ResolvedImportOptions;
+        if (!resolved.layerMode) {
+            resolved.layerMode = "per-channel";
         }
-        if (!options.layerNamePrefix) {
-            options.layerNamePrefix = "MIDI";
+        if (!resolved.layerNamePrefix) {
+            resolved.layerNamePrefix = "MIDI";
         }
-        if (typeof options.importNamedDrumSliders === "undefined") {
-            options.importNamedDrumSliders = true;
+        if (typeof resolved.importNamedDrumSliders === "undefined") {
+            resolved.importNamedDrumSliders = true;
         }
-        options.frameDuration = comp && comp.frameDuration ? comp.frameDuration : options.frameDuration;
-        return options;
+        resolved.frameDuration = comp && comp.frameDuration ? comp.frameDuration : resolved.frameDuration;
+        return resolved;
     }
 
-    function pushKey(series, time, value, options) {
+    function pushKey(series: KeyframeSeries, time: number, value: number, options: ResolvedImportOptions): void {
         if (options.quantizeToFrames) {
             time = api.quantizeTimeToFrame(time, options.frameDuration);
         }
@@ -39,8 +38,8 @@
         series.values.push(value);
     }
 
-    function applySeries(layer, sliderName, series) {
-        var property;
+    function applySeries(layer: Layer, sliderName: string, series: KeyframeSeries): void {
+        var property: Property;
         if (!series.times.length) {
             return;
         }
@@ -49,8 +48,8 @@
         api.setHoldInterpolation(property);
     }
 
-    function channelHasEvents(channel, includeControllers, includePitchBends) {
-        var controller;
+    function channelHasEvents(channel: MidiChannel, includeControllers?: boolean, includePitchBends?: boolean): boolean {
+        var controller: string;
         if (channel.noteEvents.length || channel.notes.length) {
             return true;
         }
@@ -67,9 +66,9 @@
         return false;
     }
 
-    function collectChannels(midi, options) {
-        var channels = [];
-        var i;
+    function collectChannels(midi: MidiFileData, options: ResolvedImportOptions): MidiChannel[] {
+        var channels: MidiChannel[] = [];
+        var i: number;
         for (i = 0; i < midi.channels.length; i += 1) {
             if (
                 midi.channels[i] &&
@@ -81,13 +80,13 @@
         return channels;
     }
 
-    function applyNamedDrumSliders(channel, layer, options) {
-        var byPitch = {};
-        var pitchOrder = [];
-        var i;
-        var note;
-        var pitchKey;
-        var series;
+    function applyNamedDrumSliders(channel: MidiChannel, layer: Layer, options: ResolvedImportOptions): void {
+        var byPitch: StringKeyedMap<DrumPitchSeries> = {};
+        var pitchOrder: number[] = [];
+        var i: number;
+        var note: MidiNote;
+        var pitchKey: string;
+        var series: DrumPitchSeries;
 
         if (!options.importNamedDrumSliders || !api.isDrumChannel(channel.midiChannel)) {
             return;
@@ -122,15 +121,15 @@
         }
     }
 
-    function applyChannelToLayer(channel, layer, options) {
-        var pitch = { times: [], values: [] };
-        var velocity = { times: [0], values: [0] };
-        var duration = { times: [], values: [] };
-        var i;
-        var note;
-        var controller;
-        var cc;
-        var bend = { times: [], values: [] };
+    function applyChannelToLayer(channel: MidiChannel, layer: Layer, options: ResolvedImportOptions): void {
+        var pitch: KeyframeSeries = { times: [], values: [] };
+        var velocity: KeyframeSeries = { times: [0], values: [0] };
+        var duration: KeyframeSeries = { times: [], values: [] };
+        var i: number;
+        var note: MidiNote;
+        var controller: string;
+        var cc: KeyframeSeries;
+        var bend: KeyframeSeries = { times: [], values: [] };
 
         for (i = 0; i < channel.noteEvents.length; i += 1) {
             note = channel.noteEvents[i];
@@ -178,7 +177,7 @@
         }
     }
 
-    function createLayer(comp, midi, channel, options) {
+    function createLayer(comp: CompItem, midi: MidiFileData, channel: MidiChannel | null, options: ResolvedImportOptions): Layer {
         var layer = comp.layers.addNull(Math.max(midi.durationSeconds + 1, comp.duration || 1));
         var name = channel ? api.formatChannelName(channel) : "ReOm MIDI";
         layer.name = api.sanitizeName(options.layerNamePrefix + " " + name);
@@ -197,16 +196,21 @@
         return layer;
     }
 
-    api.importMidiToComp = function (comp, midi, options, progress) {
-        options = normalizeOptions(comp, options);
-        var channels = collectChannels(midi, options);
-        var layer;
-        var i;
+    api.importMidiToComp = function (
+        comp: CompItem,
+        midi: MidiFileData,
+        options?: ImportOptions,
+        progress?: ProgressCallback
+    ): ImportResult {
+        var resolved = normalizeOptions(comp, options);
+        var channels = collectChannels(midi, resolved);
+        var layer: Layer;
+        var i: number;
         var cancelled = false;
         var imported = 0;
 
-        if (options.layerMode === "combined") {
-            layer = createLayer(comp, midi, null, options);
+        if (resolved.layerMode === "combined") {
+            layer = createLayer(comp, midi, null, resolved);
             for (i = 0; i < channels.length; i += 1) {
                 if (
                     progress &&
@@ -215,7 +219,7 @@
                     cancelled = true;
                     break;
                 }
-                applyChannelToLayer(channels[i], layer, options);
+                applyChannelToLayer(channels[i], layer, resolved);
                 imported += 1;
             }
         } else {
@@ -227,8 +231,8 @@
                     cancelled = true;
                     break;
                 }
-                layer = createLayer(comp, midi, channels[i], options);
-                applyChannelToLayer(channels[i], layer, options);
+                layer = createLayer(comp, midi, channels[i], resolved);
+                applyChannelToLayer(channels[i], layer, resolved);
                 imported += 1;
             }
         }

@@ -30,5 +30,22 @@ interface ReOmMIDIApi {
     discardMidiFileData(midi: MidiFileData | null | undefined): void;
     MidiFile: MidiFileConstructor;
 
+    addSliderControl(layer: Layer, sliderName: string): Property;
+    setHoldInterpolation(property: Property | null | undefined): void;
+
+    quantizeTimeToFrame(time: number, frameDuration?: number): number;
+    importMidiToComp(
+        comp: CompItem,
+        midi: MidiFileData,
+        options?: ImportOptions,
+        progress?: ProgressCallback
+    ): ImportResult;
+
+    buildMetronomeSignatureSeries(midi: MidiFileData, options?: TimingLayerOptions): MetronomeSignatureSeries;
+    buildMetronomeSeries(midi: MidiFileData, options?: TimingLayerOptions): KeyframeSeries;
+    buildBeatBarSeries(midi: MidiFileData, options?: TimingLayerOptions): BeatBarSeries;
+    createMetronomeLayer(comp: CompItem, midi: MidiFileData, options?: TimingLayerOptions): MetronomeLayerResult;
+    createBpmLayer(comp: CompItem, midi: MidiFileData, options?: TimingLayerOptions): BpmLayerResult;
+
     [key: string]: unknown;
 }

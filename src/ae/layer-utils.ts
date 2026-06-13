@@ -1,13 +1,13 @@
-// @ts-nocheck
-(function (api) {
-    api.addSliderControl = function (layer, sliderName) {
-        var effect = layer.Effects.addProperty("Slider Control");
+(function (api: ReOmMIDIApi) {
+    api.addSliderControl = function (layer: Layer, sliderName: string): Property {
+        var effects = (layer as Layer & { Effects: PropertyGroup }).Effects;
+        var effect = effects.addProperty("Slider Control");
         effect.name = sliderName;
-        return layer.Effects.property(sliderName).property(1);
+        return effects.property(sliderName).property(1) as Property;
     };
 
-    api.setHoldInterpolation = function (property) {
-        var i;
+    api.setHoldInterpolation = function (property: Property | null | undefined): void {
+        var i: number;
         if (!property || !property.numKeys) {
             return;
         }

@@ -16,3 +16,9 @@ interface MetronomeSignatureSeries {
     x: KeyframeSeries;
     y: KeyframeSeries;
 }
+
+/** Drum slider series keyed by pitch during named drum import. */
+interface DrumPitchSeries extends KeyframeSeries {
+    pitch: number;
+    drumName: string;
+}

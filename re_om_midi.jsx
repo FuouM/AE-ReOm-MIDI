@@ -1313,12 +1313,12 @@
 
 
 // ---- dist/compiled/ae/layer-utils.jsx ----
-// @ts-nocheck
 (function (api) {
     api.addSliderControl = function (layer, sliderName) {
-        var effect = layer.Effects.addProperty("Slider Control");
+        var effects = layer.Effects;
+        var effect = effects.addProperty("Slider Control");
         effect.name = sliderName;
-        return layer.Effects.property(sliderName).property(1);
+        return effects.property(sliderName).property(1);
     };
     api.setHoldInterpolation = function (property) {
         var i;
@@ -1333,7 +1333,6 @@
 
 
 // ---- dist/compiled/ae/keyframes.jsx ----
-// @ts-nocheck
 (function (api) {
     api.quantizeTimeToFrame = function (time, frameDuration) {
         if (!frameDuration || frameDuration <= 0) {
@@ -1342,18 +1341,18 @@
         return Math.round(time / frameDuration) * frameDuration;
     };
     function normalizeOptions(comp, options) {
-        options = options || {};
-        if (!options.layerMode) {
-            options.layerMode = "per-channel";
+        var resolved = (options || {});
+        if (!resolved.layerMode) {
+            resolved.layerMode = "per-channel";
         }
-        if (!options.layerNamePrefix) {
-            options.layerNamePrefix = "MIDI";
+        if (!resolved.layerNamePrefix) {
+            resolved.layerNamePrefix = "MIDI";
         }
-        if (typeof options.importNamedDrumSliders === "undefined") {
-            options.importNamedDrumSliders = true;
+        if (typeof resolved.importNamedDrumSliders === "undefined") {
+            resolved.importNamedDrumSliders = true;
         }
-        options.frameDuration = comp && comp.frameDuration ? comp.frameDuration : options.frameDuration;
-        return options;
+        resolved.frameDuration = comp && comp.frameDuration ? comp.frameDuration : resolved.frameDuration;
+        return resolved;
     }
     function pushKey(series, time, value, options) {
         if (options.quantizeToFrames) {
@@ -1506,21 +1505,21 @@
         return layer;
     }
     api.importMidiToComp = function (comp, midi, options, progress) {
-        options = normalizeOptions(comp, options);
-        var channels = collectChannels(midi, options);
+        var resolved = normalizeOptions(comp, options);
+        var channels = collectChannels(midi, resolved);
         var layer;
         var i;
         var cancelled = false;
         var imported = 0;
-        if (options.layerMode === "combined") {
-            layer = createLayer(comp, midi, null, options);
+        if (resolved.layerMode === "combined") {
+            layer = createLayer(comp, midi, null, resolved);
             for (i = 0; i < channels.length; i += 1) {
                 if (progress &&
                     !progress("Importing channel " + (i + 1) + " of " + channels.length, i / channels.length)) {
                     cancelled = true;
                     break;
                 }
-                applyChannelToLayer(channels[i], layer, options);
+                applyChannelToLayer(channels[i], layer, resolved);
                 imported += 1;
             }
         }
@@ -1531,8 +1530,8 @@
                     cancelled = true;
                     break;
                 }
-                layer = createLayer(comp, midi, channels[i], options);
-                applyChannelToLayer(channels[i], layer, options);
+                layer = createLayer(comp, midi, channels[i], resolved);
+                applyChannelToLayer(channels[i], layer, resolved);
                 imported += 1;
             }
         }
@@ -1553,13 +1552,12 @@
 
 
 // ---- dist/compiled/ae/timing-layers.jsx ----
-// @ts-nocheck
 (function (api) {
     function resolveTimingLayerOptions(comp, options) {
-        options = options || {};
+        var input = options || {};
         return {
-            quantizeToFrames: !!options.quantizeToFrames,
-            frameDuration: comp && comp.frameDuration ? comp.frameDuration : options.frameDuration
+            quantizeToFrames: !!input.quantizeToFrames,
+            frameDuration: comp && comp.frameDuration ? comp.frameDuration : input.frameDuration
         };
     }
     function quantizeTimingTime(time, options) {
@@ -1653,15 +1651,16 @@
         var i;
         var signature;
         var changeTime;
+        var resolved;
         if (!midi || !midi.isMidi) {
             return { x: xSeries, y: ySeries };
         }
-        options = resolveTimingLayerOptions(null, options);
+        resolved = resolveTimingLayerOptions(null, options);
         for (i = 0; i < signatures.length; i += 1) {
             signature = signatures[i];
             changeTime = midi.secondsAtTick(signature.ticks);
-            pushTimingKey(xSeries, changeTime, signature.numerator, options);
-            pushTimingKey(ySeries, changeTime, signature.denominator, options);
+            pushTimingKey(xSeries, changeTime, signature.numerator, resolved);
+            pushTimingKey(ySeries, changeTime, signature.denominator, resolved);
         }
         return { x: xSeries, y: ySeries };
     };
@@ -1682,10 +1681,11 @@
         var tick;
         var ticksPerBeat;
         var beatTime;
+        var resolved;
         if (!midi || !midi.isMidi) {
-            return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, options) };
+            return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, resolveTimingLayerOptions(null, options)) };
         }
-        options = resolveTimingLayerOptions(null, options);
+        resolved = resolveTimingLayerOptions(null, options);
         for (s = 0; s < signatures.length; s += 1) {
             sig = signatures[s];
             if (s > 0) {
@@ -1714,14 +1714,14 @@
                         barIndex += 1;
                     }
                 }
-                pushTimingKey(beatSeries, beatTime, beatInBar, options);
+                pushTimingKey(beatSeries, beatTime, beatInBar, resolved);
                 if (beatInBar === 1) {
-                    pushTimingKey(barSeries, beatTime, barIndex, options);
+                    pushTimingKey(barSeries, beatTime, barIndex, resolved);
                 }
                 tick += ticksPerBeat;
             }
         }
-        return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, options) };
+        return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, resolved) };
     };
     function applySliderSeries(layer, sliderName, series) {
         var property;

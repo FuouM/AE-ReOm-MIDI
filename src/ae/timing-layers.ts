@@ -1,21 +1,20 @@
-// @ts-nocheck
-(function (api) {
-    function resolveTimingLayerOptions(comp, options) {
-        options = options || {};
+(function (api: ReOmMIDIApi) {
+    function resolveTimingLayerOptions(comp: CompItem | null, options?: TimingLayerOptions): ResolvedTimingLayerOptions {
+        var input = options || {};
         return {
-            quantizeToFrames: !!options.quantizeToFrames,
-            frameDuration: comp && comp.frameDuration ? comp.frameDuration : options.frameDuration
+            quantizeToFrames: !!input.quantizeToFrames,
+            frameDuration: comp && comp.frameDuration ? comp.frameDuration : input.frameDuration
         };
     }
 
-    function quantizeTimingTime(time, options) {
+    function quantizeTimingTime(time: number, options: ResolvedTimingLayerOptions): number {
         if (options && options.quantizeToFrames) {
             return api.quantizeTimeToFrame(time, options.frameDuration);
         }
         return time;
     }
 
-    function pushTimingKey(series, time, value, options) {
+    function pushTimingKey(series: KeyframeSeries, time: number, value: number, options: ResolvedTimingLayerOptions): void {
         time = quantizeTimingTime(time, options);
         if (series.times.length && time === series.times[series.times.length - 1]) {
             series.values[series.values.length - 1] = value;
@@ -28,9 +27,9 @@
         series.values.push(value);
     }
 
-    function normalizeTimeSignatures(midi) {
-        var signatures = [];
-        var i;
+    function normalizeTimeSignatures(midi: MidiFileData | null | undefined): TimeSignatureEvent[] {
+        var signatures: TimeSignatureEvent[] = [];
+        var i: number;
         if (!midi || !midi.timeSignatures) {
             return [{ ticks: 0, numerator: 4, denominator: 4 }];
         }
@@ -46,10 +45,10 @@
         return signatures;
     }
 
-    function maxMidiEndTick(midi) {
+    function maxMidiEndTick(midi: MidiFileData | null | undefined): number {
         var maxTick = 0;
-        var i;
-        var note;
+        var i: number;
+        var note: MidiNote;
         if (!midi || !midi.notes) {
             return 0;
         }
@@ -65,19 +64,19 @@
         return maxTick;
     }
 
-    function ticksPerBeatForSignature(midi, signature) {
+    function ticksPerBeatForSignature(midi: MidiFileData, signature: TimeSignatureEvent): number {
         if (!midi.ticksPerBeat || !signature || !signature.denominator) {
             return midi.ticksPerBeat || 480;
         }
         return (midi.ticksPerBeat * 4) / signature.denominator;
     }
 
-    function buildBpmSeries(midi, options) {
-        var bpmSeries = { times: [], values: [] };
-        var tempoEvents = [];
-        var i;
-        var event;
-        var changeTime;
+    function buildBpmSeries(midi: MidiFileData | null | undefined, options: ResolvedTimingLayerOptions): KeyframeSeries {
+        var bpmSeries: KeyframeSeries = { times: [], values: [] };
+        var tempoEvents: TempoEvent[] = [];
+        var i: number;
+        var event: TempoEvent;
+        var changeTime: number;
 
         if (!midi || !midi.isMidi) {
             return bpmSeries;
@@ -102,53 +101,55 @@
         return bpmSeries;
     }
 
-    api.buildMetronomeSignatureSeries = function (midi, options) {
+    api.buildMetronomeSignatureSeries = function (midi: MidiFileData, options?: TimingLayerOptions): MetronomeSignatureSeries {
         var signatures = normalizeTimeSignatures(midi);
-        var xSeries = { times: [], values: [] };
-        var ySeries = { times: [], values: [] };
-        var i;
-        var signature;
-        var changeTime;
+        var xSeries: KeyframeSeries = { times: [], values: [] };
+        var ySeries: KeyframeSeries = { times: [], values: [] };
+        var i: number;
+        var signature: TimeSignatureEvent;
+        var changeTime: number;
+        var resolved: ResolvedTimingLayerOptions;
 
         if (!midi || !midi.isMidi) {
             return { x: xSeries, y: ySeries };
         }
 
-        options = resolveTimingLayerOptions(null, options);
+        resolved = resolveTimingLayerOptions(null, options);
         for (i = 0; i < signatures.length; i += 1) {
             signature = signatures[i];
             changeTime = midi.secondsAtTick(signature.ticks);
-            pushTimingKey(xSeries, changeTime, signature.numerator, options);
-            pushTimingKey(ySeries, changeTime, signature.denominator, options);
+            pushTimingKey(xSeries, changeTime, signature.numerator, resolved);
+            pushTimingKey(ySeries, changeTime, signature.denominator, resolved);
         }
 
         return { x: xSeries, y: ySeries };
     };
 
-    api.buildMetronomeSeries = function (midi, options) {
+    api.buildMetronomeSeries = function (midi: MidiFileData, options?: TimingLayerOptions): KeyframeSeries {
         return api.buildMetronomeSignatureSeries(midi, options).x;
     };
 
-    api.buildBeatBarSeries = function (midi, options) {
+    api.buildBeatBarSeries = function (midi: MidiFileData, options?: TimingLayerOptions): BeatBarSeries {
         var signatures = normalizeTimeSignatures(midi);
         var endTick = maxMidiEndTick(midi);
-        var beatSeries = { times: [], values: [] };
-        var barSeries = { times: [], values: [] };
+        var beatSeries: KeyframeSeries = { times: [], values: [] };
+        var barSeries: KeyframeSeries = { times: [], values: [] };
         var barIndex = 1;
         var beatInBar = 0;
-        var s;
-        var sig;
-        var nextSigTick;
-        var segmentEnd;
-        var tick;
-        var ticksPerBeat;
-        var beatTime;
+        var s: number;
+        var sig: TimeSignatureEvent;
+        var nextSigTick: number;
+        var segmentEnd: number;
+        var tick: number;
+        var ticksPerBeat: number;
+        var beatTime: number;
+        var resolved: ResolvedTimingLayerOptions;
 
         if (!midi || !midi.isMidi) {
-            return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, options) };
+            return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, resolveTimingLayerOptions(null, options)) };
         }
 
-        options = resolveTimingLayerOptions(null, options);
+        resolved = resolveTimingLayerOptions(null, options);
         for (s = 0; s < signatures.length; s += 1) {
             sig = signatures[s];
             if (s > 0) {
@@ -176,19 +177,19 @@
                         barIndex += 1;
                     }
                 }
-                pushTimingKey(beatSeries, beatTime, beatInBar, options);
+                pushTimingKey(beatSeries, beatTime, beatInBar, resolved);
                 if (beatInBar === 1) {
-                    pushTimingKey(barSeries, beatTime, barIndex, options);
+                    pushTimingKey(barSeries, beatTime, barIndex, resolved);
                 }
                 tick += ticksPerBeat;
             }
         }
 
-        return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, options) };
+        return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, resolved) };
     };
 
-    function applySliderSeries(layer, sliderName, series) {
-        var property;
+    function applySliderSeries(layer: Layer, sliderName: string, series: KeyframeSeries): boolean {
+        var property: Property;
         if (!series.times.length) {
             return false;
         }
@@ -198,10 +199,10 @@
         return true;
     }
 
-    api.createMetronomeLayer = function (comp, midi, options) {
-        var resolved;
-        var signatureSeries;
-        var layer;
+    api.createMetronomeLayer = function (comp: CompItem, midi: MidiFileData, options?: TimingLayerOptions): MetronomeLayerResult {
+        var resolved: ResolvedTimingLayerOptions;
+        var signatureSeries: MetronomeSignatureSeries;
+        var layer: Layer;
 
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before creating a metronome layer.");
@@ -241,10 +242,10 @@
         };
     };
 
-    api.createBpmLayer = function (comp, midi, options) {
-        var resolved;
-        var beatBarSeries;
-        var layer;
+    api.createBpmLayer = function (comp: CompItem, midi: MidiFileData, options?: TimingLayerOptions): BpmLayerResult {
+        var resolved: ResolvedTimingLayerOptions;
+        var beatBarSeries: BeatBarSeries;
+        var layer: Layer;
 
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before creating a BPM layer.");
