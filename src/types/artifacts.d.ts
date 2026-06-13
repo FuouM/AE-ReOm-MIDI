@@ -155,6 +155,41 @@ interface SliderKeyCache {
     values: number[];
 }
 
+/** Single keyframe read from a slider property. */
+interface SliderKeyFrame {
+    time: number;
+    value: number;
+}
+
+/** Slider property with ExtendScript keyframe accessors used by import layers. */
+interface SliderPropertyLike extends Property {
+    key?(index: number): SliderKeyFrame;
+    keyTime?(index: number): number;
+    keyValue?(index: number): number;
+    numKeys?: number;
+    valueAtTime?(time: number, pre: boolean): number;
+}
+
+/** Per-layer pitch slider name cache keyed by layer name. */
+interface LayerSliderNameCache {
+    [layerName: string]: string;
+}
+
+/** Callback invoked for each effect on a layer's effect parade. */
+type LayerEffectCallback = (effect: PropertyGroup) => void;
+
+/** Plot/eval time pair used when sampling MIDI action preview curves. */
+interface PreviewSampleEntry {
+    plotTime: number;
+    evalTime: number;
+}
+
+/** Base/active toggle literals resolved for screen-flip actions. */
+interface ScreenFlipToggleValues {
+    baseValue: string;
+    activeValue: string;
+}
+
 /** Pitch and velocity slider caches built for action preview. */
 interface PreviewSliderCaches {
     pitch: SliderKeyCache;
@@ -299,12 +334,15 @@ interface AmountDurationExpressions {
 
 /** Optional preview progress hook supplied by the UI module. */
 interface PreviewProgressHook {
-    stageId?: string;
+    kind?: string;
+    sourceLabel?: string;
+    stageId?: string | null;
     stageLabel?: string;
     percent?: number;
     setStage(stageId: string, detail?: string): void;
     step(done: number, total: number, detail?: string): void;
     report(percent: number, detail?: string): void;
+    finish?(): void;
 }
 
 /** Result of importMidiToComp when the user cancels mid-import. */

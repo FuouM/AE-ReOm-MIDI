@@ -165,6 +165,8 @@ interface ReOmMIDIApi {
     getCompSelectedLayers(comp: CompItem | null | undefined): Layer[];
     isMidiImportSourceLayer(layer: Layer | null | undefined): boolean;
 
+    beginPreviewProgress?(kind: string, sourceLabel?: string): PreviewProgressHook;
+    clearPreviewProgress?(): void;
     getActivePreviewProgressHook?(): PreviewProgressHook | null;
     endPreviewProgress?(hook: PreviewProgressHook): void;
     showMidiActionPreviewInPanel?(layout: MidiActionPreviewLayout): void;
@@ -204,6 +206,9 @@ interface ReOmMIDIApi {
         sourceLayer: Layer,
         options?: PianoRollMapOptions
     ): PianoRollControllerNullResult | null;
+    wireShapeStrokeFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void;
+    wireShapeMasterOpacityFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void;
+    createShapeRectLayer(comp: CompItem, rect: PianoRollRect): ShapeRectLayerResult;
     createPianoRollMapLayers(
         comp: CompItem,
         sourceLayer: Layer,

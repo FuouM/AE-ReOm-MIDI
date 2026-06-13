@@ -2608,6 +2608,7 @@
         var parade;
         var i;
         var effect;
+        var effectsLayer = layer;
         if (!layer || !effectName) {
             return null;
         }
@@ -2636,16 +2637,20 @@
         }
         catch (paradeErr) { }
         try {
-            slider = layer.effect(effectName)("Slider");
-            if (sliderHasKeys(slider)) {
-                return slider;
+            if (effectsLayer.effect) {
+                slider = effectsLayer.effect(effectName)("Slider");
+                if (sliderHasKeys(slider)) {
+                    return slider;
+                }
             }
         }
         catch (effectErr) { }
         try {
-            slider = layer.Effects.property(effectName).property(1);
-            if (sliderHasKeys(slider)) {
-                return slider;
+            if (effectsLayer.Effects) {
+                slider = effectsLayer.Effects.property(effectName).property(1);
+                if (sliderHasKeys(slider)) {
+                    return slider;
+                }
             }
         }
         catch (propertyErr) { }
@@ -2669,18 +2674,19 @@
     function readSliderKey(slider, index) {
         var time;
         var value;
+        var sliderLike = slider;
         if (!slider || index < 1 || index > sliderKeyCount(slider)) {
             return null;
         }
         try {
-            if (typeof slider.key === "function") {
-                return slider.key(index);
+            if (typeof sliderLike.key === "function") {
+                return sliderLike.key(index);
             }
         }
         catch (e) { }
         try {
-            time = slider.keyTime(index);
-            value = slider.keyValue(index);
+            time = sliderLike.keyTime(index);
+            value = sliderLike.keyValue(index);
             return {
                 time: time,
                 value: value
@@ -2935,12 +2941,13 @@
     api.rememberMidiActionSourceLayer = rememberMidiActionSourceLayer;
     function getLayerEffectParade(layer) {
         var parade;
+        var effectsLayer = layer;
         if (!layer) {
             return null;
         }
         try {
-            if (layer.Effects && layer.Effects.numProperties > 0) {
-                return layer.Effects;
+            if (effectsLayer.Effects && effectsLayer.Effects.numProperties > 0) {
+                return effectsLayer.Effects;
             }
         }
         catch (effectsErr) { }
@@ -2952,21 +2959,24 @@
         }
         catch (paradeErr) { }
         try {
-            if (layer.Effects) {
-                return layer.Effects;
+            if (effectsLayer.Effects) {
+                return effectsLayer.Effects;
             }
         }
         catch (fallbackEffectsErr) { }
         return null;
     }
     function isPitchEffectName(name) {
-        return /(?:^| )pitch$/i.test(name) || /_pitch$/i.test(name);
+        var text = String(name || "");
+        return /(?:^| )pitch$/i.test(text) || /_pitch$/i.test(text);
     }
     function isVelocityEffectName(name) {
-        return /(?:^| )velocity$/i.test(name) || /_vel$/i.test(name);
+        var text = String(name || "");
+        return /(?:^| )velocity$/i.test(text) || /_vel$/i.test(text);
     }
     function isDurationEffectName(name) {
-        return /(?:^| )duration$/i.test(name) || /_dur$/i.test(name);
+        var text = String(name || "");
+        return /(?:^| )duration$/i.test(text) || /_dur$/i.test(text);
     }
     function parseMidiChannelFromName(name) {
         var match = String(name || "").match(/ Ch(\d{1,2})(?: |$)/i);
@@ -3008,7 +3018,12 @@
         }
         for (i = 0; i < propNames.length; i += 1) {
             try {
-                slider = effect.property(propNames[i]);
+                if (typeof propNames[i] === "number") {
+                    slider = effect.property(propNames[i]);
+                }
+                else {
+                    slider = effect.property(propNames[i]);
+                }
                 if (slider) {
                     return slider;
                 }
@@ -3438,10 +3453,16 @@
         n = parseFloat(text);
         return isNaN(n) ? text : n;
     }
+    function valueIsArray(value) {
+        return (value !== null &&
+            typeof value !== "string" &&
+            typeof value !== "number" &&
+            value.length !== undefined);
+    }
     function cloneValue(value) {
         var copy;
         var i;
-        if (value && value.length !== undefined && typeof value !== "string") {
+        if (valueIsArray(value)) {
             copy = [];
             for (i = 0; i < value.length; i += 1) {
                 copy.push(value[i]);
@@ -3453,7 +3474,7 @@
     function addDeltaValue(base, delta) {
         var out;
         var i;
-        if (base && base.length !== undefined && typeof base !== "string") {
+        if (valueIsArray(base)) {
             out = [];
             for (i = 0; i < base.length; i += 1) {
                 out.push(base[i] + delta);
@@ -3483,7 +3504,7 @@
         var out;
         var i;
         if (dims <= 1) {
-            if (value && value.length !== undefined && typeof value !== "string") {
+            if (valueIsArray(value)) {
                 return value.length ? value[0] : 0;
             }
             return value;
@@ -3495,7 +3516,7 @@
             }
             return out;
         }
-        if (value && value.length !== undefined && typeof value !== "string") {
+        if (valueIsArray(value)) {
             out = [];
             for (i = 0; i < dims; i += 1) {
                 out.push(i < value.length ? value[i] : value[value.length - 1]);
@@ -3510,10 +3531,10 @@
         var len;
         var basePart;
         var activePart;
-        var baseIsArray = base && base.length !== undefined && typeof base !== "string";
-        var activeIsArray = active && active.length !== undefined && typeof active !== "string";
+        var baseIsArray = valueIsArray(base);
+        var activeIsArray = valueIsArray(active);
         if (baseIsArray || activeIsArray) {
-            len = activeIsArray ? active.length : base.length;
+            len = activeIsArray ? active.length : baseIsArray ? base.length : 1;
             for (i = 0; i < len; i += 1) {
                 basePart = baseIsArray ? base[i] : base;
                 activePart = activeIsArray ? active[i] : active;
@@ -5608,7 +5629,7 @@
         var sampleEntries = buildMidiActionPreviewSampleEntries(range, triggers, options);
         var previewBaseFallback = options.baseValue === "value" ? 100 : numeric(options.previewBaseValue, 0);
         var base = parseValueLiteral(options.baseValue, previewBaseFallback);
-        var active = parseValueLiteral(options.activeValue, numeric(options.previewActiveValue, base));
+        var active = parseValueLiteral(options.activeValue, typeof base === "number" ? base : numeric(options.previewActiveValue, 0));
         var simOptions = {
             preset: options.preset || "pump",
             duration: options.duration,
@@ -5987,11 +6008,17 @@
         return { applied: applied, skipped: skipped };
     };
     function scalarMagnitude(value) {
-        var magnitude = Math.abs(value);
+        var magnitude;
+        if (valueIsArray(value)) {
+            magnitude = Math.abs(value.length ? value[0] : 0);
+        }
+        else {
+            magnitude = Math.abs(value);
+        }
         return magnitude || 100;
     }
     function formatScreenFlipToggleLiteral(values) {
-        if (values && values.length !== undefined && typeof values !== "string") {
+        if (valueIsArray(values)) {
             return "[" + values.join(", ") + "]";
         }
         return String(values);

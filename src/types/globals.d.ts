@@ -2,7 +2,8 @@
 
 interface ReOmGlobalState {
     actionSourceLayerName?: string;
-    pitchSliderCache?: { [layerName: string]: string };
+    pitchSliderCache?: LayerSliderNameCache;
+    previewProgressHook?: PreviewProgressHook | null;
     [key: string]: unknown;
 }
 

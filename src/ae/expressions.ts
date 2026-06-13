@@ -181,13 +181,13 @@
         }
         if (preset === "toggle") {
             normalizeTogglePresetOptions(normalized);
-            return numeric(parseValueLiteral(normalized.baseValue, 1), 1);
+            return numeric(parseValueLiteral(normalized.baseValue, 1) as string | number, 1);
         }
         if (preset === "interpolate") {
             normalizeInterpolatePresetOptions(normalized);
-            return numeric(parseValueLiteral(normalized.baseValue, 25), 25);
+            return numeric(parseValueLiteral(normalized.baseValue, 25) as string | number, 25);
         }
-        return numeric(parseValueLiteral(normalized.baseValue, 0), 0);
+        return numeric(parseValueLiteral(normalized.baseValue, 0) as string | number, 0);
     }
 
     function defaultActiveSliderValue(options: MidiActionOptionsInput | MidiActionOptionsResolved): number {
@@ -201,10 +201,10 @@
         normalizeTogglePresetOptions(normalized);
         normalizeInterpolatePresetOptions(normalized);
         if ((options.preset || "pump") === "toggle") {
-            return numeric(parseValueLiteral(normalized.activeValue, -1), -1);
+            return numeric(parseValueLiteral(normalized.activeValue, -1) as string | number, -1);
         }
         if (options.preset === "interpolate") {
-            return numeric(parseValueLiteral(normalized.activeValue, 100), 100);
+            return numeric(parseValueLiteral(normalized.activeValue, 100) as string | number, 100);
         }
         return 0;
     }
@@ -891,7 +891,7 @@
         return resolved;
     };
 
-    function latestTriggerIndex(triggers, time) {
+    function latestTriggerIndex(triggers: MidiActionTrigger[], time: number): number {
         var i;
         var result = -1;
         for (i = 0; i < triggers.length; i += 1) {
@@ -904,17 +904,18 @@
         return result;
     }
 
-    function sortTriggers(triggers) {
+    function sortTriggers(triggers: MidiActionTrigger[]): MidiActionTrigger[] {
         return triggers.sort(function (a, b) {
             return a.time - b.time;
         });
     }
 
-    function layerSlider(layer, effectName) {
+    function layerSlider(layer: Layer | null | undefined, effectName: string): Property | null {
         var slider;
         var parade;
         var i;
         var effect;
+        var effectsLayer = layer as LayerWithEffects;
         if (!layer || !effectName) {
             return null;
         }
@@ -942,21 +943,25 @@
             }
         } catch (paradeErr) {}
         try {
-            slider = layer.effect(effectName)("Slider");
-            if (sliderHasKeys(slider)) {
-                return slider;
+            if (effectsLayer.effect) {
+                slider = effectsLayer.effect(effectName)("Slider");
+                if (sliderHasKeys(slider)) {
+                    return slider;
+                }
             }
         } catch (effectErr) {}
         try {
-            slider = layer.Effects.property(effectName).property(1);
-            if (sliderHasKeys(slider)) {
-                return slider;
+            if (effectsLayer.Effects) {
+                slider = effectsLayer.Effects.property(effectName).property(1);
+                if (sliderHasKeys(slider)) {
+                    return slider;
+                }
             }
         } catch (propertyErr) {}
         return null;
     }
 
-    function sliderKeyCount(slider) {
+    function sliderKeyCount(slider: Property | null | undefined): number {
         if (!slider) {
             return 0;
         }
@@ -968,24 +973,25 @@
         return 0;
     }
 
-    function sliderHasKeys(slider) {
+    function sliderHasKeys(slider: Property | null | undefined): boolean {
         return sliderKeyCount(slider) > 0;
     }
 
-    function readSliderKey(slider, index) {
+    function readSliderKey(slider: Property | null | undefined, index: number): SliderKeyFrame | null {
         var time;
         var value;
+        var sliderLike = slider as SliderPropertyLike;
         if (!slider || index < 1 || index > sliderKeyCount(slider)) {
             return null;
         }
         try {
-            if (typeof slider.key === "function") {
-                return slider.key(index);
+            if (typeof sliderLike.key === "function") {
+                return sliderLike.key(index);
             }
         } catch (e) {}
         try {
-            time = slider.keyTime(index);
-            value = slider.keyValue(index);
+            time = sliderLike.keyTime!(index);
+            value = sliderLike.keyValue!(index);
             return {
                 time: time,
                 value: value
@@ -1022,7 +1028,7 @@
         return cache;
     }
 
-    function exactValueAtCachedTime(cache, time, fallback) {
+    function exactValueAtCachedTime(cache: SliderKeyCache | null, time: number, fallback: number): number {
         var i;
         if (!cache || !cache.times.length) {
             return fallback;
@@ -1053,7 +1059,7 @@
         return 0.05;
     }
 
-    function buildLayerEffectSliderIndex(layer) {
+    function buildLayerEffectSliderIndex(layer: Layer): LayerEffectSliderIndex {
         var byName = {};
         var names = [];
         forEachLayerEffect(layer, function (effect) {
@@ -1071,14 +1077,14 @@
         };
     }
 
-    function sliderFromEffectIndex(sliderIndex, effectName) {
+    function sliderFromEffectIndex(sliderIndex: LayerEffectSliderIndex, effectName: string): Property | null {
         if (!sliderIndex || !effectName) {
             return null;
         }
         return sliderIndex.byName[effectName] || null;
     }
 
-    function sliderValueAtTime(slider, time, fallback) {
+    function sliderValueAtTime(slider: Property | null | undefined, time: number, fallback: number): number {
         var i;
         var key;
         var value = fallback;
@@ -1100,16 +1106,16 @@
         return value;
     }
 
-    function layerHasEffects(layer) {
+    function layerHasEffects(layer: Layer | null | undefined): boolean {
         var parade = getLayerEffectParade(layer);
         return parade && parade.numProperties > 0;
     }
 
-    function layersShareIndex(a, b) {
+    function layersShareIndex(a: Layer | null | undefined, b: Layer | null | undefined): boolean {
         return a && b && a.index === b.index;
     }
 
-    function dedupeLayers(layers) {
+    function dedupeLayers(layers: Layer[]): Layer[] {
         var out = [];
         var i;
         var j;
@@ -1126,7 +1132,7 @@
         return out;
     }
 
-    function getLayerFromSelectedProperties(comp) {
+    function getLayerFromSelectedProperties(comp: CompItem | null | undefined): Layer | null {
         var props;
         var prop;
         var depth;
@@ -1147,7 +1153,7 @@
         return null;
     }
 
-    function getCompSelectedLayers(comp) {
+    function getCompSelectedLayers(comp: CompItem | null | undefined): Layer[] {
         var layers = [];
         var selected;
         var fromProps;
@@ -1209,35 +1215,38 @@
         throw new Error("Select one imported MIDI null layer in the timeline.");
     };
 
-    function isGeneratedMidiActionLayer(layer) {
+    function isGeneratedMidiActionLayer(layer: Layer | null | undefined): boolean {
         var name = String((layer && layer.name) || "");
         return name.indexOf("MIDI Action") === 0;
     }
 
-    function layerHasImportPitchSlider(layer) {
+    function layerHasImportPitchSlider(layer: Layer | null | undefined): boolean {
         var resolved = resolvePitchSlider(layer, {});
         return !!(resolved && resolved.slider && sliderHasKeys(resolved.slider));
     }
 
-    function isMidiImportSourceLayer(layer) {
+    function isMidiImportSourceLayer(layer: Layer | null | undefined): boolean {
         if (!layer || isGeneratedMidiActionLayer(layer)) {
             return false;
         }
         return layerHasImportPitchSlider(layer);
     }
 
-    function midiActionGlobalStore() {
+    function midiActionGlobalStore(): ReOmGlobalState | null {
         return api.getGlobalState();
     }
 
-    function rememberMidiActionSourceLayer(layer) {
+    function rememberMidiActionSourceLayer(layer: Layer | null | undefined): void {
         var store = midiActionGlobalStore();
         if (store && layer && layer.name) {
             store.actionSourceLayerName = layer.name;
         }
     }
 
-    function resolveRememberedMidiActionSourceLayer(comp, options) {
+    function resolveRememberedMidiActionSourceLayer(
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | null | undefined
+    ): Layer | null {
         var store = midiActionGlobalStore();
         var name = options && options.sourceLayerName;
         var layer;
@@ -1259,14 +1268,15 @@
 
     api.rememberMidiActionSourceLayer = rememberMidiActionSourceLayer;
 
-    function getLayerEffectParade(layer) {
+    function getLayerEffectParade(layer: Layer | null | undefined): PropertyGroup | null {
         var parade;
+        var effectsLayer = layer as LayerWithEffects;
         if (!layer) {
             return null;
         }
         try {
-            if (layer.Effects && layer.Effects.numProperties > 0) {
-                return layer.Effects;
+            if (effectsLayer.Effects && effectsLayer.Effects.numProperties > 0) {
+                return effectsLayer.Effects;
             }
         } catch (effectsErr) {}
         try {
@@ -1276,26 +1286,29 @@
             }
         } catch (paradeErr) {}
         try {
-            if (layer.Effects) {
-                return layer.Effects;
+            if (effectsLayer.Effects) {
+                return effectsLayer.Effects;
             }
         } catch (fallbackEffectsErr) {}
         return null;
     }
 
-    function isPitchEffectName(name) {
-        return /(?:^| )pitch$/i.test(name) || /_pitch$/i.test(name);
+    function isPitchEffectName(name: string | number | null | undefined): boolean {
+        var text = String(name || "");
+        return /(?:^| )pitch$/i.test(text) || /_pitch$/i.test(text);
     }
 
-    function isVelocityEffectName(name) {
-        return /(?:^| )velocity$/i.test(name) || /_vel$/i.test(name);
+    function isVelocityEffectName(name: string | number | null | undefined): boolean {
+        var text = String(name || "");
+        return /(?:^| )velocity$/i.test(text) || /_vel$/i.test(text);
     }
 
-    function isDurationEffectName(name) {
-        return /(?:^| )duration$/i.test(name) || /_dur$/i.test(name);
+    function isDurationEffectName(name: string | number | null | undefined): boolean {
+        var text = String(name || "");
+        return /(?:^| )duration$/i.test(text) || /_dur$/i.test(text);
     }
 
-    function parseMidiChannelFromName(name) {
+    function parseMidiChannelFromName(name: string | number | null | undefined): number {
         var match = String(name || "").match(/ Ch(\d{1,2})(?: |$)/i);
         var legacy = String(name || "").match(/^ch_(\d+)_/i);
         if (match) {
@@ -1307,7 +1320,7 @@
         return -1;
     }
 
-    function parseDrumEffectName(name) {
+    function parseDrumEffectName(name: string | number | null | undefined): ParsedDrumEffectName | null {
         var match = String(name || "").match(/^(.*) d(\d+)(?: (.*))?$/);
         var legacy;
         if (match) {
@@ -1328,7 +1341,7 @@
         return null;
     }
 
-    function effectSliderProperty(effect) {
+    function effectSliderProperty(effect: PropertyGroup | null | undefined): Property | null {
         var slider;
         var propNames = ["ADBE Slider Control-0001", "Slider", 1];
         var i;
@@ -1337,7 +1350,11 @@
         }
         for (i = 0; i < propNames.length; i += 1) {
             try {
-                slider = effect.property(propNames[i]);
+                if (typeof propNames[i] === "number") {
+                    slider = effect.property(propNames[i] as number);
+                } else {
+                    slider = effect.property(propNames[i] as string);
+                }
                 if (slider) {
                     return slider;
                 }
@@ -1346,7 +1363,7 @@
         return null;
     }
 
-    function layerEffectSliderByName(layer, effectName) {
+    function layerEffectSliderByName(layer: Layer, effectName: string): Property | null {
         var limitedName = api.limitEffectName(effectName);
         var found = null;
         forEachLayerEffect(layer, function (effect) {
@@ -1358,12 +1375,12 @@
             return found;
         }
         try {
-            return layer.effect(limitedName)("Slider");
+            return (layer as LayerWithEffects).effect!(limitedName)("Slider") as Property;
         } catch (e) {}
         return null;
     }
 
-    function sliderFromEffectGroup(effect) {
+    function sliderFromEffectGroup(effect: PropertyGroup | null | undefined): Property | null {
         var slider = effectSliderProperty(effect);
         if (slider && sliderHasKeys(slider)) {
             return slider;
@@ -1371,7 +1388,7 @@
         return null;
     }
 
-    function sliderFromLayerEffectByName(layer, effectName) {
+    function sliderFromLayerEffectByName(layer: Layer | null | undefined, effectName: string): Property | null {
         var slider = null;
         if (!layer || !effectName) {
             return null;
@@ -1390,7 +1407,7 @@
         return slider;
     }
 
-    function resolvePitchSlider(layer, options) {
+    function resolvePitchSlider(layer: Layer, options?: MidiActionOptionsInput): EffectSliderResolution {
         var resolvedName = null;
         var resolvedSlider = null;
         var prefix;
@@ -1487,7 +1504,7 @@
         };
     }
 
-    function resolveDurationSlider(layer, options) {
+    function resolveDurationSlider(layer: Layer, options?: MidiActionOptionsInput): EffectSliderResolution {
         var resolvedSlider = null;
         var prefix;
         var candidate;
@@ -1583,7 +1600,7 @@
         };
     }
 
-    function defaultDurationSliderName(layer) {
+    function defaultDurationSliderName(layer: Layer): string {
         var prefix = channelPrefixFromLayer(layer);
         if (prefix) {
             return prefix + " duration";
@@ -1591,7 +1608,7 @@
         return "T01 Ch01 duration";
     }
 
-    function forEachLayerEffect(layer, callback) {
+    function forEachLayerEffect(layer: Layer | null | undefined, callback: LayerEffectCallback): void {
         var parade;
         var i;
         parade = getLayerEffectParade(layer);
@@ -1603,7 +1620,7 @@
         }
     }
 
-    api.countLayerSliderEffects = function (layer) {
+    api.countLayerSliderEffects = function (layer: Layer): number {
         var count = 0;
         forEachLayerEffect(layer, function (effect) {
             if (sliderFromEffectGroup(effect)) {
@@ -1613,7 +1630,7 @@
         return count;
     };
 
-    function durationFromSliderKey(slider, keyIndex) {
+    function durationFromSliderKey(slider: Property | null | undefined, keyIndex: number): number {
         var startKey;
         var i;
         var endKey;
@@ -1630,7 +1647,7 @@
         return 0.05;
     }
 
-    function findVelocitySliderForLayer(layer, pitchEffectName) {
+    function findVelocitySliderForLayer(layer: Layer, pitchEffectName: string | null | undefined): Property | null {
         var prefix = "";
         var found = null;
         var name;
@@ -1666,7 +1683,10 @@
         return found;
     }
 
-    function buildPreviewSliderCaches(sourceLayer, options) {
+    function buildPreviewSliderCaches(
+        sourceLayer: Layer,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): PreviewSliderCaches {
         var resolved = resolvePitchSlider(sourceLayer, options);
         var velSlider = findVelocitySliderForLayer(sourceLayer, resolved.effectName);
         reportPreviewProgress(options, "keyframes", 0, 2, "Reading pitch keyframes");
@@ -1676,7 +1696,10 @@
         };
     }
 
-    function collectPitchTriggersFromLayer(sourceLayer, options) {
+    function collectPitchTriggersFromLayer(
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionTrigger[] {
         var resolved = resolvePitchSlider(sourceLayer, options);
         var pitchSlider = resolved.slider;
         var velSlider = findVelocitySliderForLayer(sourceLayer, resolved.effectName);
@@ -1738,7 +1761,10 @@
         return triggers;
     }
 
-    api.collectPitchValuesFromLayer = function (sourceLayer, options) {
+    api.collectPitchValuesFromLayer = function (
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): PitchValuesFromLayerResult {
         var resolved = resolvePitchSlider(sourceLayer, options || {});
         var pitchCache = buildSliderKeyCache(resolved.slider);
         var seen = {};
@@ -1772,7 +1798,10 @@
         return filterMidiActionTriggers(sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)), options);
     };
 
-    function parseValueLiteral(value, fallback) {
+    function parseValueLiteral(
+        value: string | number | null | undefined,
+        fallback: MidiActionPropertyValue
+    ): MidiActionPropertyValue {
         var text;
         var parts;
         var result;
@@ -1801,10 +1830,19 @@
         return isNaN(n) ? text : n;
     }
 
-    function cloneValue(value) {
+    function valueIsArray(value: MidiActionPropertyValue): value is number[] {
+        return (
+            value !== null &&
+            typeof value !== "string" &&
+            typeof value !== "number" &&
+            (value as number[]).length !== undefined
+        );
+    }
+
+    function cloneValue(value: MidiActionPropertyValue): MidiActionPropertyValue {
         var copy;
         var i;
-        if (value && value.length !== undefined && typeof value !== "string") {
+        if (valueIsArray(value)) {
             copy = [];
             for (i = 0; i < value.length; i += 1) {
                 copy.push(value[i]);
@@ -1814,20 +1852,20 @@
         return value;
     }
 
-    function addDeltaValue(base, delta) {
+    function addDeltaValue(base: MidiActionPropertyValue, delta: number): MidiActionPropertyValue {
         var out;
         var i;
-        if (base && base.length !== undefined && typeof base !== "string") {
+        if (valueIsArray(base)) {
             out = [];
             for (i = 0; i < base.length; i += 1) {
                 out.push(base[i] + delta);
             }
             return out;
         }
-        return base + delta;
+        return (base as number) + delta;
     }
 
-    function propertyDimensions(property) {
+    function propertyDimensions(property: Property | null | undefined): number {
         var sample;
         if (!property) {
             return 1;
@@ -1843,13 +1881,13 @@
         return 1;
     }
 
-    function fitValueToProperty(property, value) {
+    function fitValueToProperty(property: Property, value: MidiActionPropertyValue): MidiActionPropertyValue {
         var dims = propertyDimensions(property);
         var out;
         var i;
 
         if (dims <= 1) {
-            if (value && value.length !== undefined && typeof value !== "string") {
+            if (valueIsArray(value)) {
                 return value.length ? value[0] : 0;
             }
             return value;
@@ -1861,7 +1899,7 @@
             }
             return out;
         }
-        if (value && value.length !== undefined && typeof value !== "string") {
+        if (valueIsArray(value)) {
             out = [];
             for (i = 0; i < dims; i += 1) {
                 out.push(i < value.length ? value[i] : value[value.length - 1]);
@@ -1871,28 +1909,37 @@
         return value;
     }
 
-    function mixValue(base, active, progress) {
+    function mixValue(
+        base: MidiActionPropertyValue,
+        active: MidiActionPropertyValue,
+        progress: number
+    ): MidiActionPropertyValue {
         var out = [];
         var i;
         var len;
         var basePart;
         var activePart;
-        var baseIsArray = base && base.length !== undefined && typeof base !== "string";
-        var activeIsArray = active && active.length !== undefined && typeof active !== "string";
+        var baseIsArray = valueIsArray(base);
+        var activeIsArray = valueIsArray(active);
 
         if (baseIsArray || activeIsArray) {
-            len = activeIsArray ? active.length : base.length;
+            len = activeIsArray ? (active as number[]).length : baseIsArray ? (base as number[]).length : 1;
             for (i = 0; i < len; i += 1) {
-                basePart = baseIsArray ? base[i] : base;
-                activePart = activeIsArray ? active[i] : active;
+                basePart = baseIsArray ? base[i] : (base as number);
+                activePart = activeIsArray ? active[i] : (active as number);
                 out.push(basePart + (activePart - basePart) * progress);
             }
             return out;
         }
-        return base + (active - base) * progress;
+        return (base as number) + ((active as number) - (base as number)) * progress;
     }
 
-    function interpolationProgress(time, startTime, endTime, falloff) {
+    function interpolationProgress(
+        time: number,
+        startTime: number,
+        endTime: number,
+        falloff: FalloffMode | string
+    ): number {
         var x;
         if (endTime <= startTime) {
             return 1;
@@ -1916,11 +1963,15 @@
         return x;
     }
 
-    function targetForInterpolatedEvent(index, base, active) {
+    function targetForInterpolatedEvent(
+        index: number,
+        base: MidiActionPropertyValue,
+        active: MidiActionPropertyValue
+    ): MidiActionPropertyValue {
         return index % 2 ? cloneValue(active) : cloneValue(base);
     }
 
-    function uniqueSortedTimes(times) {
+    function uniqueSortedTimes(times: number[]): number[] {
         var sorted = times.sort(function (a, b) {
             return a - b;
         });
@@ -1936,7 +1987,7 @@
         return result;
     }
 
-    function addWindowTimes(times, start, duration, step) {
+    function addWindowTimes(times: number[], start: number, duration: number, step: number): void {
         var t;
         times.push(start);
         if (duration <= 0) {
@@ -1948,13 +1999,18 @@
         times.push(start + duration);
     }
 
-    function triggerWindowDuration(options) {
+    function triggerWindowDuration(options: MidiActionOptionsInput | MidiActionOptionsResolved): number {
         var duration = numeric(options.duration, 0.2);
         var step = options.frameDuration || 1 / 24;
         return options.falloff === "instant" ? step : duration;
     }
 
-    function addRestKeyframeBeforeNextTrigger(times, currentTriggerTime, nextTriggerTime, options) {
+    function addRestKeyframeBeforeNextTrigger(
+        times: number[],
+        currentTriggerTime: number,
+        nextTriggerTime: number,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): void {
         var step = options.frameDuration || 1 / 24;
         var windowEnd = currentTriggerTime + triggerWindowDuration(options);
         var holdTime;
@@ -2071,7 +2127,7 @@
         return { times: times, values: values, hold: options.preset === "toggle" };
     };
 
-    function setHoldInterpolation(property) {
+    function setHoldInterpolation(property: Property | null | undefined): void {
         var i;
         if (!property || !property.setInterpolationTypeAtKey || typeof KeyframeInterpolationType === "undefined") {
             return;
@@ -2081,7 +2137,7 @@
         }
     }
 
-    function applyBakePlan(property, plan) {
+    function applyBakePlan(property: Property, plan: MidiActionBakePlan): boolean {
         var i;
         if (property.setValuesAtTimes) {
             property.setValuesAtTimes(plan.times, plan.values);
@@ -2146,7 +2202,14 @@
         return { applied: applied, skipped: skipped, triggers: triggers.length };
     };
 
-    api.mapRange = function (value, inMin, inMax, outMin, outMax, clamp) {
+    api.mapRange = function (
+        value: number,
+        inMin: number,
+        inMax: number,
+        outMin: number,
+        outMax: number,
+        clamp?: boolean
+    ): number {
         var ratio;
         if (inMax === inMin) {
             return (outMin + outMax) / 2;
@@ -2163,7 +2226,7 @@
         return outMin + (outMax - outMin) * ratio;
     };
 
-    function sliderValueAtKeyTime(slider, time, fallback) {
+    function sliderValueAtKeyTime(slider: Property | null | undefined, time: number, fallback: number): number {
         var i;
         var key;
         var keyCount;
@@ -2190,7 +2253,7 @@
         return sliderValueAtTime(slider, time, fallback);
     }
 
-    function isNoteOnKey(velSlider, time) {
+    function isNoteOnKey(velSlider: Property | null | undefined, time: number): boolean {
         var velocity = sliderValueAtKeyTime(velSlider, time, 100);
         return velocity > 0;
     }
@@ -4204,7 +4267,7 @@
         return { step: step, startTime: startTime, endTime: endTime };
     }
 
-    function midiActionPreviewSampleStep(range, maxPoints) {
+    function midiActionPreviewSampleStep(range: MidiActionPreviewRange, maxPoints?: number): number {
         var span;
         var step = range.step;
         maxPoints = maxPoints || 256;
@@ -4218,11 +4281,16 @@
         return step;
     }
 
-    function midiActionPreviewUsesSharpSamples(preset) {
+    function midiActionPreviewUsesSharpSamples(preset: MidiActionPreset | string): boolean {
         return preset !== "interpolate";
     }
 
-    function pushPreviewSampleEntry(entries, seen, plotTime, evalTime) {
+    function pushPreviewSampleEntry(
+        entries: PreviewSampleEntry[],
+        seen: StringKeyedMap<boolean>,
+        plotTime: number,
+        evalTime: number
+    ): void {
         var key;
         if (plotTime === null || typeof plotTime === "undefined" || isNaN(plotTime)) {
             return;
@@ -4238,7 +4306,7 @@
         entries.push({ plotTime: plotTime, evalTime: evalTime });
     }
 
-    function sortPreviewSampleEntries(entries) {
+    function sortPreviewSampleEntries(entries: PreviewSampleEntry[]): PreviewSampleEntry[] {
         return entries.sort(function (a, b) {
             if (a.plotTime === b.plotTime) {
                 return a.evalTime - b.evalTime;
@@ -4247,7 +4315,11 @@
         });
     }
 
-    function buildMidiActionPreviewSampleEntries(range, triggers, options) {
+    function buildMidiActionPreviewSampleEntries(
+        range: MidiActionPreviewRange,
+        triggers: MidiActionTrigger[],
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): PreviewSampleEntry[] {
         var maxPoints = 256;
         var preset = options.preset || "pump";
         var step = midiActionPreviewSampleStep(range, maxPoints);
@@ -4304,7 +4376,7 @@
         return sortPreviewSampleEntries(entries);
     }
 
-    function triggerIndexAtTime(triggers, time) {
+    function triggerIndexAtTime(triggers: MidiActionTrigger[], time: number): number {
         var index = -1;
         while (index + 1 < triggers.length && triggers[index + 1].time <= time) {
             index += 1;
@@ -4312,7 +4384,11 @@
         return index;
     }
 
-    function pushMidiActionSimulationPoint(points, t, value) {
+    function pushMidiActionSimulationPoint(
+        points: MidiActionSimulationPoint[],
+        t: number,
+        value: MidiActionPropertyValue
+    ): void {
         points.push({
             time: t,
             value: previewScalarValue(value)
@@ -4328,7 +4404,10 @@
         var sampleEntries = buildMidiActionPreviewSampleEntries(range, triggers, options);
         var previewBaseFallback = options.baseValue === "value" ? 100 : numeric(options.previewBaseValue, 0);
         var base = parseValueLiteral(options.baseValue, previewBaseFallback);
-        var active = parseValueLiteral(options.activeValue, numeric(options.previewActiveValue, base));
+        var active = parseValueLiteral(
+            options.activeValue,
+            typeof base === "number" ? base : numeric(options.previewActiveValue, 0)
+        );
         var simOptions = {
             preset: options.preset || "pump",
             duration: options.duration,
@@ -4411,7 +4490,10 @@
         return points;
     }
 
-    function midiActionPreviewBounds(points, range) {
+    function midiActionPreviewBounds(
+        points: MidiActionSimulationPoint[],
+        range: MidiActionPreviewRange
+    ): MidiActionPreviewBounds {
         var minValue = Infinity;
         var maxValue = -Infinity;
         var i;
@@ -4435,7 +4517,7 @@
         };
     }
 
-    function midiActionPresetLabel(preset) {
+    function midiActionPresetLabel(preset: MidiActionPreset | string): string {
         if (preset === "toggle") {
             return "Toggle / Flip";
         }
@@ -4448,7 +4530,10 @@
         return "Pump / Decay";
     }
 
-    function midiActionPreviewDescription(options, triggerCount) {
+    function midiActionPreviewDescription(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        triggerCount: number
+    ): string {
         var parts = [];
         parts.push(triggerCount + " trigger" + (triggerCount === 1 ? "" : "s") + " in preview.");
         parts.push("Curve shows the " + midiActionPresetLabel(options.preset) + " preset over time.");
@@ -4568,7 +4653,7 @@
         };
     };
 
-    function midiActionPresetShortName(preset) {
+    function midiActionPresetShortName(preset: MidiActionPreset | string): string {
         if (preset === "toggle") {
             return "Toggle";
         }
@@ -4581,14 +4666,21 @@
         return "Pump";
     }
 
-    function midiActionOutputLayerName(sourceLayer, options) {
+    function midiActionOutputLayerName(
+        sourceLayer: Layer | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): string {
         var sourceName = sourceLayer && sourceLayer.name ? sourceLayer.name : "MIDI";
         return api.limitEffectName(
             "MIDI Action " + midiActionPresetShortName(options.preset || "pump") + " " + sourceName
         );
     }
 
-    function createMidiActionOutputNull(comp, sourceLayer, options) {
+    function createMidiActionOutputNull(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options: MidiActionOutputNullOptions | Partial<MidiActionOutputNullOptions>
+    ): MidiActionOutputNull {
         var layer;
         var sliderProp;
         var base;
@@ -4772,19 +4864,24 @@
         return { applied: applied, skipped: skipped };
     };
 
-    function scalarMagnitude(value) {
-        var magnitude = Math.abs(value);
+    function scalarMagnitude(value: number | number[]): number {
+        var magnitude;
+        if (valueIsArray(value)) {
+            magnitude = Math.abs(value.length ? value[0] : 0);
+        } else {
+            magnitude = Math.abs(value);
+        }
         return magnitude || 100;
     }
 
-    function formatScreenFlipToggleLiteral(values) {
-        if (values && values.length !== undefined && typeof values !== "string") {
+    function formatScreenFlipToggleLiteral(values: MidiActionPropertyValue): string {
+        if (valueIsArray(values)) {
             return "[" + values.join(", ") + "]";
         }
         return String(values);
     }
 
-    function resolveScreenFlipToggleValues(property, axis) {
+    function resolveScreenFlipToggleValues(property: Property, axis: string): ScreenFlipToggleValues {
         var axisIndex = axis === "vertical" ? 1 : 0;
         var dims = propertyDimensions(property);
         var value;

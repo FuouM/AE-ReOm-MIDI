@@ -93,6 +93,7 @@ interface LayerWithEffects extends Layer {
     Effects?: PropertyGroup & {
         addProperty(matchName: string): PropertyGroup;
     };
+    effect?(effectName: string): PropertyGroup;
 }
 
 /** Minimal property container accepted by piano-roll shape helpers. */
