@@ -49,6 +49,7 @@ interface MidiNote {
     channelIndex: number;
     pitch: number;
     velocity: number;
+    vel?: number;
     drumName?: string;
     offTicks?: number;
     durationTicks?: number;
@@ -112,7 +113,7 @@ interface MidiFileData {
     framesPerSecond: number;
     ticksPerFrame: number;
     tracks: MidiTrack[];
-    channels: MidiChannel[];
+    channels: (MidiChannel | undefined)[];
     notes: MidiNote[];
     noteEvents: MidiNote[];
     noteEventCount: number;

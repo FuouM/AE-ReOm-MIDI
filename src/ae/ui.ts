@@ -3,7 +3,7 @@
         return api.getGlobalState();
     }
 
-    function makeProgress(title) {
+    function makeProgress(title: string) {
         var win = new Window("palette", title);
         var label = win.add("statictext", undefined, "Starting...");
         var bar = win.add("progressbar", undefined, 0, 100);
@@ -23,7 +23,7 @@
         win.show();
 
         return {
-            update: function (text, ratio) {
+            update: function (text: string, ratio: number) {
                 label.text = text;
                 bar.value = Math.max(0, Math.min(100, Math.round(ratio * 100)));
                 win.update();
@@ -35,10 +35,10 @@
         };
     }
 
-    function addLabeledControl(parent, labelText, controlType, controlText) {
+    function addLabeledControl(parent: Window | Panel | Tab | Group, labelText: string, controlType: string, controlText?: string | string[]) {
         var group = parent.add("group");
         var label = group.add("statictext", undefined, labelText);
-        var control = group.add(controlType, undefined, controlText);
+        var control = group.add(controlType as "edittext", undefined, controlText as string) as unknown as _Control;
         group.orientation = "row";
         group.alignChildren = ["fill", "center"];
         label.preferredSize.width = 96;
@@ -46,7 +46,7 @@
         return control;
     }
 
-    function setLabeledControlLabel(control, labelText) {
+    function setLabeledControlLabel(control: _Control | null, labelText: string) {
         var label;
         if (!control || !control.parent) {
             return;
@@ -57,7 +57,7 @@
         }
     }
 
-    function setScriptUiGroupVisible(group, visible) {
+    function setScriptUiGroupVisible(group: _Control | null, visible: boolean) {
         if (!group) {
             return;
         }
@@ -87,7 +87,7 @@
         group.maximumSize = [10000, 0];
     }
 
-    function scriptUiPreservesWidthMin(control) {
+    function scriptUiPreservesWidthMin(control: _Control | null): boolean {
         if (!control) {
             return false;
         }
@@ -100,7 +100,7 @@
         return false;
     }
 
-    function clearStaleScriptUiWidthLocks(node, hostWidth) {
+    function clearStaleScriptUiWidthLocks(node: _Control | null, hostWidth: number): void {
         var children;
         var i;
         var child;
@@ -141,14 +141,14 @@
         }
     }
 
-    function pianoRollPreviewNoteColor(isDrum, opacity) {
+    function pianoRollPreviewNoteColor(isDrum: boolean, opacity: number): number[] {
         if (isDrum) {
             return [0.96, 0.62, 0.04, opacity];
         }
         return [0.22, 0.74, 0.97, opacity];
     }
 
-    function drawPianoRollPreviewCanvas(canvasPanel, layout) {
+    function drawPianoRollPreviewCanvas(canvasPanel: Group, layout: PianoRollPreviewLayout & { loading?: boolean }): void {
         var g = canvasPanel.graphics;
         var dims = previewCanvasSize(canvasPanel);
         var w = dims[0];
@@ -159,8 +159,8 @@
         var bounds = layout.bounds;
         var rects = layout.rects;
         var graphOpacity = layout.loading ? MIDI_ACTION_PREVIEW_LOADING_GRAPH_OPACITY : 1;
-        var dataW;
-        var dataH;
+        var dataW: number;
+        var dataH: number;
         var axisPen;
         var hasGraph = !!(bounds && rects && rects.length);
         var i;
@@ -178,12 +178,12 @@
 
         g.newPath();
         g.rectPath(0, 0, w, h);
-        g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR, colorWithOpacity([0.063, 0.075, 0.094], graphOpacity)));
+        g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR as never, colorWithOpacity([0.063, 0.075, 0.094], graphOpacity)));
 
         if (hasGraph) {
             dataW = Math.max(1, bounds.right - bounds.left);
             dataH = Math.max(1, bounds.bottom - bounds.top);
-            axisPen = g.newPen(g.PenType.SOLID_COLOR, colorWithOpacity([0.396, 0.439, 0.525], graphOpacity), 1);
+            axisPen = g.newPen(g.PenType.SOLID_COLOR as never, colorWithOpacity([0.396, 0.439, 0.525], graphOpacity), 1);
 
             g.newPath();
             g.moveTo(pad, pad + plotH);
@@ -202,14 +202,14 @@
                 color = pianoRollPreviewNoteColor(rect.isDrum, (rect.opacity / 100) * graphOpacity);
                 g.newPath();
                 g.rectPath(left, top, barW, barH);
-                g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR, color));
+                g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR as never, color));
             }
         } else if (!layout.loading) {
             return;
         }
     }
 
-    function bindPianoRollPreviewCanvas(canvasPanel, layout) {
+    function bindPianoRollPreviewCanvas(canvasPanel: Group, layout: PianoRollPreviewLayout & { loading?: boolean }): void {
         canvasPanel._pianoRollPreviewLayout = layout;
         canvasPanel._pianoRollPreviewRevision = (canvasPanel._pianoRollPreviewRevision || 0) + 1;
         canvasPanel.onDraw = function () {
@@ -217,7 +217,7 @@
         };
     }
 
-    function repaintScriptUiHost(host) {
+    function repaintScriptUiHost(host: Window | Panel | null | undefined): void {
         if (host && host.update) {
             try {
                 host.update();
@@ -238,7 +238,7 @@
         repaintScriptUiHost(host);
     }
 
-    function resizeScriptUiHost(host) {
+    function resizeScriptUiHost(host: Window | Panel | null | undefined): void {
         refreshScriptUiHost(host, false);
     }
 
@@ -260,7 +260,7 @@
     // Delay before running deferred preview compute off the UI thread.
     api.DEFERRED_PREVIEW_TASK_MS = 32;
 
-    function applyLockedWindowHeightFromState(state) {
+    function applyLockedWindowHeightFromState(state: ReOmPanelUiState | null | undefined): void {
         if (!state || !state.win) {
             return;
         }
@@ -273,7 +273,7 @@
         refreshScriptUiHost(state.win);
     }
 
-    function bindPanelResizeHandlers(win, panelState, mapPreviewState, actionPreviewState) {
+    function bindPanelResizeHandlers(win: Window | Panel, panelState: ReOmPanelUiState, mapPreviewState: ReOmPreviewState, actionPreviewState: ReOmPreviewState): void {
         function relayoutPanelHost() {
             if (
                 win instanceof Window &&
@@ -290,7 +290,7 @@
 
         win.onResizing = relayoutPanelHost;
         win.onResize = function () {
-            clearStaleScriptUiWidthLocks(win, win.size ? win.size[0] : PANEL_WIDTH_DEFAULT);
+            clearStaleScriptUiWidthLocks(win as unknown as _Control, win.size ? win.size[0] : PANEL_WIDTH_DEFAULT);
             relayoutPanelHost();
         };
     }
@@ -339,7 +339,7 @@
         repaintScriptUiHost(state.win);
     };
 
-    function previewStateForFlush(flushName, state) {
+    function previewStateForFlush(flushName: string, state: ReOmPanelUiState | null | undefined): ReOmPreviewState | null {
         if (!state) {
             return null;
         }
@@ -352,7 +352,7 @@
         return null;
     }
 
-    function previewCanvasNeedsReprime(canvasPanel) {
+    function previewCanvasNeedsReprime(canvasPanel: Group | null | undefined): boolean {
         var size;
         if (!canvasPanel || !canvasPanel.size) {
             return true;
@@ -416,21 +416,21 @@
         );
     };
 
-    function findPreviewHostTab(canvasPanel) {
-        var node = canvasPanel;
+    function findPreviewHostTab(canvasPanel: _Control | Group | null | undefined): Tab | null {
+        var node: _Control | null = canvasPanel as unknown as _Control;
         while (node && node.type !== "tab") {
-            node = node.parent;
+            node = node.parent || null;
         }
-        return node;
+        return node as unknown as Tab | null;
     }
 
-    function invokeCanvasOnDraw(canvasPanel) {
+    function invokeCanvasOnDraw(canvasPanel: _Control | Group | null | undefined): void {
         if (!canvasPanel) {
             return;
         }
         try {
             if (typeof canvasPanel.onDraw === "function") {
-                canvasPanel.onDraw();
+                canvasPanel.onDraw({} as never);
             }
         } catch (drawErr) {}
         try {
@@ -440,7 +440,7 @@
         } catch (notifyErr) {}
     }
 
-    function relayoutPreviewHost(rootWin, canvasPanel) {
+    function relayoutPreviewHost(rootWin: Window | Panel | null | undefined, canvasPanel: _Control | Group | null | undefined): void {
         var tab = findPreviewHostTab(canvasPanel);
         if (rootWin && rootWin.layout && rootWin.layout.resize) {
             rootWin.layout.resize();
@@ -453,7 +453,7 @@
         }
     }
 
-    function nudgeCanvasRepaint(canvasPanel) {
+    function nudgeCanvasRepaint(canvasPanel: _Control | Group | null | undefined): void {
         var size;
         var h;
         if (!canvasPanel) {
@@ -473,7 +473,10 @@
         } catch (nudgeErr) {}
     }
 
-    function repaintPreviewCanvas(canvasPanel, rootWin) {
+    function repaintPreviewCanvas(
+        canvasPanel: _Control | Group | null | undefined,
+        rootWin: Window | Panel | null | undefined
+    ): void {
         if (!canvasPanel) {
             return;
         }
@@ -489,18 +492,18 @@
         if (!canvas) {
             return;
         }
-        repaintPreviewCanvas(canvas, root);
+        repaintPreviewCanvas(canvas, root as Window | Panel | null | undefined);
     }
 
     api.flushActionPreviewCanvas = flushActionPreviewCanvasNow;
 
-    function queueActionPreviewRedraw(canvasPanel, rootWin) {
+    function queueActionPreviewRedraw(canvasPanel: Group | null | undefined, rootWin: Window | Panel | null | undefined): void {
         if (!canvasPanel) {
             return;
         }
-        globalState().actionPreviewCanvas = canvasPanel;
+        globalState().actionPreviewCanvas = canvasPanel as unknown as _Control;
         if (rootWin) {
-            globalState().actionPreviewCanvasRoot = rootWin;
+            globalState().actionPreviewCanvasRoot = rootWin as unknown as _Control;
         }
         flushActionPreviewCanvasNow();
     }
@@ -511,23 +514,23 @@
         if (!canvas) {
             return;
         }
-        repaintPreviewCanvas(canvas, root);
+        repaintPreviewCanvas(canvas, root as Window | Panel | null | undefined);
     }
 
     api.flushPianoRollPreviewCanvas = flushPianoRollPreviewCanvasNow;
 
-    function queuePianoRollPreviewRedraw(canvasPanel, rootWin) {
+    function queuePianoRollPreviewRedraw(canvasPanel: Group | null | undefined, rootWin: Window | Panel | null | undefined): void {
         if (!canvasPanel) {
             return;
         }
-        globalState().previewCanvas = canvasPanel;
+        globalState().previewCanvas = canvasPanel as unknown as _Control;
         if (rootWin) {
-            globalState().previewCanvasRoot = rootWin;
+            globalState().previewCanvasRoot = rootWin as unknown as _Control;
         }
         flushPianoRollPreviewCanvasNow();
     }
 
-    function invalidatePianoRollPreviewCanvas(canvasPanel, rootWin) {
+    function invalidatePianoRollPreviewCanvas(canvasPanel: Group | null | undefined, rootWin: Window | Panel | null | undefined): void {
         queuePianoRollPreviewRedraw(canvasPanel, rootWin);
     }
 
@@ -547,7 +550,7 @@
         { id: "finalize", weight: 5, label: "Finishing preview" }
     ];
 
-    function previewProgressSummaryControl(kind) {
+    function previewProgressSummaryControl(kind: string): _Control | null | undefined {
         if (typeof $ === "undefined" || !$.global) {
             return null;
         }
@@ -557,7 +560,7 @@
         return globalState().actionPreviewLoadingSummary;
     }
 
-    function previewProgressRootWin(kind) {
+    function previewProgressRootWin(kind: string): Window | Panel | _Control | null | undefined {
         if (typeof $ === "undefined" || !$.global) {
             return null;
         }
@@ -567,7 +570,7 @@
         return globalState().actionPreviewCanvasRoot;
     }
 
-    function formatPreviewProgressSummary(sourceLabel, percent, stageLabel) {
+    function formatPreviewProgressSummary(sourceLabel: string, percent: number, stageLabel: string): string {
         return (
             "Calculating preview" +
             (sourceLabel ? " for " + sourceLabel : "") +
@@ -578,7 +581,7 @@
         );
     }
 
-    function applyPreviewProgress(hook) {
+    function applyPreviewProgress(hook: PreviewProgressHook | null | undefined): void {
         var now;
         var summary;
         var root;
@@ -595,7 +598,7 @@
         if (summary) {
             summary.text = formatPreviewProgressSummary(hook.sourceLabel, hook.percent, hook.stageLabel);
         }
-        repaintScriptUiHost(root);
+        repaintScriptUiHost((root as Window | Panel | null | undefined) || null);
     }
 
     function buildPreviewProgressHook(kind: string, sourceLabel: string): PreviewProgressHook {
@@ -613,7 +616,7 @@
             lastUiMs: 0
         };
 
-        hook.setStage = function (stageId, labelOverride) {
+        hook.setStage = function (stageId: string, labelOverride?: string) {
             var idx;
             var base = 0;
             for (idx = 0; idx < stages.length; idx += 1) {
@@ -630,12 +633,12 @@
             }
         };
 
-        hook.step = function (done, total, detail) {
+        hook.step = function (done: number, total: number, detail?: string) {
             var frac = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
             hook.report(hook.stageBase + frac * hook.stageWeight, detail || hook.stageLabel);
         };
 
-        hook.report = function (percent, label) {
+        hook.report = function (percent: number, label?: string) {
             hook.percent = Math.min(100, Math.max(0, percent));
             if (label) {
                 hook.stageLabel = label;
@@ -679,7 +682,7 @@
         api.clearPreviewProgress();
     };
 
-    function colorWithOpacity(color, opacity) {
+    function colorWithOpacity(color: number[], opacity: number): number[] {
         if (!color || !color.length) {
             return color;
         }
@@ -689,7 +692,7 @@
         return [color[0], color[1], color[2], opacity];
     }
 
-    function pianoRollPreviewLoadingLayout(canvasPanel, sourceLabel) {
+    function pianoRollPreviewLoadingLayout(canvasPanel: Group, sourceLabel: string): PianoRollPreviewLayout & { loading?: boolean; loadingFrame?: number } {
         var previous = canvasPanel && canvasPanel._pianoRollPreviewLayout;
         if (previous && previous.rects && previous.rects.length && !previous.loading) {
             return {
@@ -697,6 +700,7 @@
                 loadingFrame: 0,
                 rects: previous.rects,
                 bounds: previous.bounds,
+                noteCount: previous.rects.length,
                 sourceLabel: sourceLabel || previous.sourceLabel || "MIDI",
                 description: previous.description || ""
             };
@@ -704,8 +708,9 @@
         return {
             loading: true,
             loadingFrame: 0,
-            rects: [],
+            rects: [] as PianoRollRect[],
             bounds: { left: 0, right: 1, top: 128, bottom: 21 },
+            noteCount: 0,
             sourceLabel: sourceLabel || "MIDI",
             description: ""
         };
@@ -723,7 +728,7 @@
         }
         targets = host.ensure();
         bindPianoRollPreviewCanvas(targets.canvas, pianoRollPreviewLoadingLayout(targets.canvas, sourceLabel));
-        globalState().previewCanvas = targets.canvas;
+        globalState().previewCanvas = targets.canvas as unknown as _Control;
         globalState().previewCanvasRoot = host.win;
         armPreviewLoadingDisplay(host, targets, sourceLabel, startPianoRollPreviewLoadingAnimation);
     };
@@ -746,14 +751,14 @@
         targets = host.ensure();
         targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
         bindPianoRollPreviewCanvas(targets.canvas, layout);
-        globalState().previewCanvas = targets.canvas;
+        globalState().previewCanvas = targets.canvas as unknown as _Control;
         globalState().previewCanvasRoot = host.win;
         finishPreviewPanelDisplay(host, targets);
     };
 
     api.refreshPianoRollPreviewPanel = flushPianoRollPreviewCanvasNow;
 
-    function midiActionPreviewLoadingLayout(canvasPanel, sourceLabel) {
+    function midiActionPreviewLoadingLayout(canvasPanel: Group, sourceLabel: string): MidiActionPreviewLayout & { loading?: boolean; loadingFrame?: number } {
         var previous = canvasPanel && canvasPanel._midiActionPreviewLayout;
         if (previous && previous.points && previous.points.length && !previous.loading) {
             return {
@@ -762,6 +767,8 @@
                 points: previous.points,
                 triggers: previous.triggers || [],
                 bounds: previous.bounds,
+                triggerCount: (previous.triggers || []).length,
+                preset: previous.preset || ("pump" as MidiActionPreset),
                 sourceLabel: sourceLabel || previous.sourceLabel || "MIDI",
                 description: previous.description || ""
             };
@@ -769,26 +776,28 @@
         return {
             loading: true,
             loadingFrame: 0,
-            points: [],
-            triggers: [],
+            points: [] as MidiActionSimulationPoint[],
+            triggers: [] as MidiActionTrigger[],
             bounds: { left: 0, right: 1, top: 100, bottom: 0 },
+            triggerCount: 0,
+            preset: "pump" as MidiActionPreset,
             sourceLabel: sourceLabel || "MIDI",
             description: ""
         };
     }
 
-    function previewCanvasLayout(canvasPanel) {
+    function previewCanvasLayout(canvasPanel: Group): PianoRollPreviewLayout | (MidiActionPreviewLayout & { loading?: boolean }) | null {
         return (canvasPanel && (canvasPanel._pianoRollPreviewLayout || canvasPanel._midiActionPreviewLayout)) || null;
     }
 
-    function previewCanvasSize(canvasPanel) {
+    function previewCanvasSize(canvasPanel: Group): number[] {
         var size = canvasPanel.size;
         var w = size[0];
         var h = size[1];
         var node;
         var layout = previewCanvasLayout(canvasPanel);
         if (w >= 20 && h >= 20) {
-            if (layout && layout.loading) {
+            if (layout && (layout as { loading?: boolean }).loading) {
                 return [Math.max(w, 280), Math.max(h, 140)];
             }
             return [w, h];
@@ -808,14 +817,19 @@
             }
             node = node.parent;
         }
-        if (layout && layout.loading) {
+        if (layout && (layout as { loading?: boolean }).loading) {
             w = Math.max(w, 280);
             h = Math.max(h, 140);
         }
         return [Math.max(1, w), Math.max(1, h)];
     }
 
-    function armPreviewLoadingDisplay(host, targets, sourceLabel, startAnimationFn) {
+    function armPreviewLoadingDisplay(
+        host: ReOmPreviewHost | null | undefined,
+        targets: ReOmPreviewState,
+        sourceLabel: string,
+        startAnimationFn: (canvasPanel: Group, rootWin: Window | Panel | undefined, summaryControl: _Control, sourceLabel: string) => void
+    ): void {
         if (host && host.previewState && host.win) {
             primePreviewHostLayout(host.previewState, host.win);
         } else if (host && host.relayout) {
@@ -830,14 +844,14 @@
         startAnimationFn(targets.canvas, host.win, targets.summary, sourceLabel);
     }
 
-    function addWrappedHintText(parent, text) {
+    function addWrappedHintText(parent: Window | Panel | Tab | Group, text: string): _Control {
         var control = parent.add("statictext", undefined, text, { multiline: true });
         control.alignment = ["fill", "top"];
         control.minimumSize = [0, 28];
-        return control;
+        return control as unknown as _Control;
     }
 
-    function addOptionsPanel(parent, title) {
+    function addOptionsPanel(parent: Window | Panel | Tab | Group, title: string): Panel {
         var panel = parent.add("panel", undefined, title);
         panel.orientation = "column";
         panel.alignChildren = ["fill", "top"];
@@ -847,7 +861,7 @@
         return panel;
     }
 
-    function addSectionPanel(parent, title) {
+    function addSectionPanel(parent: Window | Panel | Tab | Group, title: string): Panel {
         var section = parent.add("group");
         var caption;
         var body;
@@ -871,7 +885,7 @@
         return body;
     }
 
-    function applyPreviewHostExpandedLayout(state, expanded) {
+    function applyPreviewHostExpandedLayout(state: ReOmPreviewState, expanded: boolean): void {
         var container = state.container;
         var canvas = state.canvas;
         var toolbarGroup = state.toolbarGroup || state.headerGroup;
@@ -881,7 +895,7 @@
         }
         if (expanded) {
             container.visible = true;
-            container.margins = state.containerMargins;
+            container.margins = state.containerMargins as Margins;
             container.spacing = state.containerSpacing;
             container.alignment = ["fill", "fill"];
             container.preferredSize = [-1, PREVIEW_CANVAS_MAX_HEIGHT + 72];
@@ -932,13 +946,13 @@
         api.clearPreviewProgress();
     }
 
-    function startMidiActionPreviewLoadingAnimation(canvasPanel, rootWin, summaryControl, sourceLabel) {
+    function startMidiActionPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel, summaryControl: _Control, sourceLabel: string): void {
         stopMidiActionPreviewLoadingAnimation();
         globalState().actionPreviewLoading = true;
         globalState().actionPreviewLoadingSummary = summaryControl;
         globalState().actionPreviewLoadingLabel = sourceLabel || "";
-        globalState().actionPreviewCanvas = canvasPanel;
-        globalState().actionPreviewCanvasRoot = rootWin;
+        globalState().actionPreviewCanvas = canvasPanel as unknown as _Control;
+        globalState().actionPreviewCanvasRoot = rootWin as unknown as _Control;
     }
 
     api.stopMidiActionPreviewLoadingAnimation = stopMidiActionPreviewLoadingAnimation;
@@ -950,24 +964,24 @@
         api.clearPreviewProgress();
     }
 
-    function startPianoRollPreviewLoadingAnimation(canvasPanel, rootWin, summaryControl, sourceLabel) {
+    function startPianoRollPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel, summaryControl: _Control, sourceLabel: string): void {
         stopPianoRollPreviewLoadingAnimation();
         globalState().pianoRollPreviewLoading = true;
         globalState().pianoRollPreviewLoadingSummary = summaryControl;
         globalState().pianoRollPreviewLoadingLabel = sourceLabel || "";
-        globalState().previewCanvas = canvasPanel;
-        globalState().previewCanvasRoot = rootWin;
+        globalState().previewCanvas = canvasPanel as unknown as _Control;
+        globalState().previewCanvasRoot = rootWin as unknown as _Control;
     }
 
     api.stopPianoRollPreviewLoadingAnimation = stopPianoRollPreviewLoadingAnimation;
 
-    function finishPreviewPanelDisplay(host, targets) {
+    function finishPreviewPanelDisplay(host: ReOmPreviewHost | null | undefined, targets: ReOmPreviewState): void {
         if (host && host.win && targets.summary) {
             repaintScriptUiHost(host.win);
         }
     }
 
-    function drawMidiActionPreviewCanvas(canvasPanel, layout) {
+    function drawMidiActionPreviewCanvas(canvasPanel: Group, layout: MidiActionPreviewLayout & { loading?: boolean }): void {
         var g = canvasPanel.graphics;
         var dims = previewCanvasSize(canvasPanel);
         var w = dims[0];
@@ -979,8 +993,8 @@
         var points = layout.points;
         var triggers = layout.triggers;
         var graphOpacity = layout.loading ? MIDI_ACTION_PREVIEW_LOADING_GRAPH_OPACITY : 1;
-        var dataW;
-        var dataH;
+        var dataW: number;
+        var dataH: number;
         var axisPen;
         var triggerPen;
         var curvePen;
@@ -989,11 +1003,11 @@
         var tx;
         var hasGraph = !!(bounds && points && points.length);
 
-        function xFor(time) {
+        function xFor(time: number): number {
             return pad + ((time - bounds.left) / dataW) * plotW;
         }
 
-        function yFor(value) {
+        function yFor(value: number): number {
             return pad + ((bounds.top - value) / dataH) * plotH;
         }
 
@@ -1003,14 +1017,14 @@
 
         g.newPath();
         g.rectPath(0, 0, w, h);
-        g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR, colorWithOpacity([0.063, 0.075, 0.094], graphOpacity)));
+        g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR as never, colorWithOpacity([0.063, 0.075, 0.094], graphOpacity)));
 
         if (hasGraph) {
             dataW = Math.max(0.001, bounds.right - bounds.left);
             dataH = Math.max(0.001, bounds.top - bounds.bottom);
-            axisPen = g.newPen(g.PenType.SOLID_COLOR, colorWithOpacity([0.396, 0.439, 0.525], graphOpacity), 1);
-            triggerPen = g.newPen(g.PenType.SOLID_COLOR, colorWithOpacity([0.82, 0.62, 0.28], graphOpacity), 1);
-            curvePen = g.newPen(g.PenType.SOLID_COLOR, colorWithOpacity([0.49, 0.83, 0.99], graphOpacity), 2);
+            axisPen = g.newPen(g.PenType.SOLID_COLOR as never, colorWithOpacity([0.396, 0.439, 0.525], graphOpacity), 1);
+            triggerPen = g.newPen(g.PenType.SOLID_COLOR as never, colorWithOpacity([0.82, 0.62, 0.28], graphOpacity), 1);
+            curvePen = g.newPen(g.PenType.SOLID_COLOR as never, colorWithOpacity([0.49, 0.83, 0.99], graphOpacity), 2);
 
             g.newPath();
             g.moveTo(pad, pad + plotH);
@@ -1041,7 +1055,7 @@
         }
     }
 
-    function bindMidiActionPreviewCanvas(canvasPanel, layout) {
+    function bindMidiActionPreviewCanvas(canvasPanel: Group, layout: MidiActionPreviewLayout & { loading?: boolean }): void {
         canvasPanel._midiActionPreviewLayout = layout;
         canvasPanel._midiActionPreviewRevision = (canvasPanel._midiActionPreviewRevision || 0) + 1;
         canvasPanel.onDraw = function () {
@@ -1064,7 +1078,7 @@
         }
         targets = host.ensure();
         bindMidiActionPreviewCanvas(targets.canvas, midiActionPreviewLoadingLayout(targets.canvas, sourceLabel));
-        globalState().actionPreviewCanvas = targets.canvas;
+        globalState().actionPreviewCanvas = targets.canvas as unknown as _Control;
         globalState().actionPreviewCanvasRoot = host.win;
         armPreviewLoadingDisplay(host, targets, sourceLabel, startMidiActionPreviewLoadingAnimation);
     };
@@ -1087,51 +1101,55 @@
         targets = host.ensure();
         targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
         bindMidiActionPreviewCanvas(targets.canvas, layout);
-        globalState().actionPreviewCanvas = targets.canvas;
+        globalState().actionPreviewCanvas = targets.canvas as unknown as _Control;
         globalState().actionPreviewCanvasRoot = host.win;
         finishPreviewPanelDisplay(host, targets);
     };
 
     api.refreshActionPreviewPanel = flushActionPreviewCanvasNow;
 
-    function isMidiFilePath(path) {
+    function isMidiFilePath(path: string): boolean {
         var ext = String(path || "")
             .replace(/^.*\./, "")
             .toLowerCase();
         return ext === "mid" || ext === "midi";
     }
 
-    function pathFromDropData(data) {
+    function pathFromDropData(data: unknown): string {
         var i;
+        var fileLike;
+        var items;
         if (!data) {
             return "";
         }
         if (typeof data === "string") {
             return data;
         }
-        if (data.length !== undefined) {
-            for (i = 0; i < data.length; i += 1) {
-                if (typeof data[i] === "string" && data[i]) {
-                    return data[i];
+        items = data as { length?: number; fsName?: string; absoluteURI?: string };
+        if (items.length !== undefined) {
+            for (i = 0; i < items.length; i += 1) {
+                fileLike = (data as unknown[])[i] as { fsName?: string; absoluteURI?: string } | string;
+                if (typeof fileLike === "string" && fileLike) {
+                    return fileLike;
                 }
-                if (data[i] && data[i].fsName) {
-                    return data[i].fsName;
+                if (fileLike && typeof fileLike === "object" && fileLike.fsName) {
+                    return fileLike.fsName;
                 }
-                if (data[i] && data[i].absoluteURI) {
-                    return new File(data[i].absoluteURI).fsName;
+                if (fileLike && typeof fileLike === "object" && fileLike.absoluteURI) {
+                    return new File(fileLike.absoluteURI).fsName;
                 }
             }
         }
-        if (data.fsName) {
-            return data.fsName;
+        if (items.fsName) {
+            return items.fsName;
         }
-        if (data.absoluteURI) {
-            return new File(data.absoluteURI).fsName;
+        if (items.absoluteURI) {
+            return new File(items.absoluteURI).fsName;
         }
         return String(data);
     }
 
-    function assignMidiFilePath(fileField, path) {
+    function assignMidiFilePath(fileField: EditText, path: string): boolean {
         var file;
         path = String(path || "").replace(/^\s+|\s+$/g, "");
         if (!path || !isMidiFilePath(path)) {
@@ -1145,7 +1163,7 @@
         return true;
     }
 
-    function setupMidiFileDropTarget(fileField) {
+    function setupMidiFileDropTarget(fileField: EditText): void {
         try {
             fileField.dropTarget = true;
             fileField.onDragEnter = function () {
@@ -1166,20 +1184,20 @@
 
     function createPreviewState() {
         return {
-            container: null,
-            panel: null,
-            toolbarGroup: null,
-            headerGroup: null,
-            footerGroup: null,
-            summary: null,
-            canvas: null,
-            hideButton: null,
+            container: null as Group | null,
+            panel: null as Group | null,
+            toolbarGroup: null as Group | null,
+            headerGroup: null as Group | null,
+            footerGroup: null as Group | null,
+            summary: null as _Control | null,
+            canvas: null as Group | null,
+            hideButton: null as _Control | null,
             expanded: false,
             layoutPrimed: false
         };
     }
 
-    function buildImportTab(featureTabs) {
+    function buildImportTab(featureTabs: TabbedPanel) {
         var tab = featureTabs.add("tab", undefined, "Import");
         var header;
         var fileGroup;
@@ -1239,7 +1257,7 @@
             "One layer per channel",
             "Combined layer"
         ]);
-        layerMode.selection = 0;
+        layerMode.selection = 0 as unknown as ListItem;
         layerMode.helpTip =
             "Choose whether to create a separate null layer for each MIDI channel, or merge all channels into a single combined null layer.";
         layerNamePrefix = addLabeledControl(optionsPanel, "Layer prefix", "edittext", "MIDI");
@@ -1332,48 +1350,54 @@
         };
     }
 
-    function wireImportTabHandlers(ui, api) {
-        ui.browse.onClick = function () {
+    function wireImportTabHandlers(ui: StringKeyedMap<unknown>, api: ReOmMIDIApi): void {
+        var importUi = ui as StringKeyedMap<EditText | Button | DropDownList | Checkbox>;
+        importUi.browse.onClick = function () {
             var f = File.openDialog("Choose a MIDI file", "*.mid;*.midi");
             if (f && (f as File).fsName) {
-                assignMidiFilePath(ui.fileText, (f as File).fsName);
+                assignMidiFilePath(importUi.fileText as EditText, (f as File).fsName);
             }
         };
 
-        ui.getMidiInfoButton.onClick = function () {
+        importUi.getMidiInfoButton.onClick = function () {
             api.runGetMidiInfo({
-                midiFileName: ui.fileText.text
+                midiFileName: (importUi.fileText as EditText).text
             });
         };
 
-        ui.importButton.onClick = function () {
+        importUi.importButton.onClick = function () {
             api.runImport({
-                midiFileName: ui.fileText.text,
-                layerMode: ui.layerMode.selection && ui.layerMode.selection.index === 1 ? "combined" : "per-channel",
-                layerNamePrefix: ui.layerNamePrefix.text || "MIDI",
-                quantizeToFrames: ui.quantizeToFrames.value,
-                importNamedDrumSliders: ui.importNamedDrumSliders.value,
-                includeControllers: ui.includeControllers.value,
-                includePitchBends: ui.includePitchBends.value
-            });
+                midiFileName: (importUi.fileText as EditText).text,
+                layerMode:
+                    (importUi.layerMode as DropDownList).selection &&
+                    typeof (importUi.layerMode as DropDownList).selection !== "number" &&
+                    ((importUi.layerMode as DropDownList).selection as ListItem).index === 1
+                        ? "combined"
+                        : "per-channel",
+                layerNamePrefix: (importUi.layerNamePrefix as EditText).text || "MIDI",
+                quantizeToFrames: !!(importUi.quantizeToFrames as Checkbox).value,
+                importNamedDrumSliders: !!(importUi.importNamedDrumSliders as Checkbox).value,
+                includeControllers: !!(importUi.includeControllers as Checkbox).value,
+                includePitchBends: !!(importUi.includePitchBends as Checkbox).value
+            } as UiImportRunOptions);
         };
 
-        ui.createMetronomeButton.onClick = function () {
+        importUi.createMetronomeButton.onClick = function () {
             api.runCreateMetronomeLayer({
-                midiFileName: ui.fileText.text,
-                quantizeToFrames: ui.metronomeQuantize.value
+                midiFileName: (importUi.fileText as EditText).text,
+                quantizeToFrames: !!(importUi.metronomeQuantize as Checkbox).value
             });
         };
 
-        ui.createBpmButton.onClick = function () {
+        importUi.createBpmButton.onClick = function () {
             api.runCreateBpmLayer({
-                midiFileName: ui.fileText.text,
-                quantizeToFrames: ui.bpmQuantize.value
+                midiFileName: (importUi.fileText as EditText).text,
+                quantizeToFrames: !!(importUi.bpmQuantize as Checkbox).value
             });
         };
     }
 
-    function buildPianoRollTab(win, featureTabs, previewState) {
+    function buildPianoRollTab(win: Window | Panel, featureTabs: TabbedPanel, previewState: ReOmPreviewState) {
         var tab = featureTabs.add("tab", undefined, "Piano Roll Map");
         var mapPanel;
         var mapMaxNotes;
@@ -1434,7 +1458,7 @@
             }
         }
 
-        function setMapPreviewExpanded(expanded) {
+        function setMapPreviewExpanded(expanded: boolean): void {
             var canvas = previewState.canvas;
             if (!previewState.container) {
                 return;
@@ -1477,15 +1501,16 @@
             toolbarGroup.alignment = ["fill", "top"];
             previewState.toolbarGroup = toolbarGroup;
             previewState.headerGroup = toolbarGroup;
-            previewState.hideButton = toolbarGroup.add("button", undefined, "Hide");
+            previewState.hideButton = toolbarGroup.add("button", undefined, "Hide") as unknown as _Control;
             previewState.hideButton.preferredSize = [52, 22];
             previewState.hideButton.onClick = hideMapPreviewPanel;
             previewState.canvas = previewState.container.add("group");
             previewState.canvas.alignment = ["fill", "fill"];
             bindPianoRollPreviewCanvas(previewState.canvas, {
                 loading: false,
-                rects: [],
+                rects: [] as PianoRollRect[],
                 bounds: { left: 0, right: 1, top: 128, bottom: 21 },
+                noteCount: 0,
                 sourceLabel: "",
                 description: ""
             });
@@ -1541,21 +1566,22 @@
         };
     }
 
-    function wirePianoRollTabHandlers(ui, api) {
+    function wirePianoRollTabHandlers(ui: StringKeyedMap<unknown>, api: ReOmMIDIApi): void {
+        var controls = ui as StringKeyedMap<UiControl>;
         function pianoRollMapOptions(): PianoRollMapOptions {
             return {
-                maxNotes: ui.mapMaxNotes.text,
-                noteHeight: ui.mapNoteHeight.text,
-                useDrumLanes: ui.mapUseDrumLanes.value,
-                useWorkArea: ui.mapUseWorkArea.value
+                maxNotes: controls.mapMaxNotes.text,
+                noteHeight: controls.mapNoteHeight.text,
+                useDrumLanes: !!controls.mapUseDrumLanes.value,
+                useWorkArea: !!controls.mapUseWorkArea.value
             };
         }
 
-        ui.createPianoRollButton.onClick = function () {
+        controls.createPianoRollButton.onClick = function () {
             api.runCreatePianoRollMap(pianoRollMapOptions());
         };
 
-        ui.previewPianoRollButton.onClick = function () {
+        controls.previewPianoRollButton.onClick = function () {
             if (api.__mapPreviewHost && api.__mapPreviewHost.selectTab) {
                 api.__mapPreviewHost.selectTab();
             }
@@ -1563,24 +1589,24 @@
         };
     }
 
-    function buildActionsTab(win, featureTabs, previewState) {
+    function buildActionsTab(win: Window | Panel, featureTabs: TabbedPanel, previewState: ReOmPreviewState) {
         var tab = featureTabs.add("tab", undefined, "MIDI Actions");
         var actionLayerHint;
         var actionSourcePanel;
         var actionMaxNotes;
         var actionPitchFilter;
         var actionUseWorkArea;
-        var actionSettingsPanel;
-        var actionPreset;
-        var baseValue;
-        var activeValue;
-        var amountValue;
-        var durationValue;
-        var falloff;
-        var actionSettingsPairGroup;
-        var actionSettingsAmountGroup;
-        var actionSettingsFalloffGroup;
-        var actionPresetHint;
+        var actionSettingsPanel: Panel;
+        var actionPreset: _Control;
+        var baseValue: _Control;
+        var activeValue: _Control;
+        var amountValue: _Control;
+        var durationValue: _Control;
+        var falloff: _Control;
+        var actionSettingsPairGroup: Group;
+        var actionSettingsAmountGroup: Group;
+        var actionSettingsFalloffGroup: Group;
+        var actionPresetHint: _Control;
         var actionButtonGroup;
         var previewActionButton;
         var actionOutputGroup;
@@ -1623,7 +1649,7 @@
             "Interpolate A-B",
             "Integrate / Accumulate"
         ]);
-        actionPreset.selection = 0;
+        actionPreset.selection = 0 as unknown as ListItem;
         actionPreset.helpTip = "Select the trigger response logic (e.g., decaying pulse, state flip, accumulator).";
         baseValue = addLabeledControl(actionSettingsPanel, "Base value", "edittext", "0");
         baseValue.helpTip =
@@ -1662,7 +1688,7 @@
             "ease",
             "exponential"
         ]);
-        falloff.selection = 1;
+        falloff.selection = 1 as unknown as ListItem;
         falloff.helpTip = "Select the interpolation curve used to transit between values.";
 
         actionPresetHint = addWrappedHintText(actionSettingsPanel, "");
@@ -1700,19 +1726,19 @@
             return presetIds[selectedActionPresetIndex()];
         }
 
-        function presetShowsActive(preset) {
+        function presetShowsActive(preset: string): boolean {
             return preset === "toggle" || preset === "interpolate";
         }
 
-        function presetShowsAmountDuration(preset) {
+        function presetShowsAmountDuration(preset: string): boolean {
             return preset === "pump" || preset === "accumulator";
         }
 
-        function presetShowsFalloff(preset) {
+        function presetShowsFalloff(preset: string): boolean {
             return preset === "pump" || preset === "interpolate" || preset === "accumulator";
         }
 
-        function actionSettingsSectionHeight(preset) {
+        function actionSettingsSectionHeight(preset: string): number {
             var rows = 3;
             if (presetShowsActive(preset)) {
                 rows += 1;
@@ -1726,7 +1752,7 @@
             return ACTION_SETTINGS_PANEL_BASE_HEIGHT + rows * ACTION_SETTINGS_PANEL_ROW_HEIGHT;
         }
 
-        function relayoutActionSettingsPanel(preset) {
+        function relayoutActionSettingsPanel(preset: string): void {
             var sectionHeight = actionSettingsSectionHeight(preset || selectedActionPresetId());
             actionSettingsPanel.minimumSize = [0, Math.max(80, sectionHeight)];
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.layout) {
@@ -1737,7 +1763,7 @@
             }
         }
 
-        function applyActionPresetDefaults(preset) {
+        function applyActionPresetDefaults(preset: string): void {
             var isInterpolate = preset === "interpolate";
             var pair;
             var basePair;
@@ -1792,9 +1818,9 @@
             setLabeledControlLabel(durationValue, "Duration");
             setLabeledControlLabel(falloff, "Falloff");
 
-            setScriptUiGroupVisible(actionSettingsPairGroup, presetShowsActive(preset));
-            setScriptUiGroupVisible(actionSettingsAmountGroup, presetShowsAmountDuration(preset));
-            setScriptUiGroupVisible(actionSettingsFalloffGroup, presetShowsFalloff(preset));
+            setScriptUiGroupVisible(actionSettingsPairGroup as unknown as _Control, presetShowsActive(preset));
+            setScriptUiGroupVisible(actionSettingsAmountGroup as unknown as _Control, presetShowsAmountDuration(preset));
+            setScriptUiGroupVisible(actionSettingsFalloffGroup as unknown as _Control, presetShowsFalloff(preset));
             relayoutActionSettingsPanel(preset);
         }
 
@@ -1814,7 +1840,7 @@
             lastActionPresetIndex = index;
 
             if (actionPresetHint) {
-                actionPresetHint.text = presetHints[preset] || "";
+                actionPresetHint.text = presetHints[preset as MidiActionPreset] || "";
             }
 
             refreshActionPresetFieldVisibility();
@@ -1832,7 +1858,7 @@
             }
         }
 
-        function setActionPreviewExpanded(expanded) {
+        function setActionPreviewExpanded(expanded: boolean): void {
             var canvas = previewState.canvas;
             if (!previewState.container) {
                 return;
@@ -1874,16 +1900,18 @@
             toolbarGroup.alignment = ["fill", "top"];
             previewState.toolbarGroup = toolbarGroup;
             previewState.headerGroup = toolbarGroup;
-            previewState.hideButton = toolbarGroup.add("button", undefined, "Hide");
+            previewState.hideButton = toolbarGroup.add("button", undefined, "Hide") as unknown as _Control;
             previewState.hideButton.preferredSize = [52, 22];
             previewState.hideButton.onClick = hideActionPreviewPanel;
             previewState.canvas = previewState.container.add("group");
             previewState.canvas.alignment = ["fill", "fill"];
             bindMidiActionPreviewCanvas(previewState.canvas, {
                 loading: false,
-                points: [],
-                triggers: [],
+                points: [] as MidiActionSimulationPoint[],
+                triggers: [] as MidiActionTrigger[],
                 bounds: { left: 0, right: 1, top: 100, bottom: 0 },
+                triggerCount: 0,
+                preset: "pump" as MidiActionPreset,
                 sourceLabel: "",
                 description: ""
             });
@@ -1946,7 +1974,7 @@
 
         tab.add("group").alignment = ["fill", "fill"];
 
-        actionPreset.onChange = syncActionPresetUi;
+        (actionPreset as UiControl).onChange = syncActionPresetUi;
         syncActionPresetUi();
 
         return {
@@ -1972,49 +2000,52 @@
         };
     }
 
-    function wireActionsTabHandlers(ui, api) {
+    function wireActionsTabHandlers(ui: StringKeyedMap<unknown>, api: ReOmMIDIApi): void {
+        var controls = ui as StringKeyedMap<UiControl> & { selectedActionPresetId: () => string };
         function midiActionExpressionOptions(): MidiActionOptionsInput {
             return {
                 triggerMode: "pitch",
-                preset: ui.selectedActionPresetId(),
-                pitchFilter: ui.actionPitchFilter.text,
-                baseValue: ui.baseValue.text,
-                activeValue: ui.activeValue.text,
-                amount: ui.amountValue.text,
-                duration: ui.durationValue.text,
-                falloff: ui.falloff.selection ? ui.falloff.selection.text : "linear"
+                preset: controls.selectedActionPresetId() as MidiActionPreset,
+                pitchFilter: controls.actionPitchFilter.text,
+                baseValue: controls.baseValue.text,
+                activeValue: controls.activeValue.text,
+                amount: controls.amountValue.text,
+                duration: controls.durationValue.text,
+                falloff: (controls.falloff.selection && typeof controls.falloff.selection !== "number"
+                    ? controls.falloff.selection.text
+                    : "linear") as FalloffMode
             };
         }
 
         function midiActionPreviewBakeOptions(): MidiActionOptionsInput {
             var options = midiActionExpressionOptions();
-            options.maxNotes = ui.actionMaxNotes.text;
-            options.useWorkArea = ui.actionUseWorkArea.value;
+            options.maxNotes = controls.actionMaxNotes.text;
+            options.useWorkArea = !!controls.actionUseWorkArea.value;
             options.limitTriggers = true;
             return options;
         }
 
-        ui.previewActionButton.onClick = function () {
+        controls.previewActionButton.onClick = function () {
             if (api.__actionPreviewHost && api.__actionPreviewHost.selectTab) {
                 api.__actionPreviewHost.selectTab();
             }
             api.runPreviewMidiAction(midiActionPreviewBakeOptions());
         };
 
-        ui.copyActionButton.onClick = function () {
+        controls.copyActionButton.onClick = function () {
             api.runCopyMidiActionExpression(midiActionExpressionOptions());
         };
 
-        ui.createActionNullButton.onClick = function () {
+        controls.createActionNullButton.onClick = function () {
             api.runCreateMidiActionNullWithExpression(midiActionExpressionOptions());
         };
 
-        ui.bakeActionNullButton.onClick = function () {
+        controls.bakeActionNullButton.onClick = function () {
             api.runCreateMidiActionNullWithBake(midiActionPreviewBakeOptions());
         };
     }
 
-    function buildDrumMachineTab(featureTabs) {
+    function buildDrumMachineTab(featureTabs: TabbedPanel) {
         var tab = featureTabs.add("tab", undefined, "Drum Machine");
         var drumHint;
         var drumSettingsPanel;
@@ -2076,7 +2107,7 @@
             "ease",
             "exponential"
         ]);
-        drumFalloff.selection = 1;
+        drumFalloff.selection = 1 as unknown as ListItem;
         drumFalloff.helpTip = "Interpolation curve for the drum hit response decay.";
 
         drumOutputGroup = tab.add("group");
@@ -2107,41 +2138,44 @@
         };
     }
 
-    function wireDrumMachineTabHandlers(ui, api) {
+    function wireDrumMachineTabHandlers(ui: StringKeyedMap<unknown>, api: ReOmMIDIApi): void {
+        var controls = ui as StringKeyedMap<UiControl>;
         function drumMachineOptions(): DrumMachineOptionsInput {
             return {
-                maxNotes: ui.drumMaxNotes.text,
-                pitchFilter: ui.drumPitchFilter.text,
-                useWorkArea: ui.drumUseWorkArea.value,
-                squareSize: ui.drumSquareSize.text,
-                duration: ui.drumDuration.text,
-                animateScale: ui.drumAnimateScale.value,
-                animateOpacity: ui.drumAnimateOpacity.value,
-                animateRotation: ui.drumAnimateRotation.value,
-                falloff: ui.drumFalloff.selection ? ui.drumFalloff.selection.text : "linear"
+                maxNotes: controls.drumMaxNotes.text,
+                pitchFilter: controls.drumPitchFilter.text,
+                useWorkArea: !!controls.drumUseWorkArea.value,
+                squareSize: controls.drumSquareSize.text,
+                duration: controls.drumDuration.text,
+                animateScale: !!controls.drumAnimateScale.value,
+                animateOpacity: !!controls.drumAnimateOpacity.value,
+                animateRotation: !!controls.drumAnimateRotation.value,
+                falloff: (controls.drumFalloff.selection && typeof controls.drumFalloff.selection !== "number"
+                    ? controls.drumFalloff.selection.text
+                    : "linear") as FalloffMode
             };
         }
 
-        ui.createDrumExpressionButton.onClick = function () {
+        controls.createDrumExpressionButton.onClick = function () {
             api.runCreateDrumMachineExpression(drumMachineOptions());
         };
 
-        ui.bakeDrumButton.onClick = function () {
+        controls.bakeDrumButton.onClick = function () {
             api.runCreateDrumMachineBake(drumMachineOptions());
         };
     }
 
-    function buildDrumSequencerTab(featureTabs) {
+    function buildDrumSequencerTab(featureTabs: TabbedPanel) {
         var tab = featureTabs.add("tab", undefined, "Drum Sequencer");
-        var drumSeqSummary;
+        var drumSeqSummary: _Control;
         var drumSeqSettingsPanel;
         var drumSeqTotalFrames;
         var drumSeqButtonRow;
         var generateDrumSeqButton;
         var applyDrumSeqButton;
         var copyDrumSeqButton;
-        var drumSeqExpressionText;
-        var currentDrumSeqState;
+        var drumSeqExpressionText: _Control;
+        var currentDrumSeqState: DrumSequencerState;
         var drumSequencerHost;
 
         tab.orientation = "column";
@@ -2158,7 +2192,7 @@
                 "Zone reference: Kick frames ~11\u201330, Snare ~33\u201352, Hats ~86\u2013128."
         );
 
-        drumSeqSummary = tab.add("statictext", undefined, "No map generated yet.", { multiline: true });
+        drumSeqSummary = tab.add("statictext", undefined, "No map generated yet.", { multiline: true }) as unknown as _Control;
         drumSeqSummary.alignment = ["fill", "top"];
 
         drumSeqSettingsPanel = addOptionsPanel(tab, "Drum Sequencer Settings");
@@ -2183,7 +2217,7 @@
             multiline: true,
             scrollable: true,
             readonly: false
-        });
+        }) as unknown as _Control;
         drumSeqExpressionText.minimumSize = [0, 340];
         drumSeqExpressionText.preferredSize = [-1, 400];
         drumSeqExpressionText.alignment = ["fill", "fill"];
@@ -2192,7 +2226,7 @@
 
         currentDrumSeqState = {
             useNamedDrumSliders: false,
-            pitches: [],
+            pitches: [] as number[],
             pitchSliderName: "",
             durationSliderName: "",
             sourceLayerName: "",
@@ -2205,7 +2239,7 @@
             return currentDrumSeqState;
         }
 
-        function setDrumSequencerExpression(expression, summary) {
+        function setDrumSequencerExpression(expression: string, summary?: string): void {
             drumSeqExpressionText.text = String(expression || "");
             if (summary) {
                 drumSeqSummary.text = summary;
@@ -2222,7 +2256,7 @@
         drumSequencerHost = {
             setExpression: setDrumSequencerExpression,
             getExpression: getDrumSequencerExpression,
-            setState: function (state) {
+            setState: function (state: DrumSequencerState) {
                 if (state) {
                     currentDrumSeqState = state;
                 }
@@ -2244,40 +2278,43 @@
         };
     }
 
-    function wireDrumSequencerTabHandlers(ui, api) {
-        ui.generateDrumSeqButton.onClick = function () {
+    function wireDrumSequencerTabHandlers(ui: StringKeyedMap<unknown>, api: ReOmMIDIApi): void {
+        var controls = ui as StringKeyedMap<UiControl> & {
+            getDrumSequencerExpression: () => string;
+        };
+        controls.generateDrumSeqButton.onClick = function () {
             if (api.__drumSequencerHost && api.__drumSequencerHost.selectTab) {
                 api.__drumSequencerHost.selectTab();
             }
             api.runGenerateDrumSequencer({
-                existingExpression: ui.getDrumSequencerExpression(),
-                totalFrames: ui.drumSeqTotalFrames.text
+                existingExpression: controls.getDrumSequencerExpression(),
+                totalFrames: controls.drumSeqTotalFrames.text
             });
         };
 
-        ui.applyDrumSeqButton.onClick = function () {
+        controls.applyDrumSeqButton.onClick = function () {
             if (api.__drumSequencerHost && api.__drumSequencerHost.selectTab) {
                 api.__drumSequencerHost.selectTab();
             }
-            api.runApplyDrumSequencer(ui.getDrumSequencerExpression());
+            api.runApplyDrumSequencer(controls.getDrumSequencerExpression());
         };
 
-        ui.copyDrumSeqButton.onClick = function () {
-            api.runCopyDrumSequencerExpression(ui.getDrumSequencerExpression());
+        controls.copyDrumSeqButton.onClick = function () {
+            api.runCopyDrumSequencerExpression(controls.getDrumSequencerExpression());
         };
     }
 
-    function buildMapTab(featureTabs) {
+    function buildMapTab(featureTabs: TabbedPanel) {
         var tab = featureTabs.add("tab", undefined, "MIDI Map");
-        var midiMapSummary;
+        var midiMapSummary: _Control;
         var midiMapLabelWarning;
         var midiMapButtonRow;
         var generateMidiMapButton;
-        var switchMidiMapLabelsButton;
-        var midiMapExpressionText;
+        var switchMidiMapLabelsButton: Button;
+        var midiMapExpressionText: _Control;
         var midiMapTextNullRow;
         var createMidiMapTextButton;
-        var currentMidiMapState;
+        var currentMidiMapState: MidiMapState;
         var midiMapHost;
 
         tab.orientation = "column";
@@ -2292,7 +2329,7 @@
                 "To copy the final expression, click inside the editor box, press Ctrl+A, then Ctrl+C, and paste it into the Source Text expression of any Text Layer."
         );
 
-        midiMapSummary = tab.add("statictext", undefined, "No map generated yet.", { multiline: true });
+        midiMapSummary = tab.add("statictext", undefined, "No map generated yet.", { multiline: true }) as unknown as _Control;
         midiMapSummary.alignment = ["fill", "top"];
 
         midiMapLabelWarning = tab.add(
@@ -2310,7 +2347,7 @@
         generateMidiMapButton = midiMapButtonRow.add("button", undefined, "Generate from Layer");
         generateMidiMapButton.helpTip =
             "Analyze the selected MIDI null layer to find active pitches and build a text map expression.";
-        switchMidiMapLabelsButton = midiMapButtonRow.add("button", undefined, "Use Drum Names");
+        switchMidiMapLabelsButton = midiMapButtonRow.add("button", undefined, "Use Drum Names") as unknown as Button;
         switchMidiMapLabelsButton.helpTip =
             "Toggle between Note Names (e.g., C4) and General MIDI Drum Names. Warning: Overwrites custom edits.";
 
@@ -2318,7 +2355,7 @@
             multiline: true,
             scrollable: true,
             readonly: false
-        });
+        }) as unknown as _Control;
         midiMapExpressionText.minimumSize = [0, 340];
         midiMapExpressionText.preferredSize = [-1, 400];
         midiMapExpressionText.alignment = ["fill", "fill"];
@@ -2335,7 +2372,7 @@
         tab.add("group").alignment = ["fill", "fill"];
 
         currentMidiMapState = {
-            pitches: [],
+            pitches: [] as number[],
             pitchSliderName: "",
             sourceLayerName: "",
             labelMode: "notes"
@@ -2350,7 +2387,7 @@
                 currentMidiMapState.labelMode === "drums" ? "Use Note Names" : "Use Drum Names";
         }
 
-        function setMidiMapExpression(expression, summary) {
+        function setMidiMapExpression(expression: string, summary?: string): void {
             midiMapExpressionText.text = String(expression || "");
             if (summary) {
                 midiMapSummary.text = summary;
@@ -2362,7 +2399,7 @@
 
         midiMapHost = {
             setExpression: setMidiMapExpression,
-            setState: function (state) {
+            setState: function (state: MidiMapState) {
                 if (state) {
                     currentMidiMapState = state;
                     syncMidiMapLabelButton();
@@ -2385,27 +2422,30 @@
         };
     }
 
-    function wireMapTabHandlers(ui, api) {
-        ui.generateMidiMapButton.onClick = function () {
+    function wireMapTabHandlers(ui: StringKeyedMap<unknown>, api: ReOmMIDIApi): void {
+        var controls = ui as StringKeyedMap<UiControl> & {
+            getMidiMapState: () => MidiMapState;
+        };
+        controls.generateMidiMapButton.onClick = function () {
             if (api.__midiMapHost && api.__midiMapHost.selectTab) {
                 api.__midiMapHost.selectTab();
             }
             api.runGenerateMidiMap({
-                labelMode: ui.getMidiMapState().labelMode
+                labelMode: controls.getMidiMapState().labelMode
             });
         };
 
-        ui.switchMidiMapLabelsButton.onClick = function () {
-            var nextMode = ui.getMidiMapState().labelMode === "drums" ? "notes" : "drums";
+        controls.switchMidiMapLabelsButton.onClick = function () {
+            var nextMode = controls.getMidiMapState().labelMode === "drums" ? "notes" : "drums";
             api.runSwitchMidiMapLabels(nextMode);
         };
 
-        ui.createMidiMapTextButton.onClick = function () {
-            api.runCreateMidiMapTextNull(ui.midiMapExpressionText.text);
+        controls.createMidiMapTextButton.onClick = function () {
+            api.runCreateMidiMapTextNull(controls.midiMapExpressionText.text);
         };
     }
 
-    function buildMiscTab(featureTabs) {
+    function buildMiscTab(featureTabs: TabbedPanel) {
         var tab = featureTabs.add("tab", undefined, "Misc");
         var toneLayerSection;
         var toneWaveform;
@@ -2437,7 +2477,7 @@
                 "Note: Live audio previewing is not supported by expressions, so this tool bakes static keyframes instead."
         );
         toneWaveform = addLabeledControl(toneLayerSection, "Waveform", "dropdownlist", api.TONE_WAVEFORM_OPTIONS);
-        toneWaveform.selection = 0;
+        toneWaveform.selection = 0 as unknown as ListItem;
         toneWaveform.helpTip = "Select the audio waveform type generated by the Tone effect.";
         toneLevel = addLabeledControl(toneLayerSection, "Level", "edittext", "20");
         toneLevel.helpTip =
@@ -2522,38 +2562,42 @@
         };
     }
 
-    function wireMiscTabHandlers(ui, api) {
+    function wireMiscTabHandlers(ui: StringKeyedMap<unknown>, api: ReOmMIDIApi): void {
+        var controls = ui as StringKeyedMap<UiControl>;
         function screenFlipOptions(axis: "horizontal" | "vertical"): ScreenFlipRunOptions {
             return {
                 axis: axis,
-                maxNotes: ui.screenFlipMaxNotes.text,
-                useWorkArea: ui.screenFlipUseWorkArea.value
+                maxNotes: controls.screenFlipMaxNotes.text,
+                useWorkArea: !!controls.screenFlipUseWorkArea.value
             };
         }
 
-        ui.createToneLayerButton.onClick = function () {
+        controls.createToneLayerButton.onClick = function () {
             api.runCreateToneLayer({
-                waveform: ui.toneWaveform.selection ? ui.toneWaveform.selection.text : "Sine",
-                level: ui.toneLevel.text,
-                useWorkArea: ui.toneUseWorkArea.value,
-                quantizeToFrames: ui.toneQuantizeToFrames.value,
-                useDrumLanes: ui.toneUseDrumLanes.value
+                waveform:
+                    controls.toneWaveform.selection && typeof controls.toneWaveform.selection !== "number"
+                        ? controls.toneWaveform.selection.text
+                        : "Sine",
+                level: controls.toneLevel.text,
+                useWorkArea: !!controls.toneUseWorkArea.value,
+                quantizeToFrames: !!controls.toneQuantizeToFrames.value,
+                useDrumLanes: !!controls.toneUseDrumLanes.value
             });
         };
 
-        ui.screenFlipApplyHorizontalButton.onClick = function () {
+        controls.screenFlipApplyHorizontalButton.onClick = function () {
             api.runApplyScreenFlip(screenFlipOptions("horizontal"));
         };
 
-        ui.screenFlipBakeHorizontalButton.onClick = function () {
+        controls.screenFlipBakeHorizontalButton.onClick = function () {
             api.runBakeScreenFlip(screenFlipOptions("horizontal"));
         };
 
-        ui.screenFlipApplyVerticalButton.onClick = function () {
+        controls.screenFlipApplyVerticalButton.onClick = function () {
             api.runApplyScreenFlip(screenFlipOptions("vertical"));
         };
 
-        ui.screenFlipBakeVerticalButton.onClick = function () {
+        controls.screenFlipBakeVerticalButton.onClick = function () {
             api.runBakeScreenFlip(screenFlipOptions("vertical"));
         };
     }
@@ -2564,21 +2608,21 @@
         var win = isPanel ? thisObj : new Window("palette", "ReOm MIDI", undefined, { resizeable: true });
         var panelWidth = PANEL_WIDTH_DEFAULT;
         var panelHeight = PANEL_HEIGHT_DEFAULT;
-        var featureTabs;
+        var featureTabs: TabbedPanel;
         var mapPreviewState = createPreviewState();
         var actionPreviewState = createPreviewState();
         var importUi;
-        var pianoRollUi;
-        var actionsUi;
-        var drumMachineUi;
-        var drumSequencerUi;
-        var mapUi;
+        var pianoRollUi: StringKeyedMap<unknown>;
+        var actionsUi: StringKeyedMap<unknown>;
+        var drumMachineUi: StringKeyedMap<unknown>;
+        var drumSequencerUi: StringKeyedMap<unknown>;
+        var mapUi: StringKeyedMap<unknown>;
         var miscUi;
         var footerGroup;
         var statusBar;
         var closeButtonRow;
         var closeButton;
-        var selectFeatureTab;
+        var selectFeatureTab: (tab: Tab) => void;
 
         win.orientation = "column";
         win.alignChildren = ["fill", "fill"];
@@ -2630,11 +2674,11 @@
         featureTabs.maximumSize = [10000, 10000];
 
         importUi = buildImportTab(featureTabs);
-        pianoRollUi = buildPianoRollTab(win, featureTabs, mapPreviewState);
-        actionsUi = buildActionsTab(win, featureTabs, actionPreviewState);
-        drumMachineUi = buildDrumMachineTab(featureTabs);
-        drumSequencerUi = buildDrumSequencerTab(featureTabs);
-        mapUi = buildMapTab(featureTabs);
+        pianoRollUi = buildPianoRollTab(win, featureTabs, mapPreviewState) as StringKeyedMap<unknown>;
+        actionsUi = buildActionsTab(win, featureTabs, actionPreviewState) as StringKeyedMap<unknown>;
+        drumMachineUi = buildDrumMachineTab(featureTabs) as StringKeyedMap<unknown>;
+        drumSequencerUi = buildDrumSequencerTab(featureTabs) as StringKeyedMap<unknown>;
+        mapUi = buildMapTab(featureTabs) as StringKeyedMap<unknown>;
         miscUi = buildMiscTab(featureTabs);
 
         footerGroup = win.add("group");
@@ -2659,38 +2703,38 @@
         closeButton.preferredSize = [72, 24];
         closeButton.maximumSize = [96, 26];
 
-        selectFeatureTab = function (tab) {
+        selectFeatureTab = function (tab: Tab) {
             if (!featureTabs || !tab) {
                 return;
             }
             featureTabs.selection = tab;
-            if (tab === actionsUi.tab) {
-                actionsUi.refreshActionPresetFieldVisibility();
+            if (tab === (actionsUi.tab as Tab)) {
+                ((actionsUi.refreshActionPresetFieldVisibility as unknown) as () => void)();
             }
             resizeScriptUiHost(win);
             refreshExpandedPreviewHosts(win, mapPreviewState, actionPreviewState);
             repaintScriptUiHost(win);
         };
 
-        pianoRollUi.previewHost.selectTab = function () {
-            selectFeatureTab(pianoRollUi.tab);
+        (pianoRollUi.previewHost as ReOmPreviewHost).selectTab = function () {
+            selectFeatureTab(pianoRollUi.tab as Tab);
         };
-        actionsUi.previewHost.selectTab = function () {
-            selectFeatureTab(actionsUi.tab);
+        (actionsUi.previewHost as ReOmPreviewHost).selectTab = function () {
+            selectFeatureTab(actionsUi.tab as Tab);
         };
-        mapUi.midiMapHost.selectTab = function () {
-            selectFeatureTab(mapUi.tab);
+        (mapUi.midiMapHost as ReOmMidiMapHost).selectTab = function () {
+            selectFeatureTab(mapUi.tab as Tab);
         };
-        mapUi.midiMapHost.win = win;
-        drumSequencerUi.drumSequencerHost.selectTab = function () {
-            selectFeatureTab(drumSequencerUi.tab);
+        (mapUi.midiMapHost as ReOmMidiMapHost).win = win;
+        (drumSequencerUi.drumSequencerHost as ReOmDrumSequencerHost).selectTab = function () {
+            selectFeatureTab(drumSequencerUi.tab as Tab);
         };
-        drumSequencerUi.drumSequencerHost.win = win;
+        (drumSequencerUi.drumSequencerHost as ReOmDrumSequencerHost).win = win;
 
-        api.__mapPreviewHost = pianoRollUi.previewHost;
-        api.__actionPreviewHost = actionsUi.previewHost;
-        api.__midiMapHost = mapUi.midiMapHost;
-        api.__drumSequencerHost = drumSequencerUi.drumSequencerHost;
+        api.__mapPreviewHost = pianoRollUi.previewHost as ReOmPreviewHost;
+        api.__actionPreviewHost = actionsUi.previewHost as ReOmPreviewHost;
+        api.__midiMapHost = mapUi.midiMapHost as ReOmMidiMapHost;
+        api.__drumSequencerHost = drumSequencerUi.drumSequencerHost as ReOmDrumSequencerHost;
 
         wireImportTabHandlers(importUi, api);
         wirePianoRollTabHandlers(pianoRollUi, api);
@@ -2701,8 +2745,8 @@
         wireMiscTabHandlers(miscUi, api);
 
         featureTabs.onChange = function () {
-            if (featureTabs.selection === actionsUi.tab) {
-                actionsUi.refreshActionPresetFieldVisibility();
+            if (featureTabs.selection === (actionsUi.tab as Tab)) {
+                ((actionsUi.refreshActionPresetFieldVisibility as unknown) as () => void)();
             }
         };
 
@@ -2711,17 +2755,17 @@
             isPanel: isPanel,
             lockedWindowHeight: PANEL_LOCKED_HEIGHT,
             featureTabs: featureTabs,
-            importTab: importUi.tab,
-            pianoRollTab: pianoRollUi.tab,
-            actionsTab: actionsUi.tab,
-            drumMachineTab: drumMachineUi.tab,
-            drumSequencerTab: drumSequencerUi.tab,
-            mapTab: mapUi.tab,
-            miscTab: miscUi.tab,
+            importTab: (importUi.tab as unknown) as Tab,
+            pianoRollTab: (pianoRollUi.tab as unknown) as Tab,
+            actionsTab: (actionsUi.tab as unknown) as Tab,
+            drumMachineTab: (drumMachineUi.tab as unknown) as Tab,
+            drumSequencerTab: (drumSequencerUi.tab as unknown) as Tab,
+            mapTab: (mapUi.tab as unknown) as Tab,
+            miscTab: (miscUi.tab as unknown) as Tab,
             mapPreviewState: mapPreviewState,
             actionPreviewState: actionPreviewState,
-            syncActionPresetUi: actionsUi.syncActionPresetUi,
-            refreshActionPresetFieldVisibility: actionsUi.refreshActionPresetFieldVisibility
+            syncActionPresetUi: (actionsUi.syncActionPresetUi as unknown) as () => void,
+            refreshActionPresetFieldVisibility: (actionsUi.refreshActionPresetFieldVisibility as unknown) as () => void
         };
         api.selectFeatureTab = selectFeatureTab;
         api.refreshPanelLayout = function () {
@@ -2771,9 +2815,9 @@
     };
 
     var copyDialogState = {
-        win: null,
-        hint: null,
-        text: null
+        win: null as Window | null,
+        hint: null as _Control | null,
+        text: null as EditText | null
     };
 
     function closeMidiActionExpressionCopyDialog() {
@@ -2787,7 +2831,7 @@
         }
     }
 
-    function createMidiActionExpressionCopyDialog(sourceLabel) {
+    function createMidiActionExpressionCopyDialog(sourceLabel: string): Window {
         var win;
         var hint;
         var text;
@@ -2817,12 +2861,12 @@
             closeMidiActionExpressionCopyDialog();
         };
         copyDialogState.win = win;
-        copyDialogState.hint = hint;
+        copyDialogState.hint = hint as unknown as _Control;
         copyDialogState.text = text;
         return win;
     }
 
-    api.openMidiActionExpressionCopyDialog = function (sourceLabel) {
+    api.openMidiActionExpressionCopyDialog = function (sourceLabel: string) {
         var win = createMidiActionExpressionCopyDialog(sourceLabel);
         win.center();
         win.show();
@@ -2859,12 +2903,15 @@
 
     api.closeMidiActionExpressionCopyDialog = closeMidiActionExpressionCopyDialog;
 
-    api.showMidiActionExpressionCopyDialog = function (expression, sourceLabel) {
+    api.showMidiActionExpressionCopyDialog = function (expression: string, sourceLabel?: string) {
         api.openMidiActionExpressionCopyDialog(sourceLabel);
         api.completeMidiActionExpressionCopyDialog(expression, sourceLabel);
     };
 
-    var midiInfoDialogState = {
+    var midiInfoDialogState: {
+        win: Window | null;
+        text: EditText | null;
+    } = {
         win: null,
         text: null
     };

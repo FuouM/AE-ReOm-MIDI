@@ -13,8 +13,8 @@
 
     function normalizePitchFilter(value: string | number | number[] | null | undefined): number[] {
         var parts;
-        var out = [];
-        var seen = {};
+        var out: number[] = [];
+        var seen: StringKeyedMap<boolean> = {};
         var i;
         var n;
 
@@ -181,7 +181,7 @@
         var i;
         for (i in options) {
             if (options.hasOwnProperty(i)) {
-                normalized[i] = options[i];
+                (normalized as StringKeyedMap<unknown>)[i] = (options as StringKeyedMap<unknown>)[i];
             }
         }
         if (preset === "toggle") {
@@ -200,7 +200,7 @@
         var i;
         for (i in options) {
             if (options.hasOwnProperty(i)) {
-                normalized[i] = options[i];
+                (normalized as StringKeyedMap<unknown>)[i] = (options as StringKeyedMap<unknown>)[i];
             }
         }
         normalizeTogglePresetOptions(normalized);
@@ -272,20 +272,20 @@
         accumulator: ["pitchHitCountAt", "latestHit", "addDelta", "fitPropertyValue"]
     };
 
-    var FUNCTION_DEPS = {
-        sliderByName: [],
+    var FUNCTION_DEPS: StringKeyedMap<string[]> = {
+        sliderByName: [] as string[],
         pitchSlider: ["sliderByName"],
-        lastKeyAtOrBefore: [],
-        pitchAllowed: [],
+        lastKeyAtOrBefore: [] as string[],
+        pitchAllowed: [] as string[],
         pitchHitCountAt: ["pitchSlider", "pitchAllowed"],
         pitchEventTimes: ["pitchSlider", "pitchAllowed"],
         latestPitchHit: ["pitchSlider", "pitchAllowed", "lastKeyAtOrBefore"],
         latestHit: ["latestPitchHit"],
-        addDelta: [],
-        mixValue: [],
-        falloffFactor: [],
-        segmentProgress: [],
-        fitPropertyValue: []
+        addDelta: [] as string[],
+        mixValue: [] as string[],
+        falloffFactor: [] as string[],
+        segmentProgress: [] as string[],
+        fitPropertyValue: [] as string[]
     };
 
     var RUNTIME_FUNCTION_ORDER = [
@@ -480,9 +480,10 @@
     };
 
     function resolveRequiredFunctions(preset: MidiActionPreset | string): string[] {
-        var roots = PRESET_FUNCTIONS[preset] || PRESET_FUNCTIONS["pump"];
-        var required = {};
-        var queue = [].concat(roots);
+        var presetKey = preset as keyof typeof PRESET_FUNCTIONS;
+        var roots = PRESET_FUNCTIONS[presetKey] || PRESET_FUNCTIONS["pump"];
+        var required: StringKeyedMap<boolean> = {};
+        var queue: string[] = [].concat(roots);
         var name;
         var deps;
         var i;
@@ -498,7 +499,7 @@
             }
         }
 
-        var sorted = [];
+        var sorted: string[] = [];
         for (i = 0; i < RUNTIME_FUNCTION_ORDER.length; i += 1) {
             name = RUNTIME_FUNCTION_ORDER[i];
             if (required[name]) {
@@ -513,9 +514,10 @@
         var lines = ["", "// ---- Runtime Helpers ----"];
         var i;
         var name;
+        var impls = RUNTIME_FUNCTION_IMPLS as StringKeyedMap<string[]>;
         for (i = 0; i < requiredNames.length; i += 1) {
             name = requiredNames[i];
-            lines = lines.concat(RUNTIME_FUNCTION_IMPLS[name]);
+            lines = lines.concat(impls[name]);
             lines.push("");
         }
         return joinExpressionLines(lines);
@@ -752,7 +754,7 @@
         midi: MidiFileData,
         options?: MidiActionOptionsInput
     ): MidiActionTrigger[] {
-        var triggers = [];
+        var triggers: MidiActionTrigger[] = [];
         var noteEvents = midi.notes || [];
         var i;
         var note;
@@ -818,7 +820,7 @@
     }
 
     function midiActionTriggerInTimeRange(
-        trigger: MidiActionTrigger,
+        trigger: { time: number },
         options: MidiActionOptionsInput | MidiActionOptionsResolved
     ): boolean {
         var start;
@@ -934,13 +936,13 @@
         try {
             parade = getLayerEffectParade(layer);
             if (parade) {
-                effect = parade.property(effectName);
+                effect = parade.property(effectName) as PropertyGroup;
                 slider = sliderFromEffectGroup(effect);
                 if (sliderHasKeys(slider)) {
                     return slider;
                 }
                 for (i = 1; i <= parade.numProperties; i += 1) {
-                    effect = parade.property(i);
+                    effect = parade.property(i) as PropertyGroup;
                     if (String(effect.name) === effectName) {
                         slider = sliderFromEffectGroup(effect);
                         if (sliderHasKeys(slider)) {
@@ -952,7 +954,7 @@
         } catch (paradeErr) {}
         try {
             if (effectsLayer && effectsLayer.effect) {
-                slider = effectsLayer.effect(effectName)("Slider");
+                slider = effectsLayer.effect(effectName)("Slider") as Property;
                 if (sliderHasKeys(slider)) {
                     return slider;
                 }
@@ -960,7 +962,7 @@
         } catch (effectErr) {}
         try {
             if (effectsLayer && effectsLayer.Effects) {
-                slider = effectsLayer.Effects.property(effectName).property(1);
+                slider = effectsLayer.Effects.property(effectName).property(1) as Property;
                 if (sliderHasKeys(slider)) {
                     return slider;
                 }
@@ -1016,9 +1018,9 @@
         slider: Property | null,
         options?: MidiActionOptionsInput | PianoRollMapOptions | null
     ): SliderKeyCache {
-        var cache = {
-            times: [],
-            values: []
+        var cache: SliderKeyCache = {
+            times: [] as number[],
+            values: [] as number[]
         };
         var i;
         var key;
@@ -1072,8 +1074,8 @@
     }
 
     function buildLayerEffectSliderIndex(layer: Layer): LayerEffectSliderIndex {
-        var byName = {};
-        var names = [];
+        var byName: { [effectName: string]: Property } = {};
+        var names: string[] = [];
         forEachLayerEffect(layer, function (effect) {
             var name = String(effect.name || "");
             var slider = sliderFromEffectGroup(effect);
@@ -1158,15 +1160,15 @@
                 prop = prop.propertyGroup(1);
                 depth -= 1;
             }
-            if (prop && (prop.Effects || (prop.property && prop.property("ADBE Effect Parade")))) {
-                return prop;
+            if (prop && (api.asLayerWithEffects(prop as Layer) || (prop as PropContainerLike).property)) {
+                return prop as Layer;
             }
         } catch (e) {}
         return null;
     }
 
     function getCompSelectedLayers(comp: CompItem | null | undefined): Layer[] {
-        var layers = [];
+        var layers: Layer[] = [];
         var selected;
         var fromProps;
         var i;
@@ -1292,7 +1294,7 @@
             }
         } catch (effectsErr) {}
         try {
-            parade = layer.property("ADBE Effect Parade");
+            parade = layer.property("ADBE Effect Parade") as PropertyGroup;
             if (parade && parade.numProperties > 0) {
                 return parade;
             }
@@ -1368,7 +1370,7 @@
                     slider = effect.property(propNames[i] as string);
                 }
                 if (slider) {
-                    return slider;
+                    return slider as Property;
                 }
             } catch (e) {}
         }
@@ -1377,7 +1379,7 @@
 
     function layerEffectSliderByName(layer: Layer, effectName: string): Property | null {
         var limitedName = api.limitEffectName(effectName);
-        var found = null;
+        var found: Property | null = null;
         forEachLayerEffect(layer, function (effect) {
             if (!found && String(effect.name) === limitedName) {
                 found = effectSliderProperty(effect);
@@ -1628,7 +1630,7 @@
             return;
         }
         for (i = 1; i <= parade.numProperties; i += 1) {
-            callback(parade.property(i));
+            callback(parade.property(i) as PropertyGroup);
         }
     }
 
@@ -1661,7 +1663,7 @@
 
     function findVelocitySliderForLayer(layer: Layer, pitchEffectName: string | null | undefined): Property | null {
         var prefix = "";
-        var found = null;
+        var found: Property | null = null;
         var name;
         var slider;
         if (pitchEffectName) {
@@ -1723,7 +1725,7 @@
                 : velSlider
                   ? buildSliderKeyCache(velSlider, options)
                   : null;
-        var triggers = [];
+        var triggers: MidiActionTrigger[] = [];
         var maxNotes = midiActionUsesTriggerLimits(options) ? parsePianoRollMaxNotes(options.maxNotes, 10) : -1;
         var i;
         var time;
@@ -1779,8 +1781,8 @@
     ): PitchValuesFromLayerResult {
         var resolved = resolvePitchSlider(sourceLayer, options || {});
         var pitchCache = buildSliderKeyCache(resolved.slider);
-        var seen = {};
-        var pitches = [];
+        var seen: StringKeyedMap<boolean> = {};
+        var pitches: number[] = [];
         var i;
         var pitch;
 
@@ -1937,8 +1939,8 @@
         if (baseIsArray || activeIsArray) {
             len = activeIsArray ? (active as number[]).length : baseIsArray ? (base as number[]).length : 1;
             for (i = 0; i < len; i += 1) {
-                basePart = baseIsArray ? base[i] : (base as number);
-                activePart = activeIsArray ? active[i] : (active as number);
+                basePart = baseIsArray ? (base as number[])[i] : (base as number);
+                activePart = activeIsArray ? (active as number[])[i] : (active as number);
                 out.push(basePart + (activePart - basePart) * progress);
             }
             return out;
@@ -2199,7 +2201,7 @@
         }
 
         for (i = 0; i < properties.length; i += 1) {
-            prop = properties[i];
+            prop = properties[i] as Property;
             if (prop && (prop.setValuesAtTimes || prop.setValueAtTime)) {
                 plan = api.buildMidiActionBakePlan(triggers, prop, comp, options || {});
                 if (applyBakePlan(prop, plan)) {
@@ -2272,7 +2274,7 @@
 
     function channelPrefixFromLayer(layer: Layer | null | undefined): string | null {
         var match;
-        var prefix = null;
+        var prefix: string | null = null;
         if (!layer) {
             return null;
         }
@@ -2423,7 +2425,7 @@
                 continue;
             }
             if (options && pianoRollHasTimeFilter(options)) {
-                noteDraft = { time: time, duration: 0.05 };
+                noteDraft = { time: time, duration: 0.05, pitch: pitch };
                 if (!pianoRollNoteInTimeRange(noteDraft, options)) {
                     continue;
                 }
@@ -3035,8 +3037,8 @@
         var groups: { [name: string]: NamedDrumPadGroup } = {};
         var order: string[] = [];
         var result: NamedDrumPadGroup[] = [];
-        var prefix;
-        var pitchFilter;
+        var prefix: string | null;
+        var pitchFilter: number[];
         var i;
         var j;
         var name;
@@ -3049,7 +3051,7 @@
 
         options = options || {};
         prefix = channelPrefixFromLayer(layer);
-        pitchFilter = options.pitchFilter || [];
+        pitchFilter = normalizePitchFilter(options.pitchFilter);
 
         if (!layer) {
             return result;
@@ -3291,8 +3293,8 @@
     };
 
     function uniqueLabels(notes: PianoRollNote[]): string[] {
-        var labels = [];
-        var seen = {};
+        var labels: string[] = [];
+        var seen: StringKeyedMap<boolean> = {};
         var i;
         for (i = 0; i < notes.length; i += 1) {
             if (notes[i].isDrum && !seen[notes[i].label]) {
@@ -4328,8 +4330,8 @@
         var duration = numeric(options.duration, 0.2);
         var windowDuration = options.falloff === "instant" ? step || duration : duration;
         var eps = Math.min(step * 0.001, range.step * 0.001, 0.00001);
-        var entries = [];
-        var seen = {};
+        var entries: PreviewSampleEntry[] = [];
+        var seen: StringKeyedMap<boolean> = {};
         var budget;
         var coarseStep;
         var reserved = 0;
@@ -4417,7 +4419,7 @@
             falloff: options.falloff || "linear",
             frameDuration: range.step
         };
-        var points = [];
+        var points: MidiActionSimulationPoint[] = [];
         var accumTotal = null;
         var accumUpTo = -1;
         var duration = numeric(simOptions.duration, 0.2);
@@ -4715,7 +4717,7 @@
             throw new Error("Could not access the MIDI Action slider property.");
         }
         base = parseValueLiteral(options.baseValue, 0);
-        if (base && base.length !== undefined && typeof base !== "string") {
+        if (valueIsArray(base)) {
             base = base.length ? base[0] : 0;
         }
         if (typeof sliderProp.setValue === "function") {
@@ -4854,7 +4856,7 @@
 
         expression = api.buildMidiActionExpression(options || {});
         for (i = 0; i < properties.length; i += 1) {
-            prop = properties[i];
+            prop = properties[i] as Property;
             if (prop && prop.canSetExpression) {
                 prop.expression = expression;
                 prop.expressionEnabled = true;
@@ -4887,8 +4889,8 @@
         var axisIndex = axis === "vertical" ? 1 : 0;
         var dims = propertyDimensions(property);
         var value;
-        var base;
-        var active;
+        var baseArr: number[];
+        var activeArr: number[];
         var magnitude;
 
         try {
@@ -4897,20 +4899,20 @@
             value = dims > 1 ? [100, 100] : 100;
         }
         if (dims <= 1) {
-            magnitude = scalarMagnitude(value);
+            magnitude = scalarMagnitude(value as number | number[]);
             return {
                 baseValue: String(magnitude),
                 activeValue: String(-magnitude)
             };
         }
-        base = cloneValue(value);
-        active = cloneValue(value);
-        magnitude = scalarMagnitude(base[axisIndex]);
-        base[axisIndex] = magnitude;
-        active[axisIndex] = -magnitude;
+        baseArr = cloneValue(value) as number[];
+        activeArr = cloneValue(value) as number[];
+        magnitude = scalarMagnitude(baseArr[axisIndex]);
+        baseArr[axisIndex] = magnitude;
+        activeArr[axisIndex] = -magnitude;
         return {
-            baseValue: formatScreenFlipToggleLiteral(base),
-            activeValue: formatScreenFlipToggleLiteral(active)
+            baseValue: formatScreenFlipToggleLiteral(baseArr),
+            activeValue: formatScreenFlipToggleLiteral(activeArr)
         };
     }
 

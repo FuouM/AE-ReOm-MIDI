@@ -278,7 +278,7 @@
         options = options || {};
         for (key in options) {
             if (options.hasOwnProperty(key)) {
-                collectOptions[key] = options[key as keyof typeof options];
+                (collectOptions as StringKeyedMap<unknown>)[key] = (options as StringKeyedMap<unknown>)[key];
             }
         }
         collectOptions.useDrumLanes = true;
@@ -975,14 +975,14 @@
             return false;
         }
         bakeOptions = {
-            preset: "pump",
+            preset: "pump" as MidiActionPreset,
             baseValue: drumMachineExpressionLiteral(baseValue, 0),
             amount: drumMachineExpressionLiteral(amountValue, 100),
             duration: String(options.duration || "0.2"),
             falloff: options.falloff || "linear",
             frameDuration: comp && comp.frameDuration ? comp.frameDuration : 1 / 24
         };
-        plan = api.buildMidiActionBakePlan(triggers, property as Property, comp, bakeOptions);
+        plan = api.buildMidiActionBakePlan(triggers, property as Property, comp, bakeOptions as MidiActionOptionsInput);
         return applyBakePlan(property, plan);
     }
 
@@ -1095,7 +1095,7 @@
         controllerOptions = { includeFillControls: false } as PianoRollMapOptions;
         for (key in options) {
             if (options.hasOwnProperty(key)) {
-                controllerOptions[key] = options[key];
+                (controllerOptions as StringKeyedMap<unknown>)[key] = (options as unknown as StringKeyedMap<unknown>)[key];
             }
         }
         controllerInfo = api.createPianoRollControllerNull(comp, sourceLayer, controllerOptions);

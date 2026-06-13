@@ -33,9 +33,9 @@ interface ReOmGlobalState {
     previewUiFlushName?: string;
     lastActionExpression?: string;
     previewCanvas?: _Control | null;
-    previewCanvasRoot?: _Control | null;
+    previewCanvasRoot?: Window | Panel | _Control | null;
     actionPreviewCanvas?: _Control | null;
-    actionPreviewCanvasRoot?: _Control | null;
+    actionPreviewCanvasRoot?: Window | Panel | _Control | null;
     pianoRollPreviewLoadingSummary?: _Control | null;
     actionPreviewLoadingSummary?: _Control | null;
     actionPreviewLoading?: boolean;

@@ -97,10 +97,10 @@
         }
         result = f.read(f.length);
         f.close();
-        return new MidiFile(result, filePath);
+        return new (MidiFile as MidiFileConstructor)(result, filePath);
     };
 
-    MidiFile.prototype.getChannel = function (trackIndex, midiChannel) {
+    MidiFile.prototype.getChannel = function (this: MidiFileData, trackIndex: number, midiChannel: number): MidiChannel {
         var index = trackIndex * 16 + midiChannel;
         var channel = this.channels[index];
         var track = this.tracks[trackIndex];
@@ -146,7 +146,7 @@
         if (this.tempoEvents.length === 0) {
             this.tempoEvents.push({ ticks: 0, microsecondsPerQuarter: 500000 });
         }
-        this.notes.sort(function (a, b) {
+        this.notes.sort(function (a: MidiNote, b: MidiNote) {
             return a.ticks - b.ticks || a.pitch - b.pitch;
         });
         this.resolveTimes();
@@ -263,14 +263,14 @@
         return midi._timeSegments;
     }
 
-    MidiFile.prototype.parseTrack = function (trackIndex, start, end) {
+    MidiFile.prototype.parseTrack = function (this: MidiFileData, trackIndex: number, start: number, end: number): void {
         var data = this.data;
         var offset = start;
         var ticks = 0;
         var runningStatus = 0;
         var midiChannelPrefix = 0;
         var track = createTrack(trackIndex);
-        var openNotes = {};
+        var openNotes: StringKeyedMap<MidiNote[]> = {};
         this.tracks[trackIndex] = track;
 
         while (offset < end && offset < data.length) {
@@ -339,7 +339,13 @@
         }
     };
 
-    MidiFile.prototype.parseMetaEvent = function (track, ticks, offset, midiChannelPrefix) {
+    MidiFile.prototype.parseMetaEvent = function (
+        this: MidiFileData,
+        track: MidiTrack,
+        ticks: number,
+        offset: number,
+        midiChannelPrefix: number
+    ): number {
         var data = this.data;
         var type = readByte(data, offset);
         var lengthResult = readVar(data, offset + 1);
@@ -371,7 +377,15 @@
         return 1 + lengthLen + length;
     };
 
-    MidiFile.prototype.addNoteEvent = function (trackIndex, midiChannel, ticks, pitch, velocity, openNotes) {
+    MidiFile.prototype.addNoteEvent = function (
+        this: MidiFileData,
+        trackIndex: number,
+        midiChannel: number,
+        ticks: number,
+        pitch: number,
+        velocity: number,
+        openNotes: StringKeyedMap<MidiNote[]>
+    ): void {
         var channel = this.getChannel(trackIndex, midiChannel);
         var key = midiChannel + ":" + pitch;
         var stack = openNotes[key] || [];
@@ -403,7 +417,14 @@
         }
     };
 
-    MidiFile.prototype.addController = function (trackIndex, midiChannel, ticks, controller, value) {
+    MidiFile.prototype.addController = function (
+        this: MidiFileData,
+        trackIndex: number,
+        midiChannel: number,
+        ticks: number,
+        controller: number,
+        value: number
+    ): void {
         var channel = this.getChannel(trackIndex, midiChannel);
         if (!channel.controllers[controller]) {
             channel.controllers[controller] = [];
@@ -411,20 +432,32 @@
         channel.controllers[controller].push({ ticks: ticks, controller: controller, value: value });
     };
 
-    MidiFile.prototype.addProgram = function (trackIndex, midiChannel, ticks, program) {
+    MidiFile.prototype.addProgram = function (
+        this: MidiFileData,
+        trackIndex: number,
+        midiChannel: number,
+        ticks: number,
+        program: number
+    ): void {
         this.getChannel(trackIndex, midiChannel).programs.push({ ticks: ticks, program: program });
     };
 
-    MidiFile.prototype.addPitchBend = function (trackIndex, midiChannel, ticks, value) {
+    MidiFile.prototype.addPitchBend = function (
+        this: MidiFileData,
+        trackIndex: number,
+        midiChannel: number,
+        ticks: number,
+        value: number
+    ): void {
         this.getChannel(trackIndex, midiChannel).pitchBends.push({ ticks: ticks, value: value });
     };
 
-    MidiFile.prototype.secondsAtTick = function (ticks, tempoMap) {
+    MidiFile.prototype.secondsAtTick = function (this: MidiFileData, ticks: number, tempoMap?: TempoEvent[]): number {
         return secondsFromSegments(ticks, ensureTimeSegments(this, tempoMap));
     };
 
     MidiFile.prototype.resolveTimes = function () {
-        var tempoMap = this.tempoEvents.sort(function (a, b) {
+        var tempoMap = this.tempoEvents.sort(function (a: TempoEvent, b: TempoEvent) {
             return a.ticks - b.ticks;
         });
         var i;
@@ -647,7 +680,7 @@
         var controllerCount = 0;
         var pitchBendCount = 0;
         var drumNoteCount = 0;
-        var drumNameSeen = {};
+        var drumNameSeen: StringKeyedMap<boolean> = {};
         var drumNameList = [];
         var pitchMin = 127;
         var pitchMax = 0;
@@ -808,7 +841,7 @@
 
         if (pitchBendCount) {
             centerOnlyCount = 0;
-            constantOffsetCounts = {};
+            constantOffsetCounts = {} as StringKeyedMap<number>;
             hasAnimatedBends = false;
             lines.push("");
             lines.push("Pitch bends");
@@ -883,7 +916,7 @@
                     lines.push("  Pitch range: " + pitchMin + " to " + pitchMax);
                 }
                 if (api.isDrumChannel(channel.midiChannel) && channel.notes.length) {
-                    drumHitSeen = {};
+                    drumHitSeen = {} as StringKeyedMap<boolean>;
                     drumNames = [];
                     for (n = 0; n < channel.notes.length; n += 1) {
                         drumHitName = channel.notes[n].drumName || "Drum " + channel.notes[n].pitch;

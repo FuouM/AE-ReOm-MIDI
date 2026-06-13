@@ -44,7 +44,7 @@
         }
     };
 
-    function loadMidiFromOptions(options) {
+    function loadMidiFromOptions(options: MidiFileRunnerOptions): MidiFileData {
         var file;
         var midi;
 

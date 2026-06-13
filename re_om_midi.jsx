@@ -2311,7 +2311,8 @@ function asScriptUiPenHost(g) {
         ]
     };
     function resolveRequiredFunctions(preset) {
-        var roots = PRESET_FUNCTIONS[preset] || PRESET_FUNCTIONS["pump"];
+        var presetKey = preset;
+        var roots = PRESET_FUNCTIONS[presetKey] || PRESET_FUNCTIONS["pump"];
         var required = {};
         var queue = [].concat(roots);
         var name;
@@ -2341,9 +2342,10 @@ function asScriptUiPenHost(g) {
         var lines = ["", "// ---- Runtime Helpers ----"];
         var i;
         var name;
+        var impls = RUNTIME_FUNCTION_IMPLS;
         for (i = 0; i < requiredNames.length; i += 1) {
             name = requiredNames[i];
-            lines = lines.concat(RUNTIME_FUNCTION_IMPLS[name]);
+            lines = lines.concat(impls[name]);
             lines.push("");
         }
         return joinExpressionLines(lines);
@@ -2895,7 +2897,7 @@ function asScriptUiPenHost(g) {
                 prop = prop.propertyGroup(1);
                 depth -= 1;
             }
-            if (prop && (prop.Effects || (prop.property && prop.property("ADBE Effect Parade")))) {
+            if (prop && (api.asLayerWithEffects(prop) || prop.property)) {
                 return prop;
             }
         }
@@ -3994,7 +3996,7 @@ function asScriptUiPenHost(g) {
                 continue;
             }
             if (options && pianoRollHasTimeFilter(options)) {
-                noteDraft = { time: time, duration: 0.05 };
+                noteDraft = { time: time, duration: 0.05, pitch: pitch };
                 if (!pianoRollNoteInTimeRange(noteDraft, options)) {
                     continue;
                 }
@@ -4515,7 +4517,7 @@ function asScriptUiPenHost(g) {
         var hit;
         options = options || {};
         prefix = channelPrefixFromLayer(layer);
-        pitchFilter = options.pitchFilter || [];
+        pitchFilter = normalizePitchFilter(options.pitchFilter);
         if (!layer) {
             return result;
         }
@@ -5936,7 +5938,7 @@ function asScriptUiPenHost(g) {
             throw new Error("Could not access the MIDI Action slider property.");
         }
         base = parseValueLiteral(options.baseValue, 0);
-        if (base && base.length !== undefined && typeof base !== "string") {
+        if (valueIsArray(base)) {
             base = base.length ? base[0] : 0;
         }
         if (typeof sliderProp.setValue === "function") {
@@ -6082,8 +6084,8 @@ function asScriptUiPenHost(g) {
         var axisIndex = axis === "vertical" ? 1 : 0;
         var dims = propertyDimensions(property);
         var value;
-        var base;
-        var active;
+        var baseArr;
+        var activeArr;
         var magnitude;
         try {
             value = property.value;
@@ -6098,14 +6100,14 @@ function asScriptUiPenHost(g) {
                 activeValue: String(-magnitude)
             };
         }
-        base = cloneValue(value);
-        active = cloneValue(value);
-        magnitude = scalarMagnitude(base[axisIndex]);
-        base[axisIndex] = magnitude;
-        active[axisIndex] = -magnitude;
+        baseArr = cloneValue(value);
+        activeArr = cloneValue(value);
+        magnitude = scalarMagnitude(baseArr[axisIndex]);
+        baseArr[axisIndex] = magnitude;
+        activeArr[axisIndex] = -magnitude;
         return {
-            baseValue: formatScreenFlipToggleLiteral(base),
-            activeValue: formatScreenFlipToggleLiteral(active)
+            baseValue: formatScreenFlipToggleLiteral(baseArr),
+            activeValue: formatScreenFlipToggleLiteral(activeArr)
         };
     }
     api.buildScreenFlipExpression = function (options) {
@@ -9009,7 +9011,7 @@ function asScriptUiPenHost(g) {
     function findPreviewHostTab(canvasPanel) {
         var node = canvasPanel;
         while (node && node.type !== "tab") {
-            node = node.parent;
+            node = node.parent || null;
         }
         return node;
     }
@@ -9019,7 +9021,7 @@ function asScriptUiPenHost(g) {
         }
         try {
             if (typeof canvasPanel.onDraw === "function") {
-                canvasPanel.onDraw();
+                canvasPanel.onDraw({});
             }
         }
         catch (drawErr) { }
@@ -9170,7 +9172,7 @@ function asScriptUiPenHost(g) {
         if (summary) {
             summary.text = formatPreviewProgressSummary(hook.sourceLabel, hook.percent, hook.stageLabel);
         }
-        repaintScriptUiHost(root);
+        repaintScriptUiHost(root || null);
     }
     function buildPreviewProgressHook(kind, sourceLabel) {
         var stages = kind === "pianoRoll" ? PIANO_ROLL_PREVIEW_PROGRESS_STAGES : MIDI_ACTION_PREVIEW_PROGRESS_STAGES;
@@ -9260,6 +9262,7 @@ function asScriptUiPenHost(g) {
                 loadingFrame: 0,
                 rects: previous.rects,
                 bounds: previous.bounds,
+                noteCount: previous.rects.length,
                 sourceLabel: sourceLabel || previous.sourceLabel || "MIDI",
                 description: previous.description || ""
             };
@@ -9269,6 +9272,7 @@ function asScriptUiPenHost(g) {
             loadingFrame: 0,
             rects: [],
             bounds: { left: 0, right: 1, top: 128, bottom: 21 },
+            noteCount: 0,
             sourceLabel: sourceLabel || "MIDI",
             description: ""
         };
@@ -9321,6 +9325,8 @@ function asScriptUiPenHost(g) {
                 points: previous.points,
                 triggers: previous.triggers || [],
                 bounds: previous.bounds,
+                triggerCount: (previous.triggers || []).length,
+                preset: previous.preset || "pump",
                 sourceLabel: sourceLabel || previous.sourceLabel || "MIDI",
                 description: previous.description || ""
             };
@@ -9331,6 +9337,8 @@ function asScriptUiPenHost(g) {
             points: [],
             triggers: [],
             bounds: { left: 0, right: 1, top: 100, bottom: 0 },
+            triggerCount: 0,
+            preset: "pump",
             sourceLabel: sourceLabel || "MIDI",
             description: ""
         };
@@ -9633,30 +9641,34 @@ function asScriptUiPenHost(g) {
     }
     function pathFromDropData(data) {
         var i;
+        var fileLike;
+        var items;
         if (!data) {
             return "";
         }
         if (typeof data === "string") {
             return data;
         }
-        if (data.length !== undefined) {
-            for (i = 0; i < data.length; i += 1) {
-                if (typeof data[i] === "string" && data[i]) {
-                    return data[i];
+        items = data;
+        if (items.length !== undefined) {
+            for (i = 0; i < items.length; i += 1) {
+                fileLike = data[i];
+                if (typeof fileLike === "string" && fileLike) {
+                    return fileLike;
                 }
-                if (data[i] && data[i].fsName) {
-                    return data[i].fsName;
+                if (fileLike && typeof fileLike === "object" && fileLike.fsName) {
+                    return fileLike.fsName;
                 }
-                if (data[i] && data[i].absoluteURI) {
-                    return new File(data[i].absoluteURI).fsName;
+                if (fileLike && typeof fileLike === "object" && fileLike.absoluteURI) {
+                    return new File(fileLike.absoluteURI).fsName;
                 }
             }
         }
-        if (data.fsName) {
-            return data.fsName;
+        if (items.fsName) {
+            return items.fsName;
         }
-        if (data.absoluteURI) {
-            return new File(data.absoluteURI).fsName;
+        if (items.absoluteURI) {
+            return new File(items.absoluteURI).fsName;
         }
         return String(data);
     }
@@ -9834,38 +9846,43 @@ function asScriptUiPenHost(g) {
         };
     }
     function wireImportTabHandlers(ui, api) {
-        ui.browse.onClick = function () {
+        var importUi = ui;
+        importUi.browse.onClick = function () {
             var f = File.openDialog("Choose a MIDI file", "*.mid;*.midi");
             if (f && f.fsName) {
-                assignMidiFilePath(ui.fileText, f.fsName);
+                assignMidiFilePath(importUi.fileText, f.fsName);
             }
         };
-        ui.getMidiInfoButton.onClick = function () {
+        importUi.getMidiInfoButton.onClick = function () {
             api.runGetMidiInfo({
-                midiFileName: ui.fileText.text
+                midiFileName: importUi.fileText.text
             });
         };
-        ui.importButton.onClick = function () {
+        importUi.importButton.onClick = function () {
             api.runImport({
-                midiFileName: ui.fileText.text,
-                layerMode: ui.layerMode.selection && ui.layerMode.selection.index === 1 ? "combined" : "per-channel",
-                layerNamePrefix: ui.layerNamePrefix.text || "MIDI",
-                quantizeToFrames: ui.quantizeToFrames.value,
-                importNamedDrumSliders: ui.importNamedDrumSliders.value,
-                includeControllers: ui.includeControllers.value,
-                includePitchBends: ui.includePitchBends.value
+                midiFileName: importUi.fileText.text,
+                layerMode: importUi.layerMode.selection &&
+                    typeof importUi.layerMode.selection !== "number" &&
+                    importUi.layerMode.selection.index === 1
+                    ? "combined"
+                    : "per-channel",
+                layerNamePrefix: importUi.layerNamePrefix.text || "MIDI",
+                quantizeToFrames: !!importUi.quantizeToFrames.value,
+                importNamedDrumSliders: !!importUi.importNamedDrumSliders.value,
+                includeControllers: !!importUi.includeControllers.value,
+                includePitchBends: !!importUi.includePitchBends.value
             });
         };
-        ui.createMetronomeButton.onClick = function () {
+        importUi.createMetronomeButton.onClick = function () {
             api.runCreateMetronomeLayer({
-                midiFileName: ui.fileText.text,
-                quantizeToFrames: ui.metronomeQuantize.value
+                midiFileName: importUi.fileText.text,
+                quantizeToFrames: !!importUi.metronomeQuantize.value
             });
         };
-        ui.createBpmButton.onClick = function () {
+        importUi.createBpmButton.onClick = function () {
             api.runCreateBpmLayer({
-                midiFileName: ui.fileText.text,
-                quantizeToFrames: ui.bpmQuantize.value
+                midiFileName: importUi.fileText.text,
+                quantizeToFrames: !!importUi.bpmQuantize.value
             });
         };
     }
@@ -9971,6 +9988,7 @@ function asScriptUiPenHost(g) {
                 loading: false,
                 rects: [],
                 bounds: { left: 0, right: 1, top: 128, bottom: 21 },
+                noteCount: 0,
                 sourceLabel: "",
                 description: ""
             });
@@ -10019,18 +10037,19 @@ function asScriptUiPenHost(g) {
         };
     }
     function wirePianoRollTabHandlers(ui, api) {
+        var controls = ui;
         function pianoRollMapOptions() {
             return {
-                maxNotes: ui.mapMaxNotes.text,
-                noteHeight: ui.mapNoteHeight.text,
-                useDrumLanes: ui.mapUseDrumLanes.value,
-                useWorkArea: ui.mapUseWorkArea.value
+                maxNotes: controls.mapMaxNotes.text,
+                noteHeight: controls.mapNoteHeight.text,
+                useDrumLanes: !!controls.mapUseDrumLanes.value,
+                useWorkArea: !!controls.mapUseWorkArea.value
             };
         }
-        ui.createPianoRollButton.onClick = function () {
+        controls.createPianoRollButton.onClick = function () {
             api.runCreatePianoRollMap(pianoRollMapOptions());
         };
-        ui.previewPianoRollButton.onClick = function () {
+        controls.previewPianoRollButton.onClick = function () {
             if (api.__mapPreviewHost && api.__mapPreviewHost.selectTab) {
                 api.__mapPreviewHost.selectTab();
             }
@@ -10325,6 +10344,8 @@ function asScriptUiPenHost(g) {
                 points: [],
                 triggers: [],
                 bounds: { left: 0, right: 1, top: 100, bottom: 0 },
+                triggerCount: 0,
+                preset: "pump",
                 sourceLabel: "",
                 description: ""
             });
@@ -10403,38 +10424,41 @@ function asScriptUiPenHost(g) {
         };
     }
     function wireActionsTabHandlers(ui, api) {
+        var controls = ui;
         function midiActionExpressionOptions() {
             return {
                 triggerMode: "pitch",
-                preset: ui.selectedActionPresetId(),
-                pitchFilter: ui.actionPitchFilter.text,
-                baseValue: ui.baseValue.text,
-                activeValue: ui.activeValue.text,
-                amount: ui.amountValue.text,
-                duration: ui.durationValue.text,
-                falloff: ui.falloff.selection ? ui.falloff.selection.text : "linear"
+                preset: controls.selectedActionPresetId(),
+                pitchFilter: controls.actionPitchFilter.text,
+                baseValue: controls.baseValue.text,
+                activeValue: controls.activeValue.text,
+                amount: controls.amountValue.text,
+                duration: controls.durationValue.text,
+                falloff: (controls.falloff.selection && typeof controls.falloff.selection !== "number"
+                    ? controls.falloff.selection.text
+                    : "linear")
             };
         }
         function midiActionPreviewBakeOptions() {
             var options = midiActionExpressionOptions();
-            options.maxNotes = ui.actionMaxNotes.text;
-            options.useWorkArea = ui.actionUseWorkArea.value;
+            options.maxNotes = controls.actionMaxNotes.text;
+            options.useWorkArea = !!controls.actionUseWorkArea.value;
             options.limitTriggers = true;
             return options;
         }
-        ui.previewActionButton.onClick = function () {
+        controls.previewActionButton.onClick = function () {
             if (api.__actionPreviewHost && api.__actionPreviewHost.selectTab) {
                 api.__actionPreviewHost.selectTab();
             }
             api.runPreviewMidiAction(midiActionPreviewBakeOptions());
         };
-        ui.copyActionButton.onClick = function () {
+        controls.copyActionButton.onClick = function () {
             api.runCopyMidiActionExpression(midiActionExpressionOptions());
         };
-        ui.createActionNullButton.onClick = function () {
+        controls.createActionNullButton.onClick = function () {
             api.runCreateMidiActionNullWithExpression(midiActionExpressionOptions());
         };
-        ui.bakeActionNullButton.onClick = function () {
+        controls.bakeActionNullButton.onClick = function () {
             api.runCreateMidiActionNullWithBake(midiActionPreviewBakeOptions());
         };
     }
@@ -10518,23 +10542,26 @@ function asScriptUiPenHost(g) {
         };
     }
     function wireDrumMachineTabHandlers(ui, api) {
+        var controls = ui;
         function drumMachineOptions() {
             return {
-                maxNotes: ui.drumMaxNotes.text,
-                pitchFilter: ui.drumPitchFilter.text,
-                useWorkArea: ui.drumUseWorkArea.value,
-                squareSize: ui.drumSquareSize.text,
-                duration: ui.drumDuration.text,
-                animateScale: ui.drumAnimateScale.value,
-                animateOpacity: ui.drumAnimateOpacity.value,
-                animateRotation: ui.drumAnimateRotation.value,
-                falloff: ui.drumFalloff.selection ? ui.drumFalloff.selection.text : "linear"
+                maxNotes: controls.drumMaxNotes.text,
+                pitchFilter: controls.drumPitchFilter.text,
+                useWorkArea: !!controls.drumUseWorkArea.value,
+                squareSize: controls.drumSquareSize.text,
+                duration: controls.drumDuration.text,
+                animateScale: !!controls.drumAnimateScale.value,
+                animateOpacity: !!controls.drumAnimateOpacity.value,
+                animateRotation: !!controls.drumAnimateRotation.value,
+                falloff: (controls.drumFalloff.selection && typeof controls.drumFalloff.selection !== "number"
+                    ? controls.drumFalloff.selection.text
+                    : "linear")
             };
         }
-        ui.createDrumExpressionButton.onClick = function () {
+        controls.createDrumExpressionButton.onClick = function () {
             api.runCreateDrumMachineExpression(drumMachineOptions());
         };
-        ui.bakeDrumButton.onClick = function () {
+        controls.bakeDrumButton.onClick = function () {
             api.runCreateDrumMachineBake(drumMachineOptions());
         };
     }
@@ -10635,23 +10662,24 @@ function asScriptUiPenHost(g) {
         };
     }
     function wireDrumSequencerTabHandlers(ui, api) {
-        ui.generateDrumSeqButton.onClick = function () {
+        var controls = ui;
+        controls.generateDrumSeqButton.onClick = function () {
             if (api.__drumSequencerHost && api.__drumSequencerHost.selectTab) {
                 api.__drumSequencerHost.selectTab();
             }
             api.runGenerateDrumSequencer({
-                existingExpression: ui.getDrumSequencerExpression(),
-                totalFrames: ui.drumSeqTotalFrames.text
+                existingExpression: controls.getDrumSequencerExpression(),
+                totalFrames: controls.drumSeqTotalFrames.text
             });
         };
-        ui.applyDrumSeqButton.onClick = function () {
+        controls.applyDrumSeqButton.onClick = function () {
             if (api.__drumSequencerHost && api.__drumSequencerHost.selectTab) {
                 api.__drumSequencerHost.selectTab();
             }
-            api.runApplyDrumSequencer(ui.getDrumSequencerExpression());
+            api.runApplyDrumSequencer(controls.getDrumSequencerExpression());
         };
-        ui.copyDrumSeqButton.onClick = function () {
-            api.runCopyDrumSequencerExpression(ui.getDrumSequencerExpression());
+        controls.copyDrumSeqButton.onClick = function () {
+            api.runCopyDrumSequencerExpression(controls.getDrumSequencerExpression());
         };
     }
     function buildMapTab(featureTabs) {
@@ -10749,20 +10777,21 @@ function asScriptUiPenHost(g) {
         };
     }
     function wireMapTabHandlers(ui, api) {
-        ui.generateMidiMapButton.onClick = function () {
+        var controls = ui;
+        controls.generateMidiMapButton.onClick = function () {
             if (api.__midiMapHost && api.__midiMapHost.selectTab) {
                 api.__midiMapHost.selectTab();
             }
             api.runGenerateMidiMap({
-                labelMode: ui.getMidiMapState().labelMode
+                labelMode: controls.getMidiMapState().labelMode
             });
         };
-        ui.switchMidiMapLabelsButton.onClick = function () {
-            var nextMode = ui.getMidiMapState().labelMode === "drums" ? "notes" : "drums";
+        controls.switchMidiMapLabelsButton.onClick = function () {
+            var nextMode = controls.getMidiMapState().labelMode === "drums" ? "notes" : "drums";
             api.runSwitchMidiMapLabels(nextMode);
         };
-        ui.createMidiMapTextButton.onClick = function () {
-            api.runCreateMidiMapTextNull(ui.midiMapExpressionText.text);
+        controls.createMidiMapTextButton.onClick = function () {
+            api.runCreateMidiMapTextNull(controls.midiMapExpressionText.text);
         };
     }
     function buildMiscTab(featureTabs) {
@@ -10864,32 +10893,35 @@ function asScriptUiPenHost(g) {
         };
     }
     function wireMiscTabHandlers(ui, api) {
+        var controls = ui;
         function screenFlipOptions(axis) {
             return {
                 axis: axis,
-                maxNotes: ui.screenFlipMaxNotes.text,
-                useWorkArea: ui.screenFlipUseWorkArea.value
+                maxNotes: controls.screenFlipMaxNotes.text,
+                useWorkArea: !!controls.screenFlipUseWorkArea.value
             };
         }
-        ui.createToneLayerButton.onClick = function () {
+        controls.createToneLayerButton.onClick = function () {
             api.runCreateToneLayer({
-                waveform: ui.toneWaveform.selection ? ui.toneWaveform.selection.text : "Sine",
-                level: ui.toneLevel.text,
-                useWorkArea: ui.toneUseWorkArea.value,
-                quantizeToFrames: ui.toneQuantizeToFrames.value,
-                useDrumLanes: ui.toneUseDrumLanes.value
+                waveform: controls.toneWaveform.selection && typeof controls.toneWaveform.selection !== "number"
+                    ? controls.toneWaveform.selection.text
+                    : "Sine",
+                level: controls.toneLevel.text,
+                useWorkArea: !!controls.toneUseWorkArea.value,
+                quantizeToFrames: !!controls.toneQuantizeToFrames.value,
+                useDrumLanes: !!controls.toneUseDrumLanes.value
             });
         };
-        ui.screenFlipApplyHorizontalButton.onClick = function () {
+        controls.screenFlipApplyHorizontalButton.onClick = function () {
             api.runApplyScreenFlip(screenFlipOptions("horizontal"));
         };
-        ui.screenFlipBakeHorizontalButton.onClick = function () {
+        controls.screenFlipBakeHorizontalButton.onClick = function () {
             api.runBakeScreenFlip(screenFlipOptions("horizontal"));
         };
-        ui.screenFlipApplyVerticalButton.onClick = function () {
+        controls.screenFlipApplyVerticalButton.onClick = function () {
             api.runApplyScreenFlip(screenFlipOptions("vertical"));
         };
-        ui.screenFlipBakeVerticalButton.onClick = function () {
+        controls.screenFlipBakeVerticalButton.onClick = function () {
             api.runBakeScreenFlip(screenFlipOptions("vertical"));
         };
     }

@@ -330,6 +330,11 @@ interface PreviewProgressHook {
     stageId?: string | null;
     stageLabel?: string;
     percent?: number;
+    lastUiMs?: number;
+    stages?: { id: string; weight: number; label: string }[];
+    stageIndex?: number;
+    stageBase?: number;
+    stageWeight?: number;
     setStage(stageId: string, detail?: string): void;
     step(done: number, total: number, detail?: string): void;
     report(percent: number, detail?: string): void;
