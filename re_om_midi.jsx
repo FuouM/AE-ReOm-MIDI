@@ -8605,7 +8605,6 @@
 
 
 // ---- dist/compiled/ae/ui.jsx ----
-// @ts-nocheck
 (function (api) {
     function globalState() {
         return api.getGlobalState();
@@ -9810,7 +9809,7 @@
     function wireImportTabHandlers(ui, api) {
         ui.browse.onClick = function () {
             var f = File.openDialog("Choose a MIDI file", "*.mid;*.midi");
-            if (f) {
+            if (f && f.fsName) {
                 assignMidiFilePath(ui.fileText, f.fsName);
             }
         };
@@ -10909,8 +10908,9 @@
         githubLink.alignment = ["right", "center"];
         githubLink.helpTip = "Click to open " + githubRepoUrl + " in your default web browser.";
         try {
-            var bluePen = githubLink.graphics.newPen(githubLink.graphics.PenType.SOLID_COLOR, [0.29, 0.56, 0.89, 1.0], 1);
-            githubLink.graphics.foregroundColor = bluePen;
+            var linkGraphics = githubLink.graphics;
+            var bluePen = linkGraphics.newPen(linkGraphics.PenType.SOLID_COLOR, [0.29, 0.56, 0.89, 1.0], 1);
+            linkGraphics.foregroundColor = bluePen;
         }
         catch (colorErr) { }
         githubLink.addEventListener("click", function () {
@@ -11200,7 +11200,6 @@
 
 
 // ---- dist/compiled/main.jsx ----
-// @ts-nocheck
 (function (api, thisObj) {
     function requireActiveComp() {
         var item = app.project.activeItem;
@@ -11345,7 +11344,7 @@
             });
             app.endUndoGroup();
             progress.close();
-            if (importedChannels && importedChannels.cancelled) {
+            if (importedChannels && typeof importedChannels === "object" && importedChannels.cancelled) {
                 alert("ReOm MIDI Import cancelled.\n\nImported channels before cancel: " + importedChannels.imported);
                 return;
             }
@@ -11676,7 +11675,7 @@
             if (!state || !state.pitches || !state.pitches.length) {
                 throw new Error("Generate from the selected layer first.");
             }
-            state.labelMode = labelMode || "notes";
+            state.labelMode = (labelMode || "notes");
             expression = api.regenerateMidiMapExpression(state, state.labelMode);
             api.getGlobalState().mapState = state;
             if (api.__midiMapHost) {

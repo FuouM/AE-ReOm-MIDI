@@ -42,6 +42,14 @@ interface MidiFileRunnerOptions {
     quantizeToFrames?: boolean;
 }
 
+/** Import tab runner: file path plus ImportOptions fields. */
+interface UiImportRunOptions extends MidiFileRunnerOptions, ImportOptions {}
+
+/** Screen flip runner options (axis plus MIDI action fields). */
+interface ScreenFlipRunOptions extends MidiActionOptionsInput {
+    axis?: "horizontal" | "vertical";
+}
+
 /** Raw MIDI action options before resolveMidiActionOptions normalizes them. */
 interface MidiActionOptionsInput extends WorkAreaOptions, QuantizeOptions {
     preset?: MidiActionPreset;

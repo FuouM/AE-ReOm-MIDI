@@ -1,5 +1,4 @@
-// @ts-nocheck
-(function (api) {
+(function (api: ReOmMIDIApi) {
     function globalState() {
         return api.getGlobalState();
     }
@@ -226,7 +225,7 @@
         }
     }
 
-    function refreshScriptUiHost(host, recalculate) {
+    function refreshScriptUiHost(host: Window | Panel | null | undefined, recalculate?: boolean) {
         if (!host || !host.layout) {
             return;
         }
@@ -296,7 +295,7 @@
         };
     }
 
-    function primePreviewHostLayout(previewState, rootWin, forceReprime) {
+    function primePreviewHostLayout(previewState: ReOmPreviewState, rootWin: Window | Panel, forceReprime?: boolean) {
         var container;
         if (!previewState || !previewState.expanded || !previewState.canvas) {
             return;
@@ -315,7 +314,12 @@
         repaintScriptUiHost(rootWin);
     }
 
-    function refreshExpandedPreviewHosts(rootWin, mapState, actionState, forceReprime) {
+    function refreshExpandedPreviewHosts(
+        rootWin: Window | Panel,
+        mapState: ReOmPreviewState,
+        actionState: ReOmPreviewState,
+        forceReprime?: boolean
+    ) {
         if (mapState && mapState.expanded && mapState.canvas) {
             primePreviewHostLayout(mapState, rootWin, forceReprime);
             repaintPreviewCanvas(mapState.canvas, rootWin);
@@ -594,9 +598,9 @@
         repaintScriptUiHost(root);
     }
 
-    function buildPreviewProgressHook(kind, sourceLabel) {
+    function buildPreviewProgressHook(kind: string, sourceLabel: string): PreviewProgressHook {
         var stages = kind === "pianoRoll" ? PIANO_ROLL_PREVIEW_PROGRESS_STAGES : MIDI_ACTION_PREVIEW_PROGRESS_STAGES;
-        var hook = {
+        var hook: any = {
             kind: kind,
             sourceLabel: sourceLabel || "",
             stages: stages,
@@ -1331,8 +1335,8 @@
     function wireImportTabHandlers(ui, api) {
         ui.browse.onClick = function () {
             var f = File.openDialog("Choose a MIDI file", "*.mid;*.midi");
-            if (f) {
-                assignMidiFilePath(ui.fileText, f.fsName);
+            if (f && (f as File).fsName) {
+                assignMidiFilePath(ui.fileText, (f as File).fsName);
             }
         };
 
@@ -1538,7 +1542,7 @@
     }
 
     function wirePianoRollTabHandlers(ui, api) {
-        function pianoRollMapOptions() {
+        function pianoRollMapOptions(): PianoRollMapOptions {
             return {
                 maxNotes: ui.mapMaxNotes.text,
                 noteHeight: ui.mapNoteHeight.text,
@@ -1969,7 +1973,7 @@
     }
 
     function wireActionsTabHandlers(ui, api) {
-        function midiActionExpressionOptions() {
+        function midiActionExpressionOptions(): MidiActionOptionsInput {
             return {
                 triggerMode: "pitch",
                 preset: ui.selectedActionPresetId(),
@@ -1982,7 +1986,7 @@
             };
         }
 
-        function midiActionPreviewBakeOptions() {
+        function midiActionPreviewBakeOptions(): MidiActionOptionsInput {
             var options = midiActionExpressionOptions();
             options.maxNotes = ui.actionMaxNotes.text;
             options.useWorkArea = ui.actionUseWorkArea.value;
@@ -2104,7 +2108,7 @@
     }
 
     function wireDrumMachineTabHandlers(ui, api) {
-        function drumMachineOptions() {
+        function drumMachineOptions(): DrumMachineOptionsInput {
             return {
                 maxNotes: ui.drumMaxNotes.text,
                 pitchFilter: ui.drumPitchFilter.text,
@@ -2519,7 +2523,7 @@
     }
 
     function wireMiscTabHandlers(ui, api) {
-        function screenFlipOptions(axis) {
+        function screenFlipOptions(axis: "horizontal" | "vertical"): ScreenFlipRunOptions {
             return {
                 axis: axis,
                 maxNotes: ui.screenFlipMaxNotes.text,
@@ -2554,7 +2558,7 @@
         };
     }
 
-    function buildUI(thisObj) {
+    function buildUI(thisObj?: Panel | Window): Window | Panel {
         api.resetGlobalState();
         var isPanel = thisObj instanceof Panel;
         var win = isPanel ? thisObj : new Window("palette", "ReOm MIDI", undefined, { resizeable: true });
@@ -2600,12 +2604,13 @@
         githubLink.alignment = ["right", "center"];
         githubLink.helpTip = "Click to open " + githubRepoUrl + " in your default web browser.";
         try {
-            var bluePen = githubLink.graphics.newPen(
-                githubLink.graphics.PenType.SOLID_COLOR,
+            var linkGraphics = githubLink.graphics;
+            var bluePen = linkGraphics.newPen(
+                (linkGraphics as any).PenType.SOLID_COLOR,
                 [0.29, 0.56, 0.89, 1.0],
                 1
             );
-            githubLink.graphics.foregroundColor = bluePen;
+            linkGraphics.foregroundColor = bluePen;
         } catch (colorErr) {}
 
         githubLink.addEventListener("click", function () {

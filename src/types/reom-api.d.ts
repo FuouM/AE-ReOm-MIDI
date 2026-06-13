@@ -171,7 +171,9 @@ interface ReOmMIDIApi {
     endPreviewProgress?(hook: PreviewProgressHook): void;
     showMidiActionPreviewInPanel?(layout: MidiActionPreviewLayout): void;
     showPianoRollPreviewInPanel?(layout: PianoRollPreviewLayout): void;
+    showMidiActionPreviewLoadingInPanel?(sourceLabel: string): void;
     showPianoRollPreviewLoadingInPanel?(sourceLabel: string): void;
+    stopPianoRollPreviewLoadingAnimation?(): void;
 
     resolvePianoRollMapOptions(
         comp: CompItem | null | undefined,
@@ -310,5 +312,65 @@ interface ReOmMIDIApi {
         expression: string
     ): DrumSequencerApplyResult;
 
-    [key: string]: unknown;
+    PREVIEW_SIM_STEP_SEC?: number;
+    PREVIEW_MAX_DURATION_SEC?: number;
+    DEFERRED_PREVIEW_TASK_MS?: number;
+
+    __panelUiState?: ReOmPanelUiState;
+    __mapPreviewHost?: ReOmPreviewHost;
+    __actionPreviewHost?: ReOmPreviewHost;
+    __midiMapHost?: ReOmMidiMapHost;
+    __drumSequencerHost?: ReOmDrumSequencerHost;
+
+    alertError(message: string): void;
+    showProgress(title: string): ProgressHandle;
+    buildUI(thisObj?: Panel | Window): Window | Panel;
+    launch(panel?: Panel | Window): Window | Panel;
+    selectFeatureTab?(tab: Tab): void;
+    refreshPanelLayout?(): void;
+    refreshPreviewPanels?(forceReprime?: boolean): void;
+    refreshPianoRollPreviewPanel?(): void;
+    refreshActionPreviewPanel?(): void;
+    flushActionPreviewCanvas?(): void;
+    flushPianoRollPreviewCanvas?(): void;
+
+    beginDeferredPreviewUi?(flushName: string): number;
+    __finalizeDeferredPreviewUi?(generation: number, afterCompute?: number | boolean): void;
+    scheduleDeferredPreviewUi?(generation: number, delayMs?: number, afterCompute?: boolean): void;
+    stopMidiActionPreviewLoadingAnimation?(): void;
+
+    openMidiActionExpressionCopyDialog?(sourceLabel?: string): void;
+    completeMidiActionExpressionCopyDialog?(expression: string, sourceLabel?: string): void;
+    closeMidiActionExpressionCopyDialog?(): void;
+    showMidiActionExpressionCopyDialog?(expression: string, sourceLabel?: string): void;
+
+    showMidiInfoDialog?(filePath: string, reportText: string): void;
+    closeMidiInfoDialog?(): void;
+
+    runGetMidiInfo(options?: MidiFileRunnerOptions): void;
+    runCreateMetronomeLayer(options?: MidiFileRunnerOptions): void;
+    runCreateBpmLayer(options?: MidiFileRunnerOptions): void;
+    runImport(options?: UiImportRunOptions): void;
+    runApplyMidiAction(options?: MidiActionOptionsInput): void;
+    runCopyMidiActionExpression(options?: MidiActionOptionsInput): void;
+    __runDeferredCopyExpression(): void;
+    runCreateMidiActionNullWithExpression(options?: MidiActionOptionsInput): void;
+    runPreviewMidiAction(options?: MidiActionOptionsInput): void;
+    __runDeferredActionPreview(): void;
+    runCreatePianoRollMap(options?: PianoRollMapOptions): void;
+    runPreviewPianoRollMap(options?: PianoRollMapOptions): void;
+    __runDeferredPianoRollPreview(): void;
+    runCreateMidiActionNullWithBake(options?: MidiActionOptionsInput): void;
+    runBakeMidiAction(options?: MidiActionOptionsInput): void;
+    runGenerateMidiMap(options?: MidiMapOptions): void;
+    runSwitchMidiMapLabels(labelMode?: MidiMapLabelMode | string): void;
+    runCreateDrumMachineExpression(options?: DrumMachineOptionsInput): void;
+    runGenerateDrumSequencer(options?: DrumSequencerOptions): void;
+    runApplyDrumSequencer(expression?: string): void;
+    runCopyDrumSequencerExpression(expression?: string): void;
+    runCreateDrumMachineBake(options?: DrumMachineOptionsInput): void;
+    runCreateToneLayer(options?: ToneLayerOptionsInput): void;
+    runApplyScreenFlip(options?: ScreenFlipRunOptions): void;
+    runBakeScreenFlip(options?: ScreenFlipRunOptions): void;
+    runCreateMidiMapTextNull(expressionText?: string): void;
 }

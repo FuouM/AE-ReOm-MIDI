@@ -1,5 +1,4 @@
-// @ts-nocheck
-(function (api, thisObj) {
+(function (api: ReOmMIDIApi, thisObj: Panel | Window | undefined) {
     function requireActiveComp() {
         var item = app.project.activeItem;
         if (!item || !(item instanceof CompItem)) {
@@ -126,8 +125,8 @@
         var file;
         var midi;
         var comp;
-        var progress;
-        var importedChannels = 0;
+        var progress: ProgressHandle | undefined;
+        var importedChannels: ImportResult = 0;
         var message;
 
         if (!options || !options.midiFileName) {
@@ -161,7 +160,7 @@
             app.endUndoGroup();
             progress.close();
 
-            if (importedChannels && importedChannels.cancelled) {
+            if (importedChannels && typeof importedChannels === "object" && importedChannels.cancelled) {
                 alert("ReOm MIDI Import cancelled.\n\nImported channels before cancel: " + importedChannels.imported);
                 return;
             }
@@ -516,7 +515,7 @@
             if (!state || !state.pitches || !state.pitches.length) {
                 throw new Error("Generate from the selected layer first.");
             }
-            state.labelMode = labelMode || "notes";
+            state.labelMode = (labelMode || "notes") as MidiMapLabelMode;
             expression = api.regenerateMidiMapExpression(state, state.labelMode);
             api.getGlobalState().mapState = state;
             if (api.__midiMapHost) {
@@ -805,4 +804,4 @@
     if (!api.__NO_AUTO_LAUNCH__) {
         api.launch(thisObj);
     }
-})(ReOmMIDI, this);
+})(ReOmMIDI, this as unknown as Panel | Window | undefined);
