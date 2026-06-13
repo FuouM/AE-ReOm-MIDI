@@ -174,5 +174,5 @@ interface ReOmPanelUiState {
     actionPreviewState: ReOmPreviewState;
     syncActionPresetUi?: () => void;
     refreshActionPresetFieldVisibility?: () => void;
-    relayoutActionSettingsPanel?: () => void;
+    relayoutActionSettingsPanel?: (preset?: string, recalculate?: boolean) => void;
 }

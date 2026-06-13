@@ -5679,7 +5679,7 @@ function asScriptUiPenHost(g) {
     function midiActionPreviewUsesSharpSamples(preset) {
         return preset !== "interpolate";
     }
-    function pushPreviewSampleEntry(entries, seen, plotTime, evalTime) {
+    function pushPreviewSampleEntry(entries, seen, plotTime, evalTime, triggerIndex) {
         var key;
         if (plotTime === null || typeof plotTime === "undefined" || isNaN(plotTime)) {
             return;
@@ -5688,11 +5688,18 @@ function asScriptUiPenHost(g) {
             evalTime = plotTime;
         }
         key = Math.round(plotTime * 1000000) + ":" + Math.round(evalTime * 1000000);
+        if (typeof triggerIndex === "number") {
+            key += ":" + triggerIndex;
+        }
         if (seen[key]) {
             return;
         }
         seen[key] = true;
-        entries.push({ plotTime: plotTime, evalTime: evalTime });
+        entries.push({
+            plotTime: plotTime,
+            evalTime: evalTime,
+            triggerIndex: typeof triggerIndex === "number" ? triggerIndex : undefined
+        });
     }
     function sortPreviewSampleEntries(entries) {
         return entries.sort(function (a, b) {
@@ -5720,6 +5727,14 @@ function asScriptUiPenHost(g) {
         if (!midiActionPreviewUsesSharpSamples(preset)) {
             for (t = range.startTime; t <= range.endTime + 0.0001; t += step) {
                 pushPreviewSampleEntry(entries, seen, t, t);
+            }
+            for (i = 0; i < triggers.length; i += 1) {
+                if (triggers[i].time + eps >= range.startTime && triggers[i].time - eps <= range.endTime + 0.0001) {
+                    if (triggers[i].time - eps >= range.startTime) {
+                        pushPreviewSampleEntry(entries, seen, triggers[i].time - eps, triggers[i].time - eps, i);
+                    }
+                    pushPreviewSampleEntry(entries, seen, triggers[i].time, triggers[i].time, i);
+                }
             }
             return sortPreviewSampleEntries(entries);
         }
@@ -5821,15 +5836,20 @@ function asScriptUiPenHost(g) {
                 pushMidiActionSimulationPoint(points, t, value);
             }
             else if (simOptions.preset === "interpolate") {
-                n = triggerIndex;
-                if (n < 0) {
-                    value = cloneValue(base);
-                }
-                else if (n >= triggers.length - 1) {
-                    value = targetForInterpolatedEvent(n, base, active);
+                if (typeof entry.triggerIndex === "number") {
+                    value = targetForInterpolatedEvent(entry.triggerIndex, base, active);
                 }
                 else {
-                    value = mixValue(targetForInterpolatedEvent(n, base, active), targetForInterpolatedEvent(n + 1, base, active), interpolationProgress(evalTime, triggers[n].time, triggers[n + 1].time, simOptions.falloff));
+                    n = triggerIndex;
+                    if (n < 0) {
+                        value = cloneValue(base);
+                    }
+                    else if (n >= triggers.length - 1) {
+                        value = targetForInterpolatedEvent(n, base, active);
+                    }
+                    else {
+                        value = mixValue(targetForInterpolatedEvent(n, base, active), targetForInterpolatedEvent(n + 1, base, active), interpolationProgress(evalTime, triggers[n].time, triggers[n + 1].time, simOptions.falloff));
+                    }
                 }
                 pushMidiActionSimulationPoint(points, t, value);
             }
@@ -8785,6 +8805,17 @@ function asScriptUiPenHost(g) {
             label.text = labelText;
         }
     }
+    function setLabeledControlVisible(control, visible) {
+        var row;
+        if (!control) {
+            return;
+        }
+        row = control.parent;
+        control.visible = visible;
+        if (row) {
+            row.visible = visible;
+        }
+    }
     function setScriptUiGroupVisible(group, visible) {
         if (!group) {
             return;
@@ -9100,12 +9131,12 @@ function asScriptUiPenHost(g) {
         if (afterCompute === 1 || afterCompute === true) {
             resizeScriptUiHost(state.win);
             repaintScriptUiHost(state.win);
-            if (flushName === "flushActionPreviewCanvas" && state.relayoutActionSettingsPanel) {
-                state.relayoutActionSettingsPanel();
+            if (flushName === "flushActionPreviewCanvas" && state.refreshActionPresetFieldVisibility) {
+                state.refreshActionPresetFieldVisibility();
             }
         }
         else if (flushName === "flushActionPreviewCanvas" && state.relayoutActionSettingsPanel) {
-            state.relayoutActionSettingsPanel();
+            state.relayoutActionSettingsPanel(undefined, false);
         }
     };
     api.scheduleDeferredPreviewUi = function (generation, delayMs, afterCompute) {
@@ -10313,15 +10344,11 @@ function asScriptUiPenHost(g) {
             var index;
             var text;
             if (!actionPreset) {
-                return 0;
+                return lastActionPresetIndex >= 0 ? lastActionPresetIndex : 0;
             }
             selection = actionPreset.selection;
             if (!selection) {
-                return 0;
-            }
-            index = selection.index;
-            if (typeof index === "number" && index >= 0 && index < 4) {
-                return index;
+                return lastActionPresetIndex >= 0 ? lastActionPresetIndex : 0;
             }
             text = String(selection.text || "");
             if (text.indexOf("Toggle") >= 0) {
@@ -10332,6 +10359,16 @@ function asScriptUiPenHost(g) {
             }
             if (text.indexOf("Accumulate") >= 0 || text.indexOf("Integrate") >= 0) {
                 return 3;
+            }
+            if (text.indexOf("Pump") >= 0 || text.indexOf("Decay") >= 0) {
+                return 0;
+            }
+            index = selection.index;
+            if (typeof index === "number" && index >= 0 && index < 4) {
+                return index;
+            }
+            if (lastActionPresetIndex >= 0 && lastActionPresetIndex < 4) {
+                return lastActionPresetIndex;
             }
             return 0;
         }
@@ -10361,15 +10398,19 @@ function asScriptUiPenHost(g) {
             }
             return ACTION_SETTINGS_PANEL_BASE_HEIGHT + rows * ACTION_SETTINGS_PANEL_ROW_HEIGHT;
         }
-        function relayoutActionSettingsPanel(preset) {
+        function relayoutActionSettingsPanel(preset, recalculate) {
             var sectionHeight = actionSettingsSectionHeight(preset || selectedActionPresetId());
             actionSettingsPanel.minimumSize = [0, Math.max(80, sectionHeight)];
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.layout) {
-                actionSettingsPanel.layout.layout(false);
+                actionSettingsPanel.layout.layout(recalculate !== false);
             }
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.resize) {
                 actionSettingsPanel.layout.resize();
             }
+        }
+        function setActionSettingsBlockVisible(group, control, visible) {
+            setScriptUiGroupVisible(group, visible);
+            setLabeledControlVisible(control, visible);
         }
         function applyActionPresetDefaults(preset) {
             var isInterpolate = preset === "interpolate";
@@ -10420,15 +10461,19 @@ function asScriptUiPenHost(g) {
         function refreshActionPresetFieldVisibility() {
             var preset = selectedActionPresetId();
             var isInterpolate = preset === "interpolate";
+            var showActive = presetShowsActive(preset);
+            var showAmountDuration = presetShowsAmountDuration(preset);
+            var showFalloff = presetShowsFalloff(preset);
             setLabeledControlLabel(baseValue, isInterpolate ? "A value" : "Base value");
             setLabeledControlLabel(activeValue, isInterpolate ? "B value" : "Active value");
             setLabeledControlLabel(amountValue, "Amount");
             setLabeledControlLabel(durationValue, "Duration");
             setLabeledControlLabel(falloff, "Falloff");
-            setScriptUiGroupVisible(actionSettingsPairGroup, presetShowsActive(preset));
-            setScriptUiGroupVisible(actionSettingsAmountGroup, presetShowsAmountDuration(preset));
-            setScriptUiGroupVisible(actionSettingsFalloffGroup, presetShowsFalloff(preset));
-            relayoutActionSettingsPanel(preset);
+            setActionSettingsBlockVisible(actionSettingsPairGroup, activeValue, showActive);
+            setActionSettingsBlockVisible(actionSettingsAmountGroup, amountValue, showAmountDuration);
+            setLabeledControlVisible(durationValue, showAmountDuration);
+            setActionSettingsBlockVisible(actionSettingsFalloffGroup, falloff, showFalloff);
+            relayoutActionSettingsPanel(preset, true);
         }
         function syncActionPresetUi() {
             var presetHints = {
@@ -10562,7 +10607,9 @@ function asScriptUiPenHost(g) {
             "Create a new null layer and bake the action curve into keyframes on a control slider.";
         createActionPreviewPanel();
         tab.add("group").alignment = ["fill", "fill"];
-        actionPreset.onChange = syncActionPresetUi;
+        actionPreset.onChange = function () {
+            app.scheduleTask("try { if (ReOmMIDI.__syncActionPresetUi) { ReOmMIDI.__syncActionPresetUi(); } } catch (e) {}", 1, false);
+        };
         syncActionPresetUi();
         return {
             tab: tab,
@@ -10611,6 +10658,9 @@ function asScriptUiPenHost(g) {
             return options;
         }
         controls.previewActionButton.onClick = function () {
+            if (controls.syncActionPresetUi) {
+                controls.syncActionPresetUi();
+            }
             if (api.__actionPreviewHost && api.__actionPreviewHost.selectTab) {
                 api.__actionPreviewHost.selectTab();
             }
@@ -11194,14 +11244,12 @@ function asScriptUiPenHost(g) {
         closeButton.preferredSize = [72, 24];
         closeButton.maximumSize = [96, 26];
         selectFeatureTab = function (tab) {
-            var selectionChanged;
             if (!featureTabs || !tab) {
                 return;
             }
-            selectionChanged = featureTabs.selection !== tab;
             featureTabs.selection = tab;
-            if (selectionChanged && tab === actionsUi.tab) {
-                actionsUi.refreshActionPresetFieldVisibility();
+            if (tab === actionsUi.tab && actionsUi.syncActionPresetUi) {
+                actionsUi.syncActionPresetUi();
             }
             resizeScriptUiHost(win);
             refreshExpandedPreviewHosts(win, mapPreviewState, actionPreviewState);
@@ -11233,8 +11281,14 @@ function asScriptUiPenHost(g) {
         wireMapTabHandlers(mapUi, api);
         wireMiscTabHandlers(miscUi, api);
         featureTabs.onChange = function () {
-            if (featureTabs.selection === actionsUi.tab) {
-                actionsUi.refreshActionPresetFieldVisibility();
+            if (featureTabs.selection === actionsUi.tab && actionsUi.syncActionPresetUi) {
+                actionsUi.syncActionPresetUi();
+            }
+        };
+        api.__syncActionPresetUi = function () {
+            var state = api.__panelUiState;
+            if (state && state.syncActionPresetUi) {
+                state.syncActionPresetUi();
             }
         };
         api.__panelUiState = {

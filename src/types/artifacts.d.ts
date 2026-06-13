@@ -173,6 +173,7 @@ type LayerEffectCallback = (effect: PropertyGroup) => void;
 interface PreviewSampleEntry {
     plotTime: number;
     evalTime: number;
+    triggerIndex?: number;
 }
 
 /** Base/active toggle literals resolved for screen-flip actions. */

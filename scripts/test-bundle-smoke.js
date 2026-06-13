@@ -1080,6 +1080,13 @@ assert.ok(
   interpolateSim.points.every((point) => !Number.isNaN(point.value)),
   "interpolate preview should not produce NaN values"
 );
+interpolateSim.triggers.forEach((trigger, index) => {
+  const expected = index % 2 ? 100 : 25;
+  const atTrigger = interpolateSim.points.find(
+    (point) => Math.abs(point.time - trigger.time) < 0.00001 && point.value === expected
+  );
+  assert.ok(atTrigger, "interpolate preview should sample alternating A/B values at trigger time " + trigger.time);
+});
 
 const twoHitPumpPlan = context.ReOmMIDI.buildMidiActionBakePlan(
   [

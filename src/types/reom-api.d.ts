@@ -305,6 +305,7 @@ interface ReOmMIDIApi {
 
     beginDeferredPreviewUi?(flushName: string): number;
     __finalizeDeferredPreviewUi?(generation: number, afterCompute?: number | boolean): void;
+    __syncActionPresetUi?(): void;
     scheduleDeferredPreviewUi?(generation: number, delayMs?: number, afterCompute?: boolean): void;
     stopMidiActionPreviewLoadingAnimation?(): void;
 

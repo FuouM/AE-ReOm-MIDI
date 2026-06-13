@@ -4363,7 +4363,8 @@
         entries: PreviewSampleEntry[],
         seen: StringKeyedMap<boolean>,
         plotTime: number,
-        evalTime: number
+        evalTime: number,
+        triggerIndex?: number
     ): void {
         var key;
         if (plotTime === null || typeof plotTime === "undefined" || isNaN(plotTime)) {
@@ -4373,11 +4374,18 @@
             evalTime = plotTime;
         }
         key = Math.round(plotTime * 1000000) + ":" + Math.round(evalTime * 1000000);
+        if (typeof triggerIndex === "number") {
+            key += ":" + triggerIndex;
+        }
         if (seen[key]) {
             return;
         }
         seen[key] = true;
-        entries.push({ plotTime: plotTime, evalTime: evalTime });
+        entries.push({
+            plotTime: plotTime,
+            evalTime: evalTime,
+            triggerIndex: typeof triggerIndex === "number" ? triggerIndex : undefined
+        });
     }
 
     function sortPreviewSampleEntries(entries: PreviewSampleEntry[]): PreviewSampleEntry[] {
@@ -4412,6 +4420,14 @@
         if (!midiActionPreviewUsesSharpSamples(preset)) {
             for (t = range.startTime; t <= range.endTime + 0.0001; t += step) {
                 pushPreviewSampleEntry(entries, seen, t, t);
+            }
+            for (i = 0; i < triggers.length; i += 1) {
+                if (triggers[i].time + eps >= range.startTime && triggers[i].time - eps <= range.endTime + 0.0001) {
+                    if (triggers[i].time - eps >= range.startTime) {
+                        pushPreviewSampleEntry(entries, seen, triggers[i].time - eps, triggers[i].time - eps, i);
+                    }
+                    pushPreviewSampleEntry(entries, seen, triggers[i].time, triggers[i].time, i);
+                }
             }
             return sortPreviewSampleEntries(entries);
         }
@@ -4546,17 +4562,26 @@
                 }
                 pushMidiActionSimulationPoint(points, t, value);
             } else if (simOptions.preset === "interpolate") {
-                n = triggerIndex;
-                if (n < 0) {
-                    value = cloneValue(base);
-                } else if (n >= triggers.length - 1) {
-                    value = targetForInterpolatedEvent(n, base, active);
+                if (typeof entry.triggerIndex === "number") {
+                    value = targetForInterpolatedEvent(entry.triggerIndex, base, active);
                 } else {
-                    value = mixValue(
-                        targetForInterpolatedEvent(n, base, active),
-                        targetForInterpolatedEvent(n + 1, base, active),
-                        interpolationProgress(evalTime, triggers[n].time, triggers[n + 1].time, simOptions.falloff)
-                    );
+                    n = triggerIndex;
+                    if (n < 0) {
+                        value = cloneValue(base);
+                    } else if (n >= triggers.length - 1) {
+                        value = targetForInterpolatedEvent(n, base, active);
+                    } else {
+                        value = mixValue(
+                            targetForInterpolatedEvent(n, base, active),
+                            targetForInterpolatedEvent(n + 1, base, active),
+                            interpolationProgress(
+                                evalTime,
+                                triggers[n].time,
+                                triggers[n + 1].time,
+                                simOptions.falloff
+                            )
+                        );
+                    }
                 }
                 pushMidiActionSimulationPoint(points, t, value);
             } else {
