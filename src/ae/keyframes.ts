@@ -1,4 +1,4 @@
-/* global ReOmMIDI */
+// @ts-nocheck
 (function (api) {
     api.quantizeTimeToFrame = function (time, frameDuration) {
         if (!frameDuration || frameDuration <= 0) {

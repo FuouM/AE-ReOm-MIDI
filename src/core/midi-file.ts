@@ -1,4 +1,4 @@
-/* global ReOmMIDI, File. */
+// @ts-nocheck
 (function (api) {
     var MAX_TICK = 2147483647; // INT32_MAX — sentinel for "end of file"
 

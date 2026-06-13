@@ -1,4 +1,4 @@
-/* global ReOmMIDI, CompItem */
+// @ts-nocheck
 (function (api) {
     function safeProperty(group, nameOrIndex) {
         var prop;

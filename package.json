@@ -4,16 +4,20 @@
   "private": true,
   "description": "Modernized After Effects MIDI import script with a testable MIDI parser and JSX build.",
   "scripts": {
-    "build": "node scripts/build.js",
+    "compile": "tsc && node scripts/rename-js-to-jsx.js",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run compile && node scripts/build.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview:actions": "node scripts/preview-actions.js",
     "preview:map": "node scripts/preview-map.js",
-    "test": "node scripts/test-midi.js && node scripts/test-bundle-smoke.js",
-    "check": "npm run build && npm test"
+    "test": "npm run compile && node scripts/test-midi.js && node scripts/test-bundle-smoke.js",
+    "check": "npm run typecheck && npm run build && npm test"
   },
   "devDependencies": {
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "types-for-adobe": "^7.2.5",
+    "typescript": "~5.4.5"
   },
   "engines": {
     "node": ">=18"

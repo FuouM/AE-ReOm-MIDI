@@ -2,7 +2,11 @@ const vm = require("vm");
 
 const { readSource } = require("./source-loader");
 
-const DEFAULT_PREVIEW_SOURCES = ["src/core/namespace.jsx", "src/core/midi-file.jsx", "src/ae/expressions.jsx"];
+const DEFAULT_PREVIEW_SOURCES = [
+  "dist/compiled/core/namespace.jsx",
+  "dist/compiled/core/midi-file.jsx",
+  "dist/compiled/ae/expressions.jsx"
+];
 
 function createPreviewContext(sourceFiles) {
   const files = sourceFiles || DEFAULT_PREVIEW_SOURCES;

@@ -1,4 +1,4 @@
-/* global ReOmMIDI, app, CompItem. */
+// @ts-nocheck
 (function (api) {
     var MAP_BEGIN = "// --- string map (edit labels below) ---";
     var MAP_END = "// --- end string map ---";

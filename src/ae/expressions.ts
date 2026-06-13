@@ -1,4 +1,4 @@
-/* global ReOmMIDI, app, CompItem, KeyframeInterpolationType. */
+// @ts-nocheck
 (function (api) {
     function quote(value) {
         value = String(value || "");

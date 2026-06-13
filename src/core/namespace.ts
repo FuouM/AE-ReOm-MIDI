@@ -1,4 +1,4 @@
-/* global $. */
+// @ts-nocheck
 (function (root) {
     if (!root.ReOmMIDI) {
         root.ReOmMIDI = {};

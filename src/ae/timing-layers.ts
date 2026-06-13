@@ -1,4 +1,4 @@
-/* global ReOmMIDI, CompItem */
+// @ts-nocheck
 (function (api) {
     function resolveTimingLayerOptions(comp, options) {
         options = options || {};

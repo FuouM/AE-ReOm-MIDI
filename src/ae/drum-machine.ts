@@ -1,4 +1,4 @@
-/* global ReOmMIDI, CompItem, KeyframeInterpolationType */
+// @ts-nocheck
 (function (api) {
     function numeric(value, fallback) {
         var parsed = parseFloat(value);

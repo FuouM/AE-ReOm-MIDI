@@ -1,4 +1,4 @@
-/* global ReOmMIDI, CompItem, KeyframeInterpolationType */
+// @ts-nocheck
 (function (api) {
     api.TONE_WAVEFORM_OPTIONS = ["Sine", "Triangle", "Saw", "Square", "White Noise"];
 

@@ -1,4 +1,4 @@
-/* global ReOmMIDI, CompItem */
+// @ts-nocheck
 (function (api) {
     var MAP_BEGIN = "// --- frame map (edit below) ---";
     var MAP_END = "// --- end frame map ---";

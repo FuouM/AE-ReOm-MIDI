@@ -1,4 +1,4 @@
-/* global ReOmMIDI, Window, Panel, File, app, $ */
+// @ts-nocheck
 (function (api) {
     function globalState() {
         return api.getGlobalState();

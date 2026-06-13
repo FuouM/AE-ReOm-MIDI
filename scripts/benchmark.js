@@ -4,7 +4,7 @@ const vm = require("vm");
 
 const { root, readSource, FIXTURE_FILES } = require("./source-loader");
 const testMidiDir = path.join(root, "test_midis");
-const sourceFiles = ["src/core/namespace.jsx", "src/core/midi-file.jsx"];
+const sourceFiles = ["dist/compiled/core/namespace.jsx", "dist/compiled/core/midi-file.jsx"];
 
 const context = { console };
 context.global = context;

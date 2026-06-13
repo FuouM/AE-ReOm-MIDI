@@ -1,4 +1,4 @@
-/* global ReOmMIDI, app, Window, CompItem, File, $ */
+// @ts-nocheck
 (function (api, thisObj) {
     function requireActiveComp() {
         var item = app.project.activeItem;

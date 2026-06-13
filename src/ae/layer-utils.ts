@@ -1,4 +1,4 @@
-/* global ReOmMIDI, KeyframeInterpolationType */
+// @ts-nocheck
 (function (api) {
     api.addSliderControl = function (layer, sliderName) {
         var effect = layer.Effects.addProperty("Slider Control");
