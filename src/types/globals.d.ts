@@ -31,6 +31,9 @@ interface ReOmGlobalState {
     drumSequencerState?: DrumSequencerState;
     previewUiGeneration?: number;
     previewUiFlushName?: string | null;
+    panelHostLiveWidth?: number;
+    panelHostLiveResizeMs?: number;
+    panelHostPreviewLayoutGuard?: boolean;
     lastActionExpression?: string;
     previewCanvas?: _Control | null;
     previewCanvasRoot?: Window | Panel | _Control | null;

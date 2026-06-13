@@ -54,6 +54,11 @@
         group.alignChildren = ["fill", "center"];
         label.preferredSize.width = 96;
         control.alignment = ["fill", "center"];
+        if (controlType === "dropdownlist" || controlType === "listbox") {
+            control.onClick = function () {
+                syncDropdownControlWidth(control);
+            };
+        }
         return control;
     }
 
@@ -123,12 +128,64 @@
         return false;
     }
 
+    function previewUiIsBusy(): boolean {
+        var state;
+        if (typeof $ === "undefined" || !$.global) {
+            return false;
+        }
+        state = globalState();
+        return !!(state.previewProgressHook || state.actionPreviewLoading || state.pianoRollPreviewLoading);
+    }
+
+    function previewLayoutGuardIsActive(): boolean {
+        var state;
+        if (typeof $ === "undefined" || !$.global) {
+            return false;
+        }
+        state = globalState();
+        return !!(state.panelHostPreviewLayoutGuard || previewUiIsBusy());
+    }
+
+    function runWithPreviewLayoutGuard(fn: () => void): void {
+        globalState().panelHostPreviewLayoutGuard = true;
+        try {
+            fn();
+        } finally {
+            globalState().panelHostPreviewLayoutGuard = false;
+        }
+    }
+
+    function scriptUiControlHasStaleWidthLock(node: _Control | null, hostWidth: number): boolean {
+        var type;
+        var minW;
+        var prefW;
+        var maxW;
+
+        if (!node || scriptUiPreservesWidthMin(node)) {
+            return false;
+        }
+        type = node.type;
+        minW = node.minimumSize ? node.minimumSize[0] : 0;
+        prefW = node.preferredSize ? node.preferredSize[0] : -1;
+        maxW = node.maximumSize ? node.maximumSize[0] : 10000;
+        if (type === "group" || type === "panel" || type === "tab" || type === "tabbedpanel") {
+            return minW > 0 || prefW > 0;
+        }
+        if (type === "dropdownlist" || type === "listbox") {
+            return minW > 0 || prefW > hostWidth || maxW < 10000;
+        }
+        if (type === "statictext" || type === "edittext") {
+            return minW > 0 || prefW > hostWidth;
+        }
+        return false;
+    }
+
     function clearStaleScriptUiWidthLocks(node: _Control | null, hostWidth: number): void {
         var children;
         var i;
-        var child;
         var minH;
         var prefH;
+        var maxH;
         var type;
 
         if (!node) {
@@ -141,6 +198,9 @@
                 clearStaleScriptUiWidthLocks(children[i], hostWidth);
             }
         }
+        if (!scriptUiControlHasStaleWidthLock(node, hostWidth)) {
+            return;
+        }
         if (scriptUiPreservesWidthMin(node)) {
             return;
         }
@@ -149,10 +209,19 @@
             minH = node.minimumSize ? node.minimumSize[1] : 0;
             node.minimumSize = [0, minH];
             prefH = node.preferredSize ? node.preferredSize[1] : -1;
-            node.preferredSize = [0, prefH];
+            node.preferredSize = [0, prefH != null ? prefH : -1];
             return;
         }
-        if (type === "statictext" || type === "edittext" || type === "dropdownlist" || type === "listbox") {
+        if (type === "dropdownlist" || type === "listbox") {
+            minH = node.minimumSize ? node.minimumSize[1] : 0;
+            node.minimumSize = [0, minH];
+            prefH = node.preferredSize ? node.preferredSize[1] : -1;
+            node.preferredSize = [-1, prefH != null ? prefH : -1];
+            maxH = node.maximumSize ? node.maximumSize[1] : 10000;
+            node.maximumSize = [10000, maxH != null ? maxH : 10000];
+            return;
+        }
+        if (type === "statictext" || type === "edittext") {
             minH = node.minimumSize ? node.minimumSize[1] : 0;
             node.minimumSize = [0, minH];
             if (node.preferredSize) {
@@ -163,6 +232,59 @@
             }
         }
     }
+
+    function scriptUiControlBoundsWidth(control: _Control | null | undefined): number {
+        var boundsControl;
+        if (!control) {
+            return 0;
+        }
+        if (control.size && control.size[0] > 0) {
+            return control.size[0];
+        }
+        boundsControl = control as { bounds?: { width?: number } };
+        if (boundsControl.bounds && boundsControl.bounds.width && boundsControl.bounds.width > 0) {
+            return boundsControl.bounds.width;
+        }
+        return 0;
+    }
+
+    function syncDropdownControlWidth(control: _Control | null | undefined): void {
+        var width;
+        var minH;
+        var prefH;
+        var maxH;
+        if (!control || (control.type !== "dropdownlist" && control.type !== "listbox")) {
+            return;
+        }
+        width = scriptUiControlBoundsWidth(control);
+        if (width <= 0) {
+            return;
+        }
+        minH = control.minimumSize ? control.minimumSize[1] : 0;
+        prefH = control.preferredSize ? control.preferredSize[1] : -1;
+        maxH = control.maximumSize ? control.maximumSize[1] : 10000;
+        control.minimumSize = [0, minH];
+        control.preferredSize = [width, prefH != null ? prefH : -1];
+        // Keep horizontal maximum flexible so parent relayout can shrink after resize/preview.
+        control.maximumSize = [10000, maxH != null ? maxH : 10000];
+    }
+
+    function syncDropdownControlWidths(node: _Control | null | undefined): void {
+        var children;
+        var i;
+        if (!node) {
+            return;
+        }
+        syncDropdownControlWidth(node);
+        children = node.children;
+        if (children) {
+            for (i = 0; i < children.length; i += 1) {
+                syncDropdownControlWidths(children[i]);
+            }
+        }
+    }
+
+    var PANEL_WIDTH_DEFAULT = 600;
 
     function pianoRollPreviewNoteColor(isDrum: boolean, opacity: number): number[] {
         if (isDrum) {
@@ -261,28 +383,44 @@
         }
     }
 
-    function refreshScriptUiHost(host: Window | Panel | null | undefined, recalculate?: boolean) {
+    function layoutScriptUiHost(
+        host: Window | Panel | null | undefined,
+        recalculate?: boolean,
+        applyHostLayoutResize?: boolean
+    ): void {
         if (!host || !host.layout) {
             return;
         }
         if (recalculate !== false) {
             host.layout.layout(true);
+        } else if (host.layout.layout) {
+            host.layout.layout(false);
         }
-        if (host.layout.resize) {
+        if (applyHostLayoutResize !== false && host.layout.resize) {
             host.layout.resize();
         }
-        repaintScriptUiHost(host);
     }
 
-    function resizeScriptUiHost(host: Window | Panel | null | undefined): void {
-        refreshScriptUiHost(host, false);
+    function refreshScriptUiHost(
+        host: Window | Panel | null | undefined,
+        recalculate?: boolean,
+        shouldRepaint?: boolean
+    ): void {
+        layoutScriptUiHost(host, recalculate);
+        if (shouldRepaint !== false) {
+            repaintScriptUiHost(host);
+        }
     }
 
-    var PANEL_WIDTH_DEFAULT = 600;
+    function resizeScriptUiHost(host: Window | Panel | null | undefined, shouldRepaint?: boolean): void {
+        refreshScriptUiHost(host, false, shouldRepaint);
+    }
+
     var PANEL_HEIGHT_DEFAULT = 880;
     var PANEL_MIN_WIDTH = 420;
     var PANEL_LOCKED_HEIGHT = 880;
     var PREVIEW_CANVAS_MAX_HEIGHT = 260;
+    var PREVIEW_SUMMARY_MAX_HEIGHT = 56;
     // Max vertical trigger lines drawn on the action preview graph.
     var PREVIEW_MAX_TRIGGER_LINES = 220;
     // Toolbar group height reserved when inferring preview canvas size from parent.
@@ -295,16 +433,24 @@
     api.PREVIEW_MAX_DURATION_SEC = 30;
     // Delay before running deferred preview compute off the UI thread.
     api.DEFERRED_PREVIEW_TASK_MS = 32;
+    // Throttle live window resize relayout to avoid ScriptUI jank while dragging narrower.
+    var PANEL_LIVE_RESIZE_MS = 24;
 
     function applyLockedWindowHeightFromState(state: ReOmPanelUiState | null | undefined): void {
         if (!state || !state.win) {
             return;
         }
         state.lockedWindowHeight = PANEL_LOCKED_HEIGHT;
-        state.win.minimumSize = [PANEL_MIN_WIDTH, PANEL_LOCKED_HEIGHT];
-        state.win.maximumSize = [10000, PANEL_LOCKED_HEIGHT];
-        if (!state.isPanel && state.win.size && state.win.size[1] !== PANEL_LOCKED_HEIGHT) {
-            state.win.size = [state.win.size[0], PANEL_LOCKED_HEIGHT];
+        if (state.isPanel) {
+            // Docked AE panels: host frame owns outer size; don't pin height min/max.
+            state.win.minimumSize = [PANEL_MIN_WIDTH, 0];
+            state.win.maximumSize = [10000, 10000];
+        } else {
+            state.win.minimumSize = [PANEL_MIN_WIDTH, PANEL_LOCKED_HEIGHT];
+            state.win.maximumSize = [10000, PANEL_LOCKED_HEIGHT];
+            if (state.win.size && state.win.size[1] !== PANEL_LOCKED_HEIGHT) {
+                state.win.size = [state.win.size[0], PANEL_LOCKED_HEIGHT];
+            }
         }
         refreshScriptUiHost(state.win);
     }
@@ -315,29 +461,61 @@
         mapPreviewState: ReOmPreviewState,
         actionPreviewState: ReOmPreviewState
     ): void {
-        function relayoutPanelHost() {
-            if (
-                win instanceof Window &&
-                win.resizeable &&
-                panelState &&
-                panelState.lockedWindowHeight &&
-                win.size &&
-                win.size[1] !== panelState.lockedWindowHeight
-            ) {
-                win.size = [win.size[0], panelState.lockedWindowHeight];
+        function panelHostResizeWidth(): number {
+            if (win.size && win.size[0] > 0) {
+                return win.size[0];
             }
-            resizeScriptUiHost(win);
+            return PANEL_WIDTH_DEFAULT;
+        }
+
+        function relayoutPanelHostDuringResize() {
+            var hostWidth;
+            var lastWidth;
+            var now;
+            var lastLiveResizeMs;
+            if (previewLayoutGuardIsActive()) {
+                return;
+            }
+            now = new Date().getTime();
+            lastLiveResizeMs = globalState().panelHostLiveResizeMs;
+            if (typeof lastLiveResizeMs === "number" && now - lastLiveResizeMs < PANEL_LIVE_RESIZE_MS) {
+                return;
+            }
+            globalState().panelHostLiveResizeMs = now;
+            hostWidth = panelHostResizeWidth();
+            lastWidth = globalState().panelHostLiveWidth || hostWidth;
+            if (hostWidth === lastWidth) {
+                return;
+            }
+            if (hostWidth < lastWidth) {
+                clearStaleScriptUiWidthLocks(win as unknown as _Control, hostWidth);
+            }
+            globalState().panelHostLiveWidth = hostWidth;
+            layoutScriptUiHost(win, false, false);
+            repaintScriptUiHost(win);
+        }
+
+        function finalizePanelHostResize() {
+            var hostWidth;
+            if (previewLayoutGuardIsActive()) {
+                return;
+            }
+            hostWidth = panelHostResizeWidth();
+            globalState().panelHostLiveWidth = hostWidth;
+            globalState().panelHostLiveResizeMs = 0;
+            clearStaleScriptUiWidthLocks(win as unknown as _Control, hostWidth);
+            layoutScriptUiHost(win, false, true);
+            repaintScriptUiHost(win);
             refreshExpandedPreviewHosts(win, mapPreviewState, actionPreviewState);
         }
 
-        win.onResizing = relayoutPanelHost;
-        win.onResize = function () {
-            clearStaleScriptUiWidthLocks(win as unknown as _Control, win.size ? win.size[0] : PANEL_WIDTH_DEFAULT);
-            relayoutPanelHost();
-        };
+        win.onResize = finalizePanelHostResize;
+        if (!panelState.isPanel) {
+            win.onResizing = relayoutPanelHostDuringResize;
+        }
     }
 
-    function primePreviewHostLayout(previewState: ReOmPreviewState, rootWin: Window | Panel, forceReprime?: boolean) {
+    function primePreviewHostLayout(previewState: ReOmPreviewState, _rootWin: Window | Panel, forceReprime?: boolean) {
         var container;
         if (!previewState || !previewState.expanded || !previewState.canvas) {
             return;
@@ -345,15 +523,19 @@
         if (forceReprime === true) {
             previewState.layoutPrimed = false;
         }
+        applyPreviewHostExpandedLayout(previewState, true);
         container = previewState.container;
+        if (!container || !container.layout) {
+            return;
+        }
         if (!previewState.layoutPrimed) {
-            if (container && container.layout && container.layout.layout) {
+            if (container.layout.layout) {
                 container.layout.layout(true);
             }
             previewState.layoutPrimed = true;
+        } else if (container.layout.layout) {
+            container.layout.layout(false);
         }
-        relayoutPreviewHost(rootWin, previewState.canvas);
-        repaintScriptUiHost(rootWin);
     }
 
     function refreshExpandedPreviewHosts(
@@ -362,13 +544,17 @@
         actionState: ReOmPreviewState,
         forceReprime?: boolean
     ) {
+        var lightRepaint = previewUiIsBusy();
+        if (globalState().panelHostPreviewLayoutGuard) {
+            return;
+        }
         if (mapState && mapState.expanded && mapState.canvas) {
             primePreviewHostLayout(mapState, rootWin, forceReprime);
-            repaintPreviewCanvas(mapState.canvas, rootWin);
+            repaintPreviewCanvas(mapState.canvas, rootWin, lightRepaint);
         }
         if (actionState && actionState.expanded && actionState.canvas) {
             primePreviewHostLayout(actionState, rootWin, forceReprime);
-            repaintPreviewCanvas(actionState.canvas, rootWin);
+            repaintPreviewCanvas(actionState.canvas, rootWin, lightRepaint);
         }
     }
 
@@ -378,7 +564,6 @@
             return;
         }
         refreshExpandedPreviewHosts(state.win, state.mapPreviewState, state.actionPreviewState, forceReprime === true);
-        repaintScriptUiHost(state.win);
     };
 
     function previewStateForFlush(
@@ -437,17 +622,22 @@
         if (previewState && previewState.expanded && previewState.canvas) {
             canvas = previewState.canvas;
             forceReprime = afterCompute === 1 || afterCompute === true || previewCanvasNeedsReprime(canvas);
-            primePreviewHostLayout(previewState, state.win, forceReprime);
+            if (forceReprime) {
+                applyPreviewHostExpandedLayout(previewState, true);
+                if (previewState.container && previewState.container.layout && previewState.container.layout.layout) {
+                    previewState.container.layout.layout(true);
+                }
+                previewState.layoutPrimed = true;
+            }
             repaintPreviewCanvas(canvas, state.win, !(afterCompute === 1 || afterCompute === true));
         }
         if (afterCompute === 1 || afterCompute === true) {
-            resizeScriptUiHost(state.win);
+            clearStaleScriptUiWidthLocks(
+                state.win as unknown as _Control,
+                state.win && state.win.size && state.win.size[0] > 0 ? state.win.size[0] : PANEL_WIDTH_DEFAULT
+            );
+            layoutScriptUiHost(state.win, false, false);
             repaintScriptUiHost(state.win);
-            if (flushName === "flushActionPreviewCanvas" && state.refreshActionPresetFieldVisibility) {
-                state.refreshActionPresetFieldVisibility();
-            }
-        } else if (flushName === "flushActionPreviewCanvas" && state.relayoutActionSettingsPanel) {
-            state.relayoutActionSettingsPanel(undefined, false);
         }
     };
 
@@ -494,15 +684,59 @@
         canvasPanel: _Control | Group | null | undefined
     ): void {
         var tab = findPreviewHostTab(canvasPanel);
-        if (rootWin && rootWin.layout && rootWin.layout.resize) {
-            rootWin.layout.resize();
-        }
         if (tab && tab.layout && tab.layout.resize) {
             tab.layout.resize();
         }
         if (canvasPanel && canvasPanel.parent && canvasPanel.parent.layout && canvasPanel.parent.layout.resize) {
             canvasPanel.parent.layout.resize();
         }
+    }
+
+    function repaintPreviewSubtree(node: _Control | null | undefined): void {
+        var current = node;
+        while (current) {
+            if (current.update) {
+                try {
+                    current.update();
+                } catch (updateErr) {}
+                return;
+            }
+            current = current.parent || null;
+        }
+    }
+
+    function relayoutPreviewTabHost(
+        _rootWin: Window | Panel | null | undefined,
+        previewState: ReOmPreviewState | null | undefined,
+        recalculate?: boolean
+    ): void {
+        var container;
+        var tab;
+        if (!previewState || !previewState.container) {
+            return;
+        }
+        container = previewState.container;
+        if (!previewState.expanded) {
+            if (container.layout && container.layout.layout) {
+                container.layout.layout(false);
+            }
+            repaintPreviewSubtree(container as unknown as _Control);
+            return;
+        }
+        applyPreviewHostExpandedLayout(previewState, true);
+        if (recalculate === true || !previewState.layoutPrimed) {
+            tab = findPreviewHostTab(container as unknown as _Control);
+            if (tab && tab.layout && tab.layout.layout) {
+                tab.layout.layout(false);
+            }
+            if (container.layout && container.layout.layout) {
+                container.layout.layout(recalculate === true);
+            }
+            previewState.layoutPrimed = true;
+        } else if (container.layout && container.layout.layout) {
+            container.layout.layout(false);
+        }
+        repaintPreviewSubtree(container as unknown as _Control);
     }
 
     function nudgeCanvasRepaint(canvasPanel: _Control | Group | null | undefined): void {
@@ -568,7 +802,7 @@
         if (!canvas) {
             return;
         }
-        repaintPreviewCanvas(canvas, root as Window | Panel | null | undefined);
+        repaintPreviewCanvas(canvas, root as Window | Panel | null | undefined, true);
     }
 
     api.flushActionPreviewCanvas = flushActionPreviewCanvasNow;
@@ -593,7 +827,7 @@
         if (!canvas) {
             return;
         }
-        repaintPreviewCanvas(canvas, root as Window | Panel | null | undefined);
+        repaintPreviewCanvas(canvas, root as Window | Panel | null | undefined, true);
     }
 
     api.flushPianoRollPreviewCanvas = flushPianoRollPreviewCanvasNow;
@@ -947,10 +1181,8 @@
             sourceLabel: string
         ) => void
     ): void {
-        if (host && host.previewState && host.win) {
-            primePreviewHostLayout(host.previewState, host.win);
-        } else if (host && host.relayout) {
-            host.relayout();
+        if (host && host.previewState && host.previewState.expanded) {
+            applyPreviewHostExpandedLayout(host.previewState, true);
         }
         if (targets.summary) {
             targets.summary.text = formatPreviewProgressSummary(sourceLabel, 0, "Starting");
@@ -1010,6 +1242,7 @@
         var canvas = state.canvas;
         var toolbarGroup = state.toolbarGroup || state.headerGroup;
         var footerGroup = state.footerGroup;
+        var summary = state.summary;
         if (!container) {
             return;
         }
@@ -1030,11 +1263,17 @@
                 canvas.alignment = ["fill", "fill"];
                 canvas.minimumSize = [0, 120];
                 canvas.maximumSize = [10000, PREVIEW_CANVAS_MAX_HEIGHT];
-                canvas.preferredSize = [-1, -1];
+                canvas.preferredSize = [-1, PREVIEW_CANVAS_MAX_HEIGHT];
             }
             if (footerGroup) {
                 footerGroup.visible = true;
                 footerGroup.alignment = ["fill", "bottom"];
+            }
+            if (summary) {
+                summary.alignment = ["fill", "top"];
+                summary.minimumSize = [0, 28];
+                summary.maximumSize = [10000, PREVIEW_SUMMARY_MAX_HEIGHT];
+                summary.preferredSize = [-1, 40];
             }
             return;
         }
@@ -1110,8 +1349,8 @@
     api.stopPianoRollPreviewLoadingAnimation = stopPianoRollPreviewLoadingAnimation;
 
     function finishPreviewPanelDisplay(host: ReOmPreviewHost | null | undefined, targets: ReOmPreviewState): void {
-        if (host && host.win && targets.summary) {
-            repaintScriptUiHost(host.win);
+        if (host && host.win && targets.canvas) {
+            repaintPreviewCanvas(targets.canvas, host.win, true);
         }
     }
 
@@ -1610,29 +1849,30 @@
             "Generate After Effects shape layers corresponding to the note events on the selected MIDI null layer.";
 
         function relayoutMapPreviewHost() {
-            if (previewState.expanded && previewState.canvas) {
-                primePreviewHostLayout(previewState, win);
-            } else {
-                resizeScriptUiHost(win);
-            }
+            runWithPreviewLayoutGuard(function () {
+                relayoutPreviewTabHost(win, previewState, false);
+            });
         }
 
         function setMapPreviewExpanded(expanded: boolean): void {
             var canvas = previewState.canvas;
+            var wasExpanded = previewState.expanded;
             if (!previewState.container) {
                 return;
             }
-            previewState.expanded = expanded;
-            if (!expanded) {
-                previewState.layoutPrimed = false;
-                globalState().previewCanvas = null;
-                globalState().previewCanvasRoot = null;
-            }
-            applyPreviewHostExpandedLayout(previewState, expanded);
-            relayoutMapPreviewHost();
-            if (expanded && canvas) {
-                queuePianoRollPreviewRedraw(canvas, win);
-            }
+            runWithPreviewLayoutGuard(function () {
+                previewState.expanded = expanded;
+                if (!expanded) {
+                    previewState.layoutPrimed = false;
+                    globalState().previewCanvas = null;
+                    globalState().previewCanvasRoot = null;
+                }
+                applyPreviewHostExpandedLayout(previewState, expanded);
+                relayoutPreviewTabHost(win, previewState, expanded && !wasExpanded);
+                if (expanded && canvas) {
+                    invokeCanvasOnDraw(canvas);
+                }
+            });
         }
 
         function hideMapPreviewPanel() {
@@ -1691,10 +1931,6 @@
             createMapPreviewPanel();
             if (!previewState.expanded) {
                 setMapPreviewExpanded(true);
-            } else {
-                applyPreviewHostExpandedLayout(previewState, true);
-                relayoutMapPreviewHost();
-                queuePianoRollPreviewRedraw(previewState.canvas, win);
             }
             return previewState;
         }
@@ -1918,14 +2154,22 @@
         }
 
         function relayoutActionSettingsPanel(preset?: string, recalculate?: boolean): void {
-            var sectionHeight = actionSettingsSectionHeight(preset || selectedActionPresetId());
-            actionSettingsPanel.minimumSize = [0, Math.max(80, sectionHeight)];
+            var panelHeight = Math.max(80, actionSettingsSectionHeight(preset || selectedActionPresetId()));
+            actionSettingsPanel.minimumSize = [0, panelHeight];
+            actionSettingsPanel.preferredSize = [-1, panelHeight];
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.layout) {
                 actionSettingsPanel.layout.layout(recalculate !== false);
             }
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.resize) {
                 actionSettingsPanel.layout.resize();
             }
+            if (tab.layout && tab.layout.layout) {
+                tab.layout.layout(false);
+            }
+            if (tab.layout && tab.layout.resize) {
+                tab.layout.resize();
+            }
+            repaintPreviewSubtree(tab as unknown as _Control);
         }
 
         function setActionSettingsBlockVisible(group: Group, control: _Control, visible: boolean): void {
@@ -2025,28 +2269,35 @@
         }
 
         function relayoutActionPreviewHost() {
-            if (previewState.expanded && previewState.canvas) {
-                primePreviewHostLayout(previewState, win);
-            } else {
-                resizeScriptUiHost(win);
-            }
+            runWithPreviewLayoutGuard(function () {
+                relayoutPreviewTabHost(win, previewState, false);
+            });
         }
 
         function setActionPreviewExpanded(expanded: boolean): void {
             var canvas = previewState.canvas;
+            var wasExpanded = previewState.expanded;
             if (!previewState.container) {
                 return;
             }
-            previewState.expanded = expanded;
-            if (!expanded) {
-                previewState.layoutPrimed = false;
-                globalState().actionPreviewCanvas = null;
-            }
-            applyPreviewHostExpandedLayout(previewState, expanded);
-            relayoutActionPreviewHost();
-            if (expanded && canvas) {
-                queueActionPreviewRedraw(canvas, win);
-            }
+            runWithPreviewLayoutGuard(function () {
+                previewState.expanded = expanded;
+                if (!expanded) {
+                    previewState.layoutPrimed = false;
+                    globalState().actionPreviewCanvas = null;
+                }
+                applyPreviewHostExpandedLayout(previewState, expanded);
+                relayoutPreviewTabHost(win, previewState, expanded && !wasExpanded);
+                if (expanded) {
+                    clearStaleScriptUiWidthLocks(
+                        win as unknown as _Control,
+                        win.size && win.size[0] > 0 ? win.size[0] : PANEL_WIDTH_DEFAULT
+                    );
+                }
+                if (expanded && canvas) {
+                    invokeCanvasOnDraw(canvas);
+                }
+            });
         }
 
         function hideActionPreviewPanel() {
@@ -2107,10 +2358,6 @@
             createActionPreviewPanel();
             if (!previewState.expanded) {
                 setActionPreviewExpanded(true);
-            } else {
-                applyPreviewHostExpandedLayout(previewState, true);
-                relayoutActionPreviewHost();
-                queueActionPreviewRedraw(previewState.canvas, win);
             }
             return previewState;
         }
@@ -2210,9 +2457,6 @@
         }
 
         controls.previewActionButton.onClick = function () {
-            if (controls.syncActionPresetUi) {
-                controls.syncActionPresetUi();
-            }
             if (api.__actionPreviewHost && api.__actionPreviewHost.selectTab) {
                 api.__actionPreviewHost.selectTab();
             }
@@ -2903,23 +3147,29 @@
         closeButton.maximumSize = [96, 26];
 
         selectFeatureTab = function (tab: Tab) {
+            var alreadySelected;
             if (!featureTabs || !tab) {
                 return;
             }
+            alreadySelected = featureTabs.selection === tab;
             featureTabs.selection = tab;
+            if (alreadySelected) {
+                return;
+            }
             if (tab === (actionsUi.tab as Tab) && actionsUi.syncActionPresetUi) {
                 (actionsUi.syncActionPresetUi as unknown as () => void)();
             }
-            resizeScriptUiHost(win);
+            layoutScriptUiHost(win, false, false);
             refreshExpandedPreviewHosts(win, mapPreviewState, actionPreviewState);
-            repaintScriptUiHost(win);
         };
 
         (pianoRollUi.previewHost as ReOmPreviewHost).selectTab = function () {
             selectFeatureTab(pianoRollUi.tab as Tab);
         };
         (actionsUi.previewHost as ReOmPreviewHost).selectTab = function () {
-            selectFeatureTab(actionsUi.tab as Tab);
+            if (featureTabs.selection !== (actionsUi.tab as Tab)) {
+                selectFeatureTab(actionsUi.tab as Tab);
+            }
         };
         (mapUi.midiMapHost as ReOmMidiMapHost).selectTab = function () {
             selectFeatureTab(mapUi.tab as Tab);
@@ -3017,6 +3267,7 @@
             );
         }
         bindPanelResizeHandlers(win, api.__panelUiState, mapPreviewState, actionPreviewState);
+        globalState().panelHostLiveWidth = win.size && win.size[0] > 0 ? win.size[0] : PANEL_WIDTH_DEFAULT;
 
         return win;
     }

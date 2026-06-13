@@ -4574,12 +4574,7 @@
                         value = mixValue(
                             targetForInterpolatedEvent(n, base, active),
                             targetForInterpolatedEvent(n + 1, base, active),
-                            interpolationProgress(
-                                evalTime,
-                                triggers[n].time,
-                                triggers[n + 1].time,
-                                simOptions.falloff
-                            )
+                            interpolationProgress(evalTime, triggers[n].time, triggers[n + 1].time, simOptions.falloff)
                         );
                     }
                 }
