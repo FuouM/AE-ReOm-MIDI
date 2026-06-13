@@ -8,6 +8,8 @@ ReOm MIDI parses Standard MIDI files and translates MIDI note, velocity, duratio
 
 The installable script is `re_om_midi.jsx`, generated from smaller modular source files under `src/` to separate parser logic, After Effects host logic, and UI code.
 
+Check out [otomad/om_midi](https://github.com/otomad/om_midi) for a more matured and actively developed version of the script.
+
 ---
 
 ## Key Features & Capabilities
@@ -154,7 +156,7 @@ Requires **Node.js 18** or newer. No third-party npm dependencies are required t
 ## Credits
 
 * MIDI note names baked into the script from [stoyan/midi-note-freq](https://github.com/stoyan/midi-note-freq)
-
+- **Major development**: [otomad/om_midi](https://github.com/otomad/om_midi) — a well-maintained and matured fork with many improvements.
 ---
 
 ## License
