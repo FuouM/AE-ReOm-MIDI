@@ -2605,12 +2605,13 @@
         githubLink.helpTip = "Click to open " + githubRepoUrl + " in your default web browser.";
         try {
             var linkGraphics = githubLink.graphics;
-            var bluePen = linkGraphics.newPen(
-                (linkGraphics as any).PenType.SOLID_COLOR,
+            var linkGfx = linkGraphics as unknown as ScriptUIGraphicsPenHost;
+            var bluePen = linkGfx.newPen(
+                linkGfx.PenType.SOLID_COLOR,
                 [0.29, 0.56, 0.89, 1.0],
                 1
             );
-            linkGraphics.foregroundColor = bluePen;
+            linkGfx.foregroundColor = bluePen;
         } catch (colorErr) {}
 
         githubLink.addEventListener("click", function () {

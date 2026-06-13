@@ -37,13 +37,15 @@
     };
     api.resetGlobalState = function () {
         var key;
+        var globalBag;
         try {
             if (typeof $ === "undefined" || !$.global) {
                 return;
             }
-            for (key in $.global) {
-                if ($.global.hasOwnProperty(key) && key.indexOf("__reomMidi") === 0) {
-                    delete $.global[key];
+            globalBag = $.global;
+            for (key in globalBag) {
+                if (globalBag.hasOwnProperty(key) && key.indexOf("__reomMidi") === 0) {
+                    delete globalBag[key];
                 }
             }
             $.global.__reomMidiState = {};
@@ -5050,7 +5052,12 @@
             return null;
         }
         try {
-            prop = group.property(nameOrIndex);
+            if (typeof nameOrIndex === "number") {
+                prop = group.property(nameOrIndex);
+            }
+            else {
+                prop = group.property(nameOrIndex);
+            }
             return prop || null;
         }
         catch (e) {
@@ -6363,7 +6370,12 @@
             return null;
         }
         try {
-            prop = group.property(nameOrIndex);
+            if (typeof nameOrIndex === "number") {
+                prop = group.property(nameOrIndex);
+            }
+            else {
+                prop = group.property(nameOrIndex);
+            }
             return prop || null;
         }
         catch (e) {
@@ -6629,7 +6641,12 @@
             return null;
         }
         try {
-            prop = group.property(nameOrIndex);
+            if (typeof nameOrIndex === "number") {
+                prop = group.property(nameOrIndex);
+            }
+            else {
+                prop = group.property(nameOrIndex);
+            }
             return prop || null;
         }
         catch (e) {
@@ -7601,7 +7618,12 @@
             return null;
         }
         try {
-            prop = group.property(nameOrIndex);
+            if (typeof nameOrIndex === "number") {
+                prop = group.property(nameOrIndex);
+            }
+            else {
+                prop = group.property(nameOrIndex);
+            }
             return prop || null;
         }
         catch (e) {
@@ -10909,8 +10931,9 @@
         githubLink.helpTip = "Click to open " + githubRepoUrl + " in your default web browser.";
         try {
             var linkGraphics = githubLink.graphics;
-            var bluePen = linkGraphics.newPen(linkGraphics.PenType.SOLID_COLOR, [0.29, 0.56, 0.89, 1.0], 1);
-            linkGraphics.foregroundColor = bluePen;
+            var linkGfx = linkGraphics;
+            var bluePen = linkGfx.newPen(linkGfx.PenType.SOLID_COLOR, [0.29, 0.56, 0.89, 1.0], 1);
+            linkGfx.foregroundColor = bluePen;
         }
         catch (colorErr) { }
         githubLink.addEventListener("click", function () {

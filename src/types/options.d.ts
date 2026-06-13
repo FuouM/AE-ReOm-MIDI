@@ -96,32 +96,6 @@ interface MidiActionOptionsResolved extends MidiActionOptionsInput {
     timeEnd?: number;
 }
 
-/** Layer with an effect parade used by piano-roll controller builders. */
-interface LayerWithEffects extends Layer {
-    Effects?: PropertyGroup & {
-        addProperty(matchName: string): PropertyGroup;
-    };
-    effect?(effectName: string): PropertyGroup;
-}
-
-/** Minimal property container accepted by piano-roll shape helpers. */
-interface PropContainerLike {
-    property?(nameOrIndex: string | number): unknown;
-    setValue?(value: unknown): void;
-    addProperty?(matchName: string): unknown;
-    numProperties?: number;
-    name?: string;
-}
-/** Minimal comp-like object accepted by piano-roll layout helpers. */
-interface PianoRollCompLike {
-    width?: number;
-    height?: number;
-    duration?: number;
-    frameDuration?: number;
-    workAreaStart?: number;
-    workAreaDuration?: number;
-}
-
 interface PianoRollMapOptions extends WorkAreaOptions {
     notes?: PianoRollNote[];
     maxNotes?: number | string;

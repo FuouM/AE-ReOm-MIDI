@@ -1,4 +1,18 @@
-/** ReOm-specific ScriptUI augmentations; base Window/Panel come from types-for-adobe. */
+/**
+ * ReOm-specific ScriptUI augmentations merged onto types-for-adobe/shared/ScriptUI.d.ts.
+ * Base Window, Panel, Tab, and ScriptUIGraphics types come from types-for-adobe; only ReOm
+ * host state and panel wiring live here.
+ */
+
+/** ScriptUIGraphics subset for link pen styling (types-for-adobe newPen type arg is incorrect). */
+interface ScriptUIGraphicsPenHost {
+    PenType: {
+        SOLID_COLOR: number;
+        THEME_COLOR: number;
+    };
+    newPen(type: number, color: number[], width: number): ScriptUIPen;
+    foregroundColor: ScriptUIPen;
+}
 
 interface Window {
     update?(): void;

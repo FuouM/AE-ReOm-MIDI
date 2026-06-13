@@ -46,7 +46,6 @@ interface ReOmGlobalState {
 
 interface ReOmExtendScriptGlobal {
     __reomMidiState?: ReOmGlobalState;
-    [key: string]: unknown;
 }
 
 interface ReOmDollar {
@@ -64,7 +63,7 @@ declare var $: ReOmDollar;
 declare var global: ReOmRootObject & typeof globalThis;
 
 interface NodeModule {
-    exports: unknown;
+    exports: ReOmMIDIApi | MidiFileConstructor;
 }
 
 declare var module: NodeModule | undefined;

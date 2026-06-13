@@ -926,9 +926,9 @@
         midi._tempoMap = null;
     };
 
-    api.MidiFile = MidiFile as unknown as MidiFileConstructor;
+    api.MidiFile = MidiFile as MidiFileConstructor;
 
     if (typeof module !== "undefined" && module.exports) {
-        module.exports = MidiFile;
+        module.exports = MidiFile as MidiFileConstructor;
     }
 })(ReOmMIDI);

@@ -161,15 +161,6 @@ interface SliderKeyFrame {
     value: number;
 }
 
-/** Slider property with ExtendScript keyframe accessors used by import layers. */
-interface SliderPropertyLike extends Property {
-    key?(index: number): SliderKeyFrame;
-    keyTime?(index: number): number;
-    keyValue?(index: number): number;
-    numKeys?: number;
-    valueAtTime?(time: number, pre: boolean): number;
-}
-
 /** Per-layer pitch slider name cache keyed by layer name. */
 interface LayerSliderNameCache {
     [layerName: string]: string;

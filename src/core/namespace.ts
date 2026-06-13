@@ -14,20 +14,22 @@
             if (!$.global.__reomMidiState) {
                 $.global.__reomMidiState = {};
             }
-            return $.global.__reomMidiState as ReOmGlobalState;
+            return $.global.__reomMidiState;
         } catch (e) {}
         return null;
     };
 
     api.resetGlobalState = function () {
         var key;
+        var globalBag: Record<string, unknown>;
         try {
             if (typeof $ === "undefined" || !$.global) {
                 return;
             }
-            for (key in $.global) {
-                if ($.global.hasOwnProperty(key) && key.indexOf("__reomMidi") === 0) {
-                    delete $.global[key];
+            globalBag = $.global as Record<string, unknown>;
+            for (key in globalBag) {
+                if (globalBag.hasOwnProperty(key) && key.indexOf("__reomMidi") === 0) {
+                    delete globalBag[key];
                 }
             }
             $.global.__reomMidiState = {};

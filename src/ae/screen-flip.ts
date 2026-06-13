@@ -1,14 +1,18 @@
 (function (api: ReOmMIDIApi) {
     function safeProperty(
-        group: PropContainerLike | null,
+        group: AePropertyTreeRoot | null,
         nameOrIndex: string | number
     ): PropContainerLike | null {
-        var prop: unknown;
+        var prop: PropContainerLike | Property | PropertyGroup | null;
         if (!group || !group.property) {
             return null;
         }
         try {
-            prop = group.property(nameOrIndex);
+            if (typeof nameOrIndex === "number") {
+                prop = group.property(nameOrIndex);
+            } else {
+                prop = group.property(nameOrIndex);
+            }
             return (prop as PropContainerLike) || null;
         } catch (e) {
             return null;
@@ -93,7 +97,7 @@
     function scalePropertyForLayer(layer: Layer): PropContainerLike | null {
         var transform: PropContainerLike | null;
         var scale: PropContainerLike | null;
-        transform = safeProperty(layer as PropContainerLike, "ADBE Transform Group");
+        transform = safeProperty(layer, "ADBE Transform Group");
         if (!transform) {
             try {
                 transform = layer.transform as PropContainerLike;

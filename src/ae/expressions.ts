@@ -3703,22 +3703,26 @@
     };
 
     function safeProperty(
-        group: PropContainerLike | null | undefined,
+        group: AePropertyTreeRoot | null | undefined,
         nameOrIndex: string | number
     ): PropContainerLike | null {
-        var prop: unknown;
+        var prop: PropContainerLike | Property | PropertyGroup | null;
         if (!group || !group.property) {
             return null;
         }
         try {
-            prop = group.property(nameOrIndex);
+            if (typeof nameOrIndex === "number") {
+                prop = group.property(nameOrIndex);
+            } else {
+                prop = group.property(nameOrIndex);
+            }
             return (prop as PropContainerLike) || null;
         } catch (e) {
             return null;
         }
     }
 
-    function setPropValue(group: PropContainerLike | null | undefined, name: string, value: unknown): boolean {
+    function setPropValue(group: PropContainerLike | null | undefined, name: string, value: number | number[] | string): boolean {
         var prop = safeProperty(group, name);
         if (prop && prop.setValue) {
             try {
@@ -3902,7 +3906,7 @@
         var sub;
         var j;
         var subProp;
-        contents = safeProperty(layer as PropContainerLike, "ADBE Root Vectors Group");
+        contents = safeProperty(layer, "ADBE Root Vectors Group");
         if (!contents || !contents.numProperties) {
             return null;
         }
@@ -4135,9 +4139,9 @@
                 rect.velocity +
                 "\nlabel: " +
                 rect.label;
-            contents = safeProperty(layer as PropContainerLike, "ADBE Root Vectors Group");
+            contents = safeProperty(layer, "ADBE Root Vectors Group");
             buildShapeRectContents(contents, rect);
-            transform = safeProperty(layer as PropContainerLike, "ADBE Transform Group");
+            transform = safeProperty(layer, "ADBE Transform Group");
             if (transform) {
                 setPropValue(transform, "ADBE Anchor Point", [0, 0]);
                 setPropValue(transform, "ADBE Position", [rect.x, rect.y]);

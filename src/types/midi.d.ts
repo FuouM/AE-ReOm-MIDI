@@ -141,8 +141,9 @@ interface MidiFileData {
     resolveTimes(): void;
 }
 
-/** MidiFile constructor attached to ReOmMIDI.MidiFile. */
+/** MidiFile constructor attached to ReOmMIDI.MidiFile (ES3 `new` + static fromFile). */
 interface MidiFileConstructor {
+    (this: MidiFileData, data?: string, filePath?: string): void;
     new (data?: string, filePath?: string): MidiFileData;
     fromFile(filePath: string): MidiFileData;
 }
