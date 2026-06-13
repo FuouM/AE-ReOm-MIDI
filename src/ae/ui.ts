@@ -426,12 +426,16 @@
             canvas = previewState.canvas;
             forceReprime = afterCompute === 1 || afterCompute === true || previewCanvasNeedsReprime(canvas);
             primePreviewHostLayout(previewState, state.win, forceReprime);
-            repaintPreviewCanvas(canvas, state.win);
+            repaintPreviewCanvas(canvas, state.win, !(afterCompute === 1 || afterCompute === true));
         }
-        resizeScriptUiHost(state.win);
-        repaintScriptUiHost(state.win);
-        if (flushName === "flushActionPreviewCanvas" && state.refreshActionPresetFieldVisibility) {
-            state.refreshActionPresetFieldVisibility();
+        if (afterCompute === 1 || afterCompute === true) {
+            resizeScriptUiHost(state.win);
+            repaintScriptUiHost(state.win);
+            if (flushName === "flushActionPreviewCanvas" && state.relayoutActionSettingsPanel) {
+                state.relayoutActionSettingsPanel();
+            }
+        } else if (flushName === "flushActionPreviewCanvas" && state.relayoutActionSettingsPanel) {
+            state.relayoutActionSettingsPanel();
         }
     };
 
@@ -509,17 +513,41 @@
         } catch (nudgeErr) {}
     }
 
+    function repaintPreviewProgressSummary(summary: _Control | null | undefined): void {
+        var parent;
+        if (!summary) {
+            return;
+        }
+        parent = summary.parent;
+        if (parent && parent.update) {
+            try {
+                parent.update();
+            } catch (parentUpdateErr) {}
+            return;
+        }
+        if (summary.update) {
+            try {
+                summary.update();
+            } catch (summaryUpdateErr) {}
+        }
+    }
+
     function repaintPreviewCanvas(
         canvasPanel: _Control | Group | null | undefined,
-        rootWin: Window | Panel | null | undefined
+        rootWin: Window | Panel | null | undefined,
+        light?: boolean
     ): void {
         if (!canvasPanel) {
             return;
         }
-        relayoutPreviewHost(rootWin, canvasPanel);
-        nudgeCanvasRepaint(canvasPanel);
+        if (!light) {
+            relayoutPreviewHost(rootWin, canvasPanel);
+            nudgeCanvasRepaint(canvasPanel);
+        }
         invokeCanvasOnDraw(canvasPanel);
-        repaintScriptUiHost(rootWin);
+        if (!light) {
+            repaintScriptUiHost(rootWin);
+        }
     }
 
     function flushActionPreviewCanvasNow() {
@@ -629,7 +657,6 @@
     function applyPreviewProgress(hook: PreviewProgressHook | null | undefined): void {
         var now;
         var summary;
-        var root;
         if (!hook) {
             return;
         }
@@ -642,11 +669,15 @@
         }
         hook.lastUiMs = now;
         summary = previewProgressSummaryControl(hook.kind || "");
-        root = previewProgressRootWin(hook.kind || "");
         if (summary) {
             summary.text = formatPreviewProgressSummary(hook.sourceLabel || "", hook.percent, hook.stageLabel || "");
+            repaintPreviewProgressSummary(summary);
         }
-        repaintScriptUiHost((root as Window | Panel | null | undefined) || null);
+        if (hook.kind === "midiAction" && globalState().actionPreviewCanvas) {
+            invokeCanvasOnDraw(globalState().actionPreviewCanvas as unknown as Group);
+        } else if (hook.kind === "pianoRoll" && globalState().previewCanvas) {
+            invokeCanvasOnDraw(globalState().previewCanvas as unknown as Group);
+        }
     }
 
     function buildPreviewProgressHook(kind: string, sourceLabel: string): PreviewProgressHook {
@@ -911,9 +942,10 @@
         }
         if (targets.summary) {
             targets.summary.text = formatPreviewProgressSummary(sourceLabel, 0, "Starting");
+            repaintPreviewProgressSummary(targets.summary);
         }
-        if (host && host.win) {
-            repaintScriptUiHost(host.win);
+        if (host && host.win && targets.canvas) {
+            invokeCanvasOnDraw(targets.canvas);
         }
         if (host && host.win && targets.canvas && targets.summary) {
             startAnimationFn(targets.canvas, host.win, targets.summary, sourceLabel);
@@ -1867,11 +1899,11 @@
             return ACTION_SETTINGS_PANEL_BASE_HEIGHT + rows * ACTION_SETTINGS_PANEL_ROW_HEIGHT;
         }
 
-        function relayoutActionSettingsPanel(preset: string): void {
+        function relayoutActionSettingsPanel(preset?: string): void {
             var sectionHeight = actionSettingsSectionHeight(preset || selectedActionPresetId());
             actionSettingsPanel.minimumSize = [0, Math.max(80, sectionHeight)];
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.layout) {
-                actionSettingsPanel.layout.layout(true);
+                actionSettingsPanel.layout.layout(false);
             }
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.resize) {
                 actionSettingsPanel.layout.resize();
@@ -2114,6 +2146,7 @@
             previewHost: previewHost,
             syncActionPresetUi: syncActionPresetUi,
             refreshActionPresetFieldVisibility: refreshActionPresetFieldVisibility,
+            relayoutActionSettingsPanel: relayoutActionSettingsPanel,
             selectedActionPresetId: selectedActionPresetId
         };
     }
@@ -2834,11 +2867,13 @@
         closeButton.maximumSize = [96, 26];
 
         selectFeatureTab = function (tab: Tab) {
+            var selectionChanged;
             if (!featureTabs || !tab) {
                 return;
             }
+            selectionChanged = featureTabs.selection !== tab;
             featureTabs.selection = tab;
-            if (tab === (actionsUi.tab as Tab)) {
+            if (selectionChanged && tab === (actionsUi.tab as Tab)) {
                 (actionsUi.refreshActionPresetFieldVisibility as unknown as () => void)();
             }
             resizeScriptUiHost(win);
@@ -2895,7 +2930,8 @@
             mapPreviewState: mapPreviewState,
             actionPreviewState: actionPreviewState,
             syncActionPresetUi: actionsUi.syncActionPresetUi as unknown as () => void,
-            refreshActionPresetFieldVisibility: actionsUi.refreshActionPresetFieldVisibility as unknown as () => void
+            refreshActionPresetFieldVisibility: actionsUi.refreshActionPresetFieldVisibility as unknown as () => void,
+            relayoutActionSettingsPanel: actionsUi.relayoutActionSettingsPanel as unknown as () => void
         };
         api.selectFeatureTab = selectFeatureTab;
         api.refreshPanelLayout = function () {

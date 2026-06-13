@@ -1,5 +1,5 @@
 /*
- ReOm MIDI v1.0.0
+ ReOm MIDI v1.1.0
  Modernized After Effects MIDI import script.
 
  Copyright (c) 2026 Fuou Marinas
@@ -22,7 +22,7 @@
         root.ReOmMIDI = {};
     }
     var api = root.ReOmMIDI;
-    api.VERSION = "1.0.0";
+    api.VERSION = "1.1.0";
     api.getGlobalState = function () {
         try {
             if (typeof $ === "undefined" || !$.global) {
@@ -9095,12 +9095,17 @@ function asScriptUiPenHost(g) {
             canvas = previewState.canvas;
             forceReprime = afterCompute === 1 || afterCompute === true || previewCanvasNeedsReprime(canvas);
             primePreviewHostLayout(previewState, state.win, forceReprime);
-            repaintPreviewCanvas(canvas, state.win);
+            repaintPreviewCanvas(canvas, state.win, !(afterCompute === 1 || afterCompute === true));
         }
-        resizeScriptUiHost(state.win);
-        repaintScriptUiHost(state.win);
-        if (flushName === "flushActionPreviewCanvas" && state.refreshActionPresetFieldVisibility) {
-            state.refreshActionPresetFieldVisibility();
+        if (afterCompute === 1 || afterCompute === true) {
+            resizeScriptUiHost(state.win);
+            repaintScriptUiHost(state.win);
+            if (flushName === "flushActionPreviewCanvas" && state.relayoutActionSettingsPanel) {
+                state.relayoutActionSettingsPanel();
+            }
+        }
+        else if (flushName === "flushActionPreviewCanvas" && state.relayoutActionSettingsPanel) {
+            state.relayoutActionSettingsPanel();
         }
     };
     api.scheduleDeferredPreviewUi = function (generation, delayMs, afterCompute) {
@@ -9168,14 +9173,38 @@ function asScriptUiPenHost(g) {
         }
         catch (nudgeErr) { }
     }
-    function repaintPreviewCanvas(canvasPanel, rootWin) {
+    function repaintPreviewProgressSummary(summary) {
+        var parent;
+        if (!summary) {
+            return;
+        }
+        parent = summary.parent;
+        if (parent && parent.update) {
+            try {
+                parent.update();
+            }
+            catch (parentUpdateErr) { }
+            return;
+        }
+        if (summary.update) {
+            try {
+                summary.update();
+            }
+            catch (summaryUpdateErr) { }
+        }
+    }
+    function repaintPreviewCanvas(canvasPanel, rootWin, light) {
         if (!canvasPanel) {
             return;
         }
-        relayoutPreviewHost(rootWin, canvasPanel);
-        nudgeCanvasRepaint(canvasPanel);
+        if (!light) {
+            relayoutPreviewHost(rootWin, canvasPanel);
+            nudgeCanvasRepaint(canvasPanel);
+        }
         invokeCanvasOnDraw(canvasPanel);
-        repaintScriptUiHost(rootWin);
+        if (!light) {
+            repaintScriptUiHost(rootWin);
+        }
     }
     function flushActionPreviewCanvasNow() {
         var canvas = globalState().actionPreviewCanvas;
@@ -9262,7 +9291,6 @@ function asScriptUiPenHost(g) {
     function applyPreviewProgress(hook) {
         var now;
         var summary;
-        var root;
         if (!hook) {
             return;
         }
@@ -9273,11 +9301,16 @@ function asScriptUiPenHost(g) {
         }
         hook.lastUiMs = now;
         summary = previewProgressSummaryControl(hook.kind || "");
-        root = previewProgressRootWin(hook.kind || "");
         if (summary) {
             summary.text = formatPreviewProgressSummary(hook.sourceLabel || "", hook.percent, hook.stageLabel || "");
+            repaintPreviewProgressSummary(summary);
         }
-        repaintScriptUiHost(root || null);
+        if (hook.kind === "midiAction" && globalState().actionPreviewCanvas) {
+            invokeCanvasOnDraw(globalState().actionPreviewCanvas);
+        }
+        else if (hook.kind === "pianoRoll" && globalState().previewCanvas) {
+            invokeCanvasOnDraw(globalState().previewCanvas);
+        }
     }
     function buildPreviewProgressHook(kind, sourceLabel) {
         var stages = kind === "pianoRoll" ? PIANO_ROLL_PREVIEW_PROGRESS_STAGES : MIDI_ACTION_PREVIEW_PROGRESS_STAGES;
@@ -9503,9 +9536,10 @@ function asScriptUiPenHost(g) {
         }
         if (targets.summary) {
             targets.summary.text = formatPreviewProgressSummary(sourceLabel, 0, "Starting");
+            repaintPreviewProgressSummary(targets.summary);
         }
-        if (host && host.win) {
-            repaintScriptUiHost(host.win);
+        if (host && host.win && targets.canvas) {
+            invokeCanvasOnDraw(targets.canvas);
         }
         if (host && host.win && targets.canvas && targets.summary) {
             startAnimationFn(targets.canvas, host.win, targets.summary, sourceLabel);
@@ -10331,7 +10365,7 @@ function asScriptUiPenHost(g) {
             var sectionHeight = actionSettingsSectionHeight(preset || selectedActionPresetId());
             actionSettingsPanel.minimumSize = [0, Math.max(80, sectionHeight)];
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.layout) {
-                actionSettingsPanel.layout.layout(true);
+                actionSettingsPanel.layout.layout(false);
             }
             if (actionSettingsPanel.layout && actionSettingsPanel.layout.resize) {
                 actionSettingsPanel.layout.resize();
@@ -10549,6 +10583,7 @@ function asScriptUiPenHost(g) {
             previewHost: previewHost,
             syncActionPresetUi: syncActionPresetUi,
             refreshActionPresetFieldVisibility: refreshActionPresetFieldVisibility,
+            relayoutActionSettingsPanel: relayoutActionSettingsPanel,
             selectedActionPresetId: selectedActionPresetId
         };
     }
@@ -11159,11 +11194,13 @@ function asScriptUiPenHost(g) {
         closeButton.preferredSize = [72, 24];
         closeButton.maximumSize = [96, 26];
         selectFeatureTab = function (tab) {
+            var selectionChanged;
             if (!featureTabs || !tab) {
                 return;
             }
+            selectionChanged = featureTabs.selection !== tab;
             featureTabs.selection = tab;
-            if (tab === actionsUi.tab) {
+            if (selectionChanged && tab === actionsUi.tab) {
                 actionsUi.refreshActionPresetFieldVisibility();
             }
             resizeScriptUiHost(win);
@@ -11215,7 +11252,8 @@ function asScriptUiPenHost(g) {
             mapPreviewState: mapPreviewState,
             actionPreviewState: actionPreviewState,
             syncActionPresetUi: actionsUi.syncActionPresetUi,
-            refreshActionPresetFieldVisibility: actionsUi.refreshActionPresetFieldVisibility
+            refreshActionPresetFieldVisibility: actionsUi.refreshActionPresetFieldVisibility,
+            relayoutActionSettingsPanel: actionsUi.relayoutActionSettingsPanel
         };
         api.selectFeatureTab = selectFeatureTab;
         api.refreshPanelLayout = function () {

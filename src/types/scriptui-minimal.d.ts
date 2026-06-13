@@ -78,6 +78,7 @@ interface _Control {
     graphics?: ScriptUIGraphics;
     onDraw?: () => void;
     notify?: (event: string) => void;
+    update?(): void;
     type?: string;
     visible?: boolean;
     size?: number[];
@@ -173,4 +174,5 @@ interface ReOmPanelUiState {
     actionPreviewState: ReOmPreviewState;
     syncActionPresetUi?: () => void;
     refreshActionPresetFieldVisibility?: () => void;
+    relayoutActionSettingsPanel?: () => void;
 }
