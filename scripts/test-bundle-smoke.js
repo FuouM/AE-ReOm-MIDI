@@ -5,7 +5,10 @@ const vm = require("vm");
 
 const { root, VERSION } = require("./source-loader");
 const bundlePath = path.join(root, "re_om_midi.jsx");
-const bundleSource = fs.readFileSync(bundlePath, "utf8");
+const bundleSource = fs
+  .readFileSync(bundlePath, "utf8")
+  .replace(/^#targetengine[^\r\n]*[\r\n]+/m, "")
+  .replace(/^#target[^\r\n]*[\r\n]+/m, "");
 assert.strictEqual(
   bundleSource.indexOf("Object.assign"),
   -1,
@@ -17,14 +20,42 @@ const context = {
   KeyframeInterpolationType: {
     HOLD: "hold"
   },
+  $: {
+    global: {}
+  },
   ReOmMIDI: {
     __NO_AUTO_LAUNCH__: true
   }
 };
 context.global = context;
+context.$.global = context;
 vm.createContext(context);
 
-vm.runInContext(fs.readFileSync(bundlePath, "utf8"), context, { filename: "re_om_midi.jsx" });
+vm.runInContext(bundleSource, context, { filename: "re_om_midi.jsx" });
+
+const panelContext = {
+  console,
+  CompItem: function CompItem() {},
+  KeyframeInterpolationType: {
+    HOLD: "hold"
+  },
+  $: {
+    global: {}
+  },
+  ReOmMIDI: {
+    __NO_AUTO_LAUNCH__: true
+  }
+};
+panelContext.$.global = panelContext;
+panelContext.global = panelContext;
+vm.createContext(panelContext);
+vm.runInContext(bundleSource, panelContext, { filename: "re_om_midi_panel.jsx" });
+assert.ok(panelContext.ReOmMIDI && panelContext.ReOmMIDI.VERSION, "panel context should initialize ReOmMIDI on $.global");
+assert.strictEqual(
+  typeof panelContext.ReOmMIDI.buildUI,
+  "function",
+  "panel context should register buildUI on the shared api"
+);
 
 assert.ok(context.ReOmMIDI.VERSION, "bundle should expose a version");
 assert.strictEqual(context.ReOmMIDI.VERSION, VERSION, "bundle VERSION should match package.json");

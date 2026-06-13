@@ -1,9 +1,22 @@
-(function (root: ReOmRootObject) {
-    if (!root.ReOmMIDI) {
-        root.ReOmMIDI = {} as Partial<ReOmMIDIApi> as ReOmMIDIApi;
+function reomScriptRoot(): ReOmRootObject {
+    try {
+        if (typeof $ !== "undefined" && $.global) {
+            return $.global as unknown as ReOmRootObject;
+        }
+    } catch (e) {}
+    if (typeof global !== "undefined") {
+        return global;
     }
+    return {} as ReOmRootObject;
+}
 
-    var api = root.ReOmMIDI;
+var reomRoot = reomScriptRoot();
+if (!reomRoot.ReOmMIDI) {
+    reomRoot.ReOmMIDI = {} as Partial<ReOmMIDIApi> as ReOmMIDIApi;
+}
+var ReOmMIDI = reomRoot.ReOmMIDI;
+
+(function (api: ReOmMIDIApi) {
     api.VERSION = "__REOM_MIDI_VERSION__";
 
     api.getGlobalState = function () {
@@ -444,4 +457,4 @@
     if (typeof module !== "undefined" && module.exports) {
         module.exports = api;
     }
-})(typeof global !== "undefined" ? global : (this as ReOmRootObject));
+})(ReOmMIDI);

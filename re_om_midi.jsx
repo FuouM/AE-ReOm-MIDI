@@ -1,3 +1,4 @@
+#targetengine "reom_midi"
 /*
  ReOm MIDI v1.1.2
  Modernized After Effects MIDI import script.
@@ -17,11 +18,24 @@
 
 // ---- dist/compiled/core/namespace.jsx ----
 "use strict";
-(function (root) {
-    if (!root.ReOmMIDI) {
-        root.ReOmMIDI = {};
+function reomScriptRoot() {
+    try {
+        if (typeof $ !== "undefined" && $.global) {
+            return $.global;
+        }
     }
-    var api = root.ReOmMIDI;
+    catch (e) { }
+    if (typeof global !== "undefined") {
+        return global;
+    }
+    return {};
+}
+var reomRoot = reomScriptRoot();
+if (!reomRoot.ReOmMIDI) {
+    reomRoot.ReOmMIDI = {};
+}
+var ReOmMIDI = reomRoot.ReOmMIDI;
+(function (api) {
     api.VERSION = "1.1.2";
     api.getGlobalState = function () {
         try {
@@ -442,7 +456,7 @@
     if (typeof module !== "undefined" && module.exports) {
         module.exports = api;
     }
-})(typeof global !== "undefined" ? global : this);
+})(ReOmMIDI);
 
 
 // ---- dist/compiled/core/property-utils.jsx ----

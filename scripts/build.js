@@ -20,7 +20,8 @@ const sourceFiles = [
   "dist/compiled/main.jsx"
 ];
 
-const banner = `/*
+const banner = `#targetengine "reom_midi"
+/*
  ReOm MIDI v${VERSION}
  Modernized After Effects MIDI import script.
 
