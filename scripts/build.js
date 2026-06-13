@@ -5,6 +5,7 @@ const { root, VERSION, readSource } = require("./source-loader");
 const output = path.join(root, "re_om_midi.jsx");
 const sourceFiles = [
   "dist/compiled/core/namespace.jsx",
+  "dist/compiled/core/property-utils.jsx",
   "dist/compiled/core/midi-file.jsx",
   "dist/compiled/ae/layer-utils.jsx",
   "dist/compiled/ae/keyframes.jsx",

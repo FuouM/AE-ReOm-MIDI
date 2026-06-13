@@ -915,7 +915,7 @@
         var parade;
         var i;
         var effect;
-        var effectsLayer = layer as LayerWithEffects;
+        var effectsLayer = api.asLayerWithEffects(layer);
         if (!layer || !effectName) {
             return null;
         }
@@ -943,7 +943,7 @@
             }
         } catch (paradeErr) {}
         try {
-            if (effectsLayer.effect) {
+            if (effectsLayer && effectsLayer.effect) {
                 slider = effectsLayer.effect(effectName)("Slider");
                 if (sliderHasKeys(slider)) {
                     return slider;
@@ -951,7 +951,7 @@
             }
         } catch (effectErr) {}
         try {
-            if (effectsLayer.Effects) {
+            if (effectsLayer && effectsLayer.Effects) {
                 slider = effectsLayer.Effects.property(effectName).property(1);
                 if (sliderHasKeys(slider)) {
                     return slider;
@@ -980,8 +980,12 @@
     function readSliderKey(slider: Property | null | undefined, index: number): SliderKeyFrame | null {
         var time;
         var value;
-        var sliderLike = slider as SliderPropertyLike;
+        var sliderLike: SliderPropertyLike | null;
         if (!slider || index < 1 || index > sliderKeyCount(slider)) {
+            return null;
+        }
+        sliderLike = api.isSliderPropertyLike(slider) ? slider : null;
+        if (!sliderLike) {
             return null;
         }
         try {
@@ -1270,8 +1274,8 @@
 
     function getLayerEffectParade(layer: Layer | null | undefined): PropertyGroup | null {
         var parade;
-        var effectsLayer = layer as LayerWithEffects;
-        if (!layer) {
+        var effectsLayer = api.asLayerWithEffects(layer);
+        if (!effectsLayer) {
             return null;
         }
         try {
@@ -1375,7 +1379,7 @@
             return found;
         }
         try {
-            return (layer as LayerWithEffects).effect!(limitedName)("Slider") as Property;
+            return api.asLayerWithEffects(layer)!.effect!(limitedName)("Slider") as Property;
         } catch (e) {}
         return null;
     }
@@ -3702,28 +3706,8 @@
         };
     };
 
-    function safeProperty(
-        group: AePropertyTreeRoot | null | undefined,
-        nameOrIndex: string | number
-    ): PropContainerLike | null {
-        var prop: PropContainerLike | Property | PropertyGroup | null;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            if (typeof nameOrIndex === "number") {
-                prop = group.property(nameOrIndex);
-            } else {
-                prop = group.property(nameOrIndex);
-            }
-            return (prop as PropContainerLike) || null;
-        } catch (e) {
-            return null;
-        }
-    }
-
     function setPropValue(group: PropContainerLike | null | undefined, name: string, value: number | number[] | string): boolean {
-        var prop = safeProperty(group, name);
+        var prop = api.safeProperty(group, name);
         if (prop && prop.setValue) {
             try {
                 prop.setValue(value);
@@ -3786,7 +3770,7 @@
     function addPianoRollControllerSlider(layer: Layer, name: string, value: number): PropertyGroup | null {
         var fx: PropertyGroup | null;
         var sliderProp: PropContainerLike | null;
-        var effectsLayer = layer as LayerWithEffects;
+        var effectsLayer = api.asLayerWithEffects(layer);
         if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
@@ -3800,7 +3784,7 @@
             }
         }
         fx.name = api.limitEffectName(name);
-        sliderProp = safeProperty(fx, 1) || safeProperty(fx, "Slider");
+        sliderProp = api.safeProperty(fx, 1) || api.safeProperty(fx, "Slider");
         if (sliderProp && sliderProp.setValue) {
             try {
                 sliderProp.setValue(value);
@@ -3812,20 +3796,20 @@
     function addPianoRollControllerColor(layer: Layer, name: string, rgb: number[]): PropertyGroup | null {
         var fx: PropertyGroup | null;
         var colorProp: PropContainerLike | null;
-        var effectsLayer = layer as LayerWithEffects;
+        var effectsLayer = api.asLayerWithEffects(layer);
         if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
         fx = effectsLayer.Effects.addProperty("ADBE Color Control") as PropertyGroup;
         fx.name = api.limitEffectName(name);
         try {
-            colorProp = fx.property("Color");
+            colorProp = api.asPropContainerLike(fx.property("Color"));
         } catch (colorErr) {
             colorProp = null;
         }
         if (!colorProp) {
             try {
-                colorProp = fx.property(1);
+                colorProp = api.asPropContainerLike(fx.property(1));
             } catch (colorErr2) {
                 colorProp = null;
             }
@@ -3906,12 +3890,12 @@
         var sub;
         var j;
         var subProp;
-        contents = safeProperty(layer, "ADBE Root Vectors Group");
+        contents = api.safeProperty(layer, "ADBE Root Vectors Group");
         if (!contents || !contents.numProperties) {
             return null;
         }
         for (i = 1; i <= contents.numProperties; i += 1) {
-            prop = safeProperty(contents, i);
+            prop = api.safeProperty(contents, i);
             if (!prop) {
                 continue;
             }
@@ -3919,10 +3903,10 @@
                 return prop;
             }
             if (shapeContentMatches(prop, "ADBE Vector Group")) {
-                sub = safeProperty(prop, "ADBE Vectors Group") || safeProperty(prop, 2);
+                sub = api.safeProperty(prop, "ADBE Vectors Group") || api.safeProperty(prop, 2);
                 if (sub && sub.numProperties) {
                     for (j = 1; j <= sub.numProperties; j += 1) {
-                        subProp = safeProperty(sub, j);
+                        subProp = api.safeProperty(sub, j);
                         if (subProp && visitor(subProp)) {
                             return subProp;
                         }
@@ -3946,33 +3930,33 @@
     }
 
     function findLayerOpacity(layer: Layer): PropContainerLike | null {
-        var transform = safeProperty(layer, "ADBE Transform Group");
-        return safeProperty(transform, "ADBE Opacity");
+        var transform = api.safeProperty(layer, "ADBE Transform Group");
+        return api.safeProperty(transform, "ADBE Opacity");
     }
 
     function shapeFillColorProp(fill: PropContainerLike | null): PropContainerLike | null {
-        return safeProperty(fill, "ADBE Vector Fill Color") || safeProperty(fill, "Color") || safeProperty(fill, 4);
+        return api.safeProperty(fill, "ADBE Vector Fill Color") || api.safeProperty(fill, "Color") || api.safeProperty(fill, 4);
     }
 
     function shapeStrokeColorProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
-            safeProperty(stroke, "ADBE Vector Stroke Color") || safeProperty(stroke, "Color") || safeProperty(stroke, 4)
+            api.safeProperty(stroke, "ADBE Vector Stroke Color") || api.safeProperty(stroke, "Color") || api.safeProperty(stroke, 4)
         );
     }
 
     function shapeStrokeOpacityProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
-            safeProperty(stroke, "ADBE Vector Stroke Opacity") ||
-            safeProperty(stroke, "Opacity") ||
-            safeProperty(stroke, 5)
+            api.safeProperty(stroke, "ADBE Vector Stroke Opacity") ||
+            api.safeProperty(stroke, "Opacity") ||
+            api.safeProperty(stroke, 5)
         );
     }
 
     function shapeStrokeWidthProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
-            safeProperty(stroke, "ADBE Vector Stroke Width") ||
-            safeProperty(stroke, "Stroke Width") ||
-            safeProperty(stroke, 6)
+            api.safeProperty(stroke, "ADBE Vector Stroke Width") ||
+            api.safeProperty(stroke, "Stroke Width") ||
+            api.safeProperty(stroke, 6)
         );
     }
 
@@ -4046,13 +4030,13 @@
         }
 
         try {
-            rectShape = contents.addProperty("ADBE Vector Shape - Rect") as PropContainerLike;
+            rectShape = api.asPropContainerLike(contents.addProperty("ADBE Vector Shape - Rect"));
             setPropValue(rectShape, "ADBE Vector Rect Size", [width, height]);
-            fill = contents.addProperty("ADBE Vector Graphic - Fill") as PropContainerLike;
+            fill = api.asPropContainerLike(contents.addProperty("ADBE Vector Graphic - Fill"));
             setPropValue(fill, "ADBE Vector Fill Color", rect.color || [0.22, 0.74, 0.97]);
             setPropValue(fill, "ADBE Vector Fill Opacity", 100);
             try {
-                stroke = contents.addProperty("ADBE Vector Graphic - Stroke") as PropContainerLike;
+                stroke = api.asPropContainerLike(contents.addProperty("ADBE Vector Graphic - Stroke"));
                 setPropValue(stroke, "ADBE Vector Stroke Color", [1, 1, 1]);
                 setPropValue(stroke, "ADBE Vector Stroke Opacity", 100);
                 setPropValue(stroke, "ADBE Vector Stroke Width", 0);
@@ -4063,18 +4047,18 @@
         } catch (flatErr) {}
 
         try {
-            group = contents.addProperty("ADBE Vector Group") as PropContainerLike;
-            vectors = safeProperty(group, "ADBE Vectors Group") || safeProperty(group, 2);
+            group = api.asPropContainerLike(contents.addProperty("ADBE Vector Group"));
+            vectors = api.safeProperty(group, "ADBE Vectors Group") || api.safeProperty(group, 2);
             if (!vectors || !vectors.addProperty) {
                 return { rectShape: null, fill: null, stroke: null };
             }
-            rectShape = vectors.addProperty("ADBE Vector Shape - Rect") as PropContainerLike;
+            rectShape = api.asPropContainerLike(vectors.addProperty("ADBE Vector Shape - Rect"));
             setPropValue(rectShape, "ADBE Vector Rect Size", [width, height]);
-            fill = vectors.addProperty("ADBE Vector Graphic - Fill") as PropContainerLike;
+            fill = api.asPropContainerLike(vectors.addProperty("ADBE Vector Graphic - Fill"));
             setPropValue(fill, "ADBE Vector Fill Color", rect.color || [0.22, 0.74, 0.97]);
             setPropValue(fill, "ADBE Vector Fill Opacity", 100);
             try {
-                stroke = vectors.addProperty("ADBE Vector Graphic - Stroke") as PropContainerLike;
+                stroke = api.asPropContainerLike(vectors.addProperty("ADBE Vector Graphic - Stroke"));
                 setPropValue(stroke, "ADBE Vector Stroke Color", [1, 1, 1]);
                 setPropValue(stroke, "ADBE Vector Stroke Opacity", 100);
                 setPropValue(stroke, "ADBE Vector Stroke Width", 0);
@@ -4139,9 +4123,9 @@
                 rect.velocity +
                 "\nlabel: " +
                 rect.label;
-            contents = safeProperty(layer, "ADBE Root Vectors Group");
+            contents = api.safeProperty(layer, "ADBE Root Vectors Group");
             buildShapeRectContents(contents, rect);
-            transform = safeProperty(layer, "ADBE Transform Group");
+            transform = api.safeProperty(layer, "ADBE Transform Group");
             if (transform) {
                 setPropValue(transform, "ADBE Anchor Point", [0, 0]);
                 setPropValue(transform, "ADBE Position", [rect.x, rect.y]);
@@ -4223,7 +4207,7 @@
         };
     };
 
-    function previewScalarValue(value: unknown): number {
+    function previewScalarValue(value: MidiActionPropertyValue): number {
         if (typeof value === "number" && !isNaN(value)) {
             return value;
         }

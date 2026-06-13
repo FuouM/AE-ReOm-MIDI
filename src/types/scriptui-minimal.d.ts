@@ -4,6 +4,12 @@
  * host state and panel wiring live here.
  */
 
+/** ExtendScript `this` in panel scripts — documented cast escape hatch (property-utils.ts). */
+declare function reomScriptThis(thisObj: unknown): Panel | Window | undefined;
+
+/** ScriptUIGraphics pen host — documented cast escape hatch (property-utils.ts). */
+declare function asScriptUiPenHost(g: ScriptUIGraphics): ScriptUIGraphicsPenHost;
+
 /** ScriptUIGraphics subset for link pen styling (types-for-adobe newPen type arg is incorrect). */
 interface ScriptUIGraphicsPenHost {
     PenType: {

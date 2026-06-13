@@ -1,27 +1,8 @@
 (function (api: ReOmMIDIApi) {
-    function safeProperty(
-        group: AePropertyTreeRoot | null,
-        nameOrIndex: string | number
-    ): PropContainerLike | null {
-        var prop: PropContainerLike | Property | PropertyGroup | null;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            if (typeof nameOrIndex === "number") {
-                prop = group.property(nameOrIndex);
-            } else {
-                prop = group.property(nameOrIndex);
-            }
-            return (prop as PropContainerLike) || null;
-        } catch (e) {
-            return null;
-        }
-    }
-
     function layerFromProperty(prop: PropContainerLike | Property | null): Layer | null {
         var depth: number;
         var current: PropContainerLike | Property = prop;
+        var effectsLayer: LayerWithEffects | null;
         if (!current) {
             return null;
         }
@@ -31,10 +12,10 @@
                 current = (current as Property).propertyGroup(1) as PropContainerLike;
                 depth -= 1;
             }
+            effectsLayer = api.asLayerWithEffects(current as Layer);
             if (
-                current &&
-                ((current as LayerWithEffects).Effects ||
-                    (current.property && current.property("ADBE Effect Parade")))
+                effectsLayer &&
+                (effectsLayer.Effects || (effectsLayer.property && effectsLayer.property("ADBE Effect Parade")))
             ) {
                 return current as Layer;
             }
@@ -97,15 +78,15 @@
     function scalePropertyForLayer(layer: Layer): PropContainerLike | null {
         var transform: PropContainerLike | null;
         var scale: PropContainerLike | null;
-        transform = safeProperty(layer, "ADBE Transform Group");
+        transform = api.safeProperty(layer, "ADBE Transform Group");
         if (!transform) {
             try {
-                transform = layer.transform as PropContainerLike;
+                transform = api.isPropContainerLike(layer.transform) ? layer.transform : (layer.transform as PropContainerLike);
             } catch (transformErr) {}
         }
-        scale = safeProperty(transform, "ADBE Scale");
+        scale = api.safeProperty(transform, "ADBE Scale");
         if (!scale) {
-            scale = safeProperty(transform, "Scale");
+            scale = api.safeProperty(transform, "Scale");
         }
         return scale;
     }
@@ -121,7 +102,7 @@
         }
         names = axis === "vertical" ? ["ADBE Scale Y", "Y", 2] : ["ADBE Scale X", "X", 1];
         for (i = 0; i < names.length; i += 1) {
-            prop = safeProperty(scale, names[i]);
+            prop = api.safeProperty(scale, names[i]);
             if (prop) {
                 return prop as Property;
             }

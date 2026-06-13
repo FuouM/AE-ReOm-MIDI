@@ -33,6 +33,15 @@ interface ReOmMIDIApi {
     addSliderControl(layer: Layer, sliderName: string): Property;
     setHoldInterpolation(property: Property | null | undefined): void;
 
+    safeProperty(
+        group: AePropertyTreeRoot | null | undefined,
+        nameOrIndex: string | number
+    ): PropContainerLike | null;
+    isPropContainerLike(value: unknown): value is PropContainerLike;
+    asPropContainerLike(value: unknown): PropContainerLike | null;
+    isSliderPropertyLike(value: unknown): value is SliderPropertyLike;
+    asLayerWithEffects(layer: Layer | null | undefined): LayerWithEffects | null;
+
     quantizeTimeToFrame(time: number, frameDuration?: number): number;
     importMidiToComp(
         comp: CompItem,

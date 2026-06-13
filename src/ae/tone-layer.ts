@@ -12,26 +12,6 @@
         return Math.max(min, Math.min(max, value));
     }
 
-    function safeProperty(
-        group: AePropertyTreeRoot | null,
-        nameOrIndex: string | number
-    ): PropContainerLike | null {
-        var prop: PropContainerLike | Property | PropertyGroup | null;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            if (typeof nameOrIndex === "number") {
-                prop = group.property(nameOrIndex);
-            } else {
-                prop = group.property(nameOrIndex);
-            }
-            return (prop as PropContainerLike) || null;
-        } catch (e) {
-            return null;
-        }
-    }
-
     function toneEffectProperty(effect: PropContainerLike | null, names: string | string[]): PropContainerLike | null {
         var i: number;
         var prop: PropContainerLike | null;
@@ -45,7 +25,7 @@
             nameList = names;
         }
         for (i = 0; i < nameList.length; i += 1) {
-            prop = safeProperty(effect, nameList[i]);
+            prop = api.safeProperty(effect, nameList[i]);
             if (prop) {
                 return prop;
             }
@@ -217,16 +197,21 @@
         return true;
     }
 
-    function addToneEffect(layer: LayerWithEffects): PropContainerLike | null {
+    function addToneEffect(layer: Layer): PropContainerLike | null {
         var effect: PropContainerLike | null;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+        var added: PropContainerLike | PropertyGroup | null;
+        var effectsLayer: LayerWithEffects | null;
+        effectsLayer = api.asLayerWithEffects(layer);
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
         try {
-            effect = layer.Effects.addProperty("ADBE Aud Tone") as PropContainerLike;
+            added = effectsLayer.Effects.addProperty("ADBE Aud Tone");
+            effect = api.isPropContainerLike(added) ? added : null;
         } catch (e) {
             try {
-                effect = layer.Effects.addProperty("Tone") as PropContainerLike;
+                added = effectsLayer.Effects.addProperty("Tone");
+                effect = api.isPropContainerLike(added) ? added : null;
             } catch (e2) {
                 return null;
             }
@@ -275,7 +260,7 @@
         var resolved: ToneLayerOptionsResolved;
         var notes: PianoRollNote[];
         var plan: ToneKeyframePlan;
-        var layer: LayerWithEffects;
+        var layer: LayerWithEffects | null;
         var effect: PropContainerLike | null;
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before creating a tone layer.");
@@ -302,12 +287,17 @@
         if (!comp.layers || !comp.layers.addNull) {
             throw new Error("Could not create a null layer in the active composition.");
         }
-        layer = comp.layers.addNull(
-            Math.max(
-                comp.duration || 1,
-                plan.frequency.times.length ? plan.frequency.times[plan.frequency.times.length - 1] + 1 : 1
+        layer = api.asLayerWithEffects(
+            comp.layers.addNull(
+                Math.max(
+                    comp.duration || 1,
+                    plan.frequency.times.length ? plan.frequency.times[plan.frequency.times.length - 1] + 1 : 1
+                )
             )
-        ) as LayerWithEffects;
+        );
+        if (!layer) {
+            throw new Error("Could not create a null layer in the active composition.");
+        }
         layer.name = toneLayerName(sourceLayer);
         layer.comment = "MIDI tone playback\nTone effect driven by note pitch from " + sourceLayer.name + ".";
         effect = addToneEffect(layer);

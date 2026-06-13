@@ -444,6 +444,60 @@
 })(typeof global !== "undefined" ? global : this);
 
 
+// ---- dist/compiled/core/property-utils.jsx ----
+function reomScriptThis(thisObj) {
+    return thisObj;
+}
+function asScriptUiPenHost(g) {
+    return g;
+}
+(function (api) {
+    api.isPropContainerLike = function (value) {
+        if (!value || typeof value !== "object") {
+            return false;
+        }
+        var candidate = value;
+        return (typeof candidate.property === "function" ||
+            typeof candidate.setValue === "function" ||
+            typeof candidate.addProperty === "function");
+    };
+    api.isSliderPropertyLike = function (value) {
+        if (!value || typeof value !== "object") {
+            return false;
+        }
+        var candidate = value;
+        return typeof candidate.key === "function" || typeof candidate.keyTime === "function";
+    };
+    api.asPropContainerLike = function (value) {
+        return api.isPropContainerLike(value) ? value : null;
+    };
+    api.asLayerWithEffects = function (layer) {
+        if (!layer) {
+            return null;
+        }
+        return layer;
+    };
+    api.safeProperty = function (group, nameOrIndex) {
+        var prop;
+        if (!group || !group.property) {
+            return null;
+        }
+        try {
+            if (typeof nameOrIndex === "number") {
+                prop = group.property(nameOrIndex);
+            }
+            else {
+                prop = group.property(nameOrIndex);
+            }
+            return prop ? prop : null;
+        }
+        catch (e) {
+            return null;
+        }
+    };
+})(ReOmMIDI);
+
+
 // ---- dist/compiled/core/midi-file.jsx ----
 (function (api) {
     var MAX_TICK = 2147483647; // INT32_MAX — sentinel for "end of file"
@@ -2610,7 +2664,7 @@
         var parade;
         var i;
         var effect;
-        var effectsLayer = layer;
+        var effectsLayer = api.asLayerWithEffects(layer);
         if (!layer || !effectName) {
             return null;
         }
@@ -2639,7 +2693,7 @@
         }
         catch (paradeErr) { }
         try {
-            if (effectsLayer.effect) {
+            if (effectsLayer && effectsLayer.effect) {
                 slider = effectsLayer.effect(effectName)("Slider");
                 if (sliderHasKeys(slider)) {
                     return slider;
@@ -2648,7 +2702,7 @@
         }
         catch (effectErr) { }
         try {
-            if (effectsLayer.Effects) {
+            if (effectsLayer && effectsLayer.Effects) {
                 slider = effectsLayer.Effects.property(effectName).property(1);
                 if (sliderHasKeys(slider)) {
                     return slider;
@@ -2676,8 +2730,12 @@
     function readSliderKey(slider, index) {
         var time;
         var value;
-        var sliderLike = slider;
+        var sliderLike;
         if (!slider || index < 1 || index > sliderKeyCount(slider)) {
+            return null;
+        }
+        sliderLike = api.isSliderPropertyLike(slider) ? slider : null;
+        if (!sliderLike) {
             return null;
         }
         try {
@@ -2943,8 +3001,8 @@
     api.rememberMidiActionSourceLayer = rememberMidiActionSourceLayer;
     function getLayerEffectParade(layer) {
         var parade;
-        var effectsLayer = layer;
-        if (!layer) {
+        var effectsLayer = api.asLayerWithEffects(layer);
+        if (!effectsLayer) {
             return null;
         }
         try {
@@ -3046,7 +3104,7 @@
             return found;
         }
         try {
-            return layer.effect(limitedName)("Slider");
+            return api.asLayerWithEffects(layer).effect(limitedName)("Slider");
         }
         catch (e) { }
         return null;
@@ -5046,26 +5104,8 @@
             layout: preview
         };
     };
-    function safeProperty(group, nameOrIndex) {
-        var prop;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            if (typeof nameOrIndex === "number") {
-                prop = group.property(nameOrIndex);
-            }
-            else {
-                prop = group.property(nameOrIndex);
-            }
-            return prop || null;
-        }
-        catch (e) {
-            return null;
-        }
-    }
     function setPropValue(group, name, value) {
-        var prop = safeProperty(group, name);
+        var prop = api.safeProperty(group, name);
         if (prop && prop.setValue) {
             try {
                 prop.setValue(value);
@@ -5119,7 +5159,7 @@
     function addPianoRollControllerSlider(layer, name, value) {
         var fx;
         var sliderProp;
-        var effectsLayer = layer;
+        var effectsLayer = api.asLayerWithEffects(layer);
         if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
@@ -5135,7 +5175,7 @@
             }
         }
         fx.name = api.limitEffectName(name);
-        sliderProp = safeProperty(fx, 1) || safeProperty(fx, "Slider");
+        sliderProp = api.safeProperty(fx, 1) || api.safeProperty(fx, "Slider");
         if (sliderProp && sliderProp.setValue) {
             try {
                 sliderProp.setValue(value);
@@ -5147,21 +5187,21 @@
     function addPianoRollControllerColor(layer, name, rgb) {
         var fx;
         var colorProp;
-        var effectsLayer = layer;
+        var effectsLayer = api.asLayerWithEffects(layer);
         if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
         fx = effectsLayer.Effects.addProperty("ADBE Color Control");
         fx.name = api.limitEffectName(name);
         try {
-            colorProp = fx.property("Color");
+            colorProp = api.asPropContainerLike(fx.property("Color"));
         }
         catch (colorErr) {
             colorProp = null;
         }
         if (!colorProp) {
             try {
-                colorProp = fx.property(1);
+                colorProp = api.asPropContainerLike(fx.property(1));
             }
             catch (colorErr2) {
                 colorProp = null;
@@ -5218,12 +5258,12 @@
         var sub;
         var j;
         var subProp;
-        contents = safeProperty(layer, "ADBE Root Vectors Group");
+        contents = api.safeProperty(layer, "ADBE Root Vectors Group");
         if (!contents || !contents.numProperties) {
             return null;
         }
         for (i = 1; i <= contents.numProperties; i += 1) {
-            prop = safeProperty(contents, i);
+            prop = api.safeProperty(contents, i);
             if (!prop) {
                 continue;
             }
@@ -5231,10 +5271,10 @@
                 return prop;
             }
             if (shapeContentMatches(prop, "ADBE Vector Group")) {
-                sub = safeProperty(prop, "ADBE Vectors Group") || safeProperty(prop, 2);
+                sub = api.safeProperty(prop, "ADBE Vectors Group") || api.safeProperty(prop, 2);
                 if (sub && sub.numProperties) {
                     for (j = 1; j <= sub.numProperties; j += 1) {
-                        subProp = safeProperty(sub, j);
+                        subProp = api.safeProperty(sub, j);
                         if (subProp && visitor(subProp)) {
                             return subProp;
                         }
@@ -5255,24 +5295,24 @@
         });
     }
     function findLayerOpacity(layer) {
-        var transform = safeProperty(layer, "ADBE Transform Group");
-        return safeProperty(transform, "ADBE Opacity");
+        var transform = api.safeProperty(layer, "ADBE Transform Group");
+        return api.safeProperty(transform, "ADBE Opacity");
     }
     function shapeFillColorProp(fill) {
-        return safeProperty(fill, "ADBE Vector Fill Color") || safeProperty(fill, "Color") || safeProperty(fill, 4);
+        return api.safeProperty(fill, "ADBE Vector Fill Color") || api.safeProperty(fill, "Color") || api.safeProperty(fill, 4);
     }
     function shapeStrokeColorProp(stroke) {
-        return (safeProperty(stroke, "ADBE Vector Stroke Color") || safeProperty(stroke, "Color") || safeProperty(stroke, 4));
+        return (api.safeProperty(stroke, "ADBE Vector Stroke Color") || api.safeProperty(stroke, "Color") || api.safeProperty(stroke, 4));
     }
     function shapeStrokeOpacityProp(stroke) {
-        return (safeProperty(stroke, "ADBE Vector Stroke Opacity") ||
-            safeProperty(stroke, "Opacity") ||
-            safeProperty(stroke, 5));
+        return (api.safeProperty(stroke, "ADBE Vector Stroke Opacity") ||
+            api.safeProperty(stroke, "Opacity") ||
+            api.safeProperty(stroke, 5));
     }
     function shapeStrokeWidthProp(stroke) {
-        return (safeProperty(stroke, "ADBE Vector Stroke Width") ||
-            safeProperty(stroke, "Stroke Width") ||
-            safeProperty(stroke, 6));
+        return (api.safeProperty(stroke, "ADBE Vector Stroke Width") ||
+            api.safeProperty(stroke, "Stroke Width") ||
+            api.safeProperty(stroke, 6));
     }
     function wireShapeStrokeFromController(layer, controllerEffects) {
         var stroke;
@@ -5323,13 +5363,13 @@
             return { rectShape: null, fill: null, stroke: null };
         }
         try {
-            rectShape = contents.addProperty("ADBE Vector Shape - Rect");
+            rectShape = api.asPropContainerLike(contents.addProperty("ADBE Vector Shape - Rect"));
             setPropValue(rectShape, "ADBE Vector Rect Size", [width, height]);
-            fill = contents.addProperty("ADBE Vector Graphic - Fill");
+            fill = api.asPropContainerLike(contents.addProperty("ADBE Vector Graphic - Fill"));
             setPropValue(fill, "ADBE Vector Fill Color", rect.color || [0.22, 0.74, 0.97]);
             setPropValue(fill, "ADBE Vector Fill Opacity", 100);
             try {
-                stroke = contents.addProperty("ADBE Vector Graphic - Stroke");
+                stroke = api.asPropContainerLike(contents.addProperty("ADBE Vector Graphic - Stroke"));
                 setPropValue(stroke, "ADBE Vector Stroke Color", [1, 1, 1]);
                 setPropValue(stroke, "ADBE Vector Stroke Opacity", 100);
                 setPropValue(stroke, "ADBE Vector Stroke Width", 0);
@@ -5341,18 +5381,18 @@
         }
         catch (flatErr) { }
         try {
-            group = contents.addProperty("ADBE Vector Group");
-            vectors = safeProperty(group, "ADBE Vectors Group") || safeProperty(group, 2);
+            group = api.asPropContainerLike(contents.addProperty("ADBE Vector Group"));
+            vectors = api.safeProperty(group, "ADBE Vectors Group") || api.safeProperty(group, 2);
             if (!vectors || !vectors.addProperty) {
                 return { rectShape: null, fill: null, stroke: null };
             }
-            rectShape = vectors.addProperty("ADBE Vector Shape - Rect");
+            rectShape = api.asPropContainerLike(vectors.addProperty("ADBE Vector Shape - Rect"));
             setPropValue(rectShape, "ADBE Vector Rect Size", [width, height]);
-            fill = vectors.addProperty("ADBE Vector Graphic - Fill");
+            fill = api.asPropContainerLike(vectors.addProperty("ADBE Vector Graphic - Fill"));
             setPropValue(fill, "ADBE Vector Fill Color", rect.color || [0.22, 0.74, 0.97]);
             setPropValue(fill, "ADBE Vector Fill Opacity", 100);
             try {
-                stroke = vectors.addProperty("ADBE Vector Graphic - Stroke");
+                stroke = api.asPropContainerLike(vectors.addProperty("ADBE Vector Graphic - Stroke"));
                 setPropValue(stroke, "ADBE Vector Stroke Color", [1, 1, 1]);
                 setPropValue(stroke, "ADBE Vector Stroke Opacity", 100);
                 setPropValue(stroke, "ADBE Vector Stroke Width", 0);
@@ -5412,9 +5452,9 @@
                     rect.velocity +
                     "\nlabel: " +
                     rect.label;
-            contents = safeProperty(layer, "ADBE Root Vectors Group");
+            contents = api.safeProperty(layer, "ADBE Root Vectors Group");
             buildShapeRectContents(contents, rect);
-            transform = safeProperty(layer, "ADBE Transform Group");
+            transform = api.safeProperty(layer, "ADBE Transform Group");
             if (transform) {
                 setPropValue(transform, "ADBE Anchor Point", [0, 0]);
                 setPropValue(transform, "ADBE Position", [rect.x, rect.y]);
@@ -6364,24 +6404,6 @@
     function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
     }
-    function safeProperty(group, nameOrIndex) {
-        var prop;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            if (typeof nameOrIndex === "number") {
-                prop = group.property(nameOrIndex);
-            }
-            else {
-                prop = group.property(nameOrIndex);
-            }
-            return prop || null;
-        }
-        catch (e) {
-            return null;
-        }
-    }
     function toneEffectProperty(effect, names) {
         var i;
         var prop;
@@ -6396,7 +6418,7 @@
             nameList = names;
         }
         for (i = 0; i < nameList.length; i += 1) {
-            prop = safeProperty(effect, nameList[i]);
+            prop = api.safeProperty(effect, nameList[i]);
             if (prop) {
                 return prop;
             }
@@ -6542,15 +6564,20 @@
     }
     function addToneEffect(layer) {
         var effect;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+        var added;
+        var effectsLayer;
+        effectsLayer = api.asLayerWithEffects(layer);
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
         try {
-            effect = layer.Effects.addProperty("ADBE Aud Tone");
+            added = effectsLayer.Effects.addProperty("ADBE Aud Tone");
+            effect = api.isPropContainerLike(added) ? added : null;
         }
         catch (e) {
             try {
-                effect = layer.Effects.addProperty("Tone");
+                added = effectsLayer.Effects.addProperty("Tone");
+                effect = api.isPropContainerLike(added) ? added : null;
             }
             catch (e2) {
                 return null;
@@ -6614,7 +6641,10 @@
         if (!comp.layers || !comp.layers.addNull) {
             throw new Error("Could not create a null layer in the active composition.");
         }
-        layer = comp.layers.addNull(Math.max(comp.duration || 1, plan.frequency.times.length ? plan.frequency.times[plan.frequency.times.length - 1] + 1 : 1));
+        layer = api.asLayerWithEffects(comp.layers.addNull(Math.max(comp.duration || 1, plan.frequency.times.length ? plan.frequency.times[plan.frequency.times.length - 1] + 1 : 1)));
+        if (!layer) {
+            throw new Error("Could not create a null layer in the active composition.");
+        }
         layer.name = toneLayerName(sourceLayer);
         layer.comment = "MIDI tone playback\nTone effect driven by note pitch from " + sourceLayer.name + ".";
         effect = addToneEffect(layer);
@@ -6635,27 +6665,10 @@
 
 // ---- dist/compiled/ae/screen-flip.jsx ----
 (function (api) {
-    function safeProperty(group, nameOrIndex) {
-        var prop;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            if (typeof nameOrIndex === "number") {
-                prop = group.property(nameOrIndex);
-            }
-            else {
-                prop = group.property(nameOrIndex);
-            }
-            return prop || null;
-        }
-        catch (e) {
-            return null;
-        }
-    }
     function layerFromProperty(prop) {
         var depth;
         var current = prop;
+        var effectsLayer;
         if (!current) {
             return null;
         }
@@ -6665,9 +6678,9 @@
                 current = current.propertyGroup(1);
                 depth -= 1;
             }
-            if (current &&
-                (current.Effects ||
-                    (current.property && current.property("ADBE Effect Parade")))) {
+            effectsLayer = api.asLayerWithEffects(current);
+            if (effectsLayer &&
+                (effectsLayer.Effects || (effectsLayer.property && effectsLayer.property("ADBE Effect Parade")))) {
                 return current;
             }
         }
@@ -6729,16 +6742,16 @@
     function scalePropertyForLayer(layer) {
         var transform;
         var scale;
-        transform = safeProperty(layer, "ADBE Transform Group");
+        transform = api.safeProperty(layer, "ADBE Transform Group");
         if (!transform) {
             try {
-                transform = layer.transform;
+                transform = api.isPropContainerLike(layer.transform) ? layer.transform : layer.transform;
             }
             catch (transformErr) { }
         }
-        scale = safeProperty(transform, "ADBE Scale");
+        scale = api.safeProperty(transform, "ADBE Scale");
         if (!scale) {
-            scale = safeProperty(transform, "Scale");
+            scale = api.safeProperty(transform, "Scale");
         }
         return scale;
     }
@@ -6753,7 +6766,7 @@
         }
         names = axis === "vertical" ? ["ADBE Scale Y", "Y", 2] : ["ADBE Scale X", "X", 1];
         for (i = 0; i < names.length; i += 1) {
-            prop = safeProperty(scale, names[i]);
+            prop = api.safeProperty(scale, names[i]);
             if (prop) {
                 return prop;
             }
@@ -7612,27 +7625,9 @@
         }
         return api.sanitizeName("MIDI Drum Machine " + layers.length + " layers");
     }
-    function safeProperty(group, nameOrIndex) {
-        var prop;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            if (typeof nameOrIndex === "number") {
-                prop = group.property(nameOrIndex);
-            }
-            else {
-                prop = group.property(nameOrIndex);
-            }
-            return prop || null;
-        }
-        catch (e) {
-            return null;
-        }
-    }
     function findLayerTransformProp(layer, matchName) {
-        var transform = safeProperty(layer, "ADBE Transform Group");
-        return safeProperty(transform, matchName);
+        var transform = api.safeProperty(layer, "ADBE Transform Group");
+        return api.safeProperty(transform, matchName);
     }
     function setLayerExpression(prop, expression) {
         var property = prop;
@@ -10931,7 +10926,7 @@
         githubLink.helpTip = "Click to open " + githubRepoUrl + " in your default web browser.";
         try {
             var linkGraphics = githubLink.graphics;
-            var linkGfx = linkGraphics;
+            var linkGfx = asScriptUiPenHost(linkGraphics);
             var bluePen = linkGfx.newPen(linkGfx.PenType.SOLID_COLOR, [0.29, 0.56, 0.89, 1.0], 1);
             linkGfx.foregroundColor = bluePen;
         }
@@ -11974,5 +11969,5 @@
     if (!api.__NO_AUTO_LAUNCH__) {
         api.launch(thisObj);
     }
-})(ReOmMIDI, this);
+})(ReOmMIDI, reomScriptThis(this));
 

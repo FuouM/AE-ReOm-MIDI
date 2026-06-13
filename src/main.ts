@@ -804,4 +804,4 @@
     if (!api.__NO_AUTO_LAUNCH__) {
         api.launch(thisObj);
     }
-})(ReOmMIDI, this as unknown as Panel | Window | undefined);
+})(ReOmMIDI, reomScriptThis(this));

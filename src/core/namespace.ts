@@ -1,6 +1,6 @@
 (function (root: ReOmRootObject) {
     if (!root.ReOmMIDI) {
-        root.ReOmMIDI = {} as ReOmMIDIApi;
+        root.ReOmMIDI = {} as Partial<ReOmMIDIApi> as ReOmMIDIApi;
     }
 
     var api = root.ReOmMIDI;

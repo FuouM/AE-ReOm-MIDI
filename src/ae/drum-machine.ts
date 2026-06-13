@@ -834,26 +834,9 @@
         return api.sanitizeName("MIDI Drum Machine " + layers.length + " layers");
     }
 
-    function safeProperty(group: AePropertyTreeRoot | null, nameOrIndex: string | number): PropContainerLike | null {
-        var prop: PropContainerLike | Property | PropertyGroup | null;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            if (typeof nameOrIndex === "number") {
-                prop = group.property(nameOrIndex);
-            } else {
-                prop = group.property(nameOrIndex);
-            }
-            return (prop as PropContainerLike) || null;
-        } catch (e) {
-            return null;
-        }
-    }
-
     function findLayerTransformProp(layer: Layer, matchName: string): PropContainerLike | null {
-        var transform = safeProperty(layer, "ADBE Transform Group");
-        return safeProperty(transform, matchName);
+        var transform = api.safeProperty(layer, "ADBE Transform Group");
+        return api.safeProperty(transform, matchName);
     }
 
     function setLayerExpression(prop: PropContainerLike | null, expression: string): boolean {

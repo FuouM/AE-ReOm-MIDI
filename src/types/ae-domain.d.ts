@@ -3,12 +3,18 @@
  * Extends types-for-adobe where the shipped Layer / PropertyGroup types are incomplete.
  */
 
-/** Layer with effect-parade accessors missing from types-for-adobe Layer. */
+/**
+ * Layer with effect-parade accessors missing from types-for-adobe Layer.
+ * Use asLayerWithEffects() when navigating Effects / effect() from a plain Layer.
+ */
 interface LayerWithEffects extends Layer {
     Effects?: PropertyGroup & {
         addProperty(matchName: string): PropertyGroup;
+        numProperties: number;
     };
-    effect?(effectName: string): PropertyGroup;
+    effect?(effectName: string): PropertyGroup & {
+        (param: string | number): Property;
+    };
 }
 
 /**
