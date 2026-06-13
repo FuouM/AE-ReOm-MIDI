@@ -1,23 +1,22 @@
-// @ts-nocheck
-(function (api) {
+(function (api: ReOmMIDIApi) {
     var MAX_TICK = 2147483647; // INT32_MAX — sentinel for "end of file"
 
-    function readByte(data, offset) {
+    function readByte(data: string, offset: number): number {
         if (offset >= data.length) {
             return 0;
         }
         return data.charCodeAt(offset) & 0xff;
     }
 
-    function readU16(data, offset) {
+    function readU16(data: string, offset: number): number {
         return (readByte(data, offset) << 8) | readByte(data, offset + 1);
     }
 
-    function readU24(data, offset) {
+    function readU24(data: string, offset: number): number {
         return (readByte(data, offset) << 16) | (readByte(data, offset + 1) << 8) | readByte(data, offset + 2);
     }
 
-    function readU32(data, offset) {
+    function readU32(data: string, offset: number): number {
         return (
             readByte(data, offset) * 0x1000000 +
             (readByte(data, offset + 1) << 16) +
@@ -26,7 +25,7 @@
         );
     }
 
-    function readVar(data, offset) {
+    function readVar(data: string, offset: number): VarIntResult {
         var value = 0;
         var length = 0;
         var b;
@@ -38,11 +37,11 @@
         return { value: value, consumed: length };
     }
 
-    function readText(data, offset, length) {
+    function readText(data: string, offset: number, length: number): string {
         return data.substring(offset, offset + length);
     }
 
-    function createTrack(index) {
+    function createTrack(index: number): MidiTrack {
         return {
             index: index,
             name: "",
@@ -50,7 +49,7 @@
         };
     }
 
-    function createChannel(trackIndex, midiChannel, trackName) {
+    function createChannel(trackIndex: number, midiChannel: number, trackName?: string): MidiChannel {
         return {
             index: trackIndex * 16 + midiChannel,
             trackIndex: trackIndex,
@@ -64,7 +63,7 @@
         };
     }
 
-    function MidiFile(data, filePath) {
+    function MidiFile(this: MidiFileData, data?: string, filePath?: string) {
         this.filePath = filePath || "";
         this.data = data || "";
         this.isMidi = this.data.substring(0, 4) === "MThd";
@@ -89,7 +88,7 @@
         }
     }
 
-    MidiFile.fromFile = function (filePath) {
+    MidiFile.fromFile = function (filePath: string): MidiFileData {
         var f = new File(filePath);
         var result;
         f.encoding = "BINARY";
@@ -153,7 +152,7 @@
         this.resolveTimes();
     };
 
-    function isTrackChunk(data, offset) {
+    function isTrackChunk(data: string, offset: number): boolean {
         return (
             readByte(data, offset) === 0x4d &&
             readByte(data, offset + 1) === 0x54 &&
@@ -162,7 +161,7 @@
         );
     }
 
-    function buildTimeSegments(midi, tempoMap) {
+    function buildTimeSegments(midi: MidiFileData, tempoMap: TempoEvent[]): TimeSegmentCollection {
         var items = [];
         var seconds = 0;
         var previousTick = 0;
@@ -204,7 +203,7 @@
         return { items: items, lastIndex: 0 };
     }
 
-    function secondsFromSegments(ticks, segments) {
+    function secondsFromSegments(ticks: number, segments: TimeSegmentCollection): number {
         ticks = ticks || 0;
         var items = segments.items;
         var lastSegmentIndex = segments.lastIndex || 0;
@@ -238,7 +237,7 @@
         return segment.startSeconds + (ticks - segment.startTick) * segment.secPerTick;
     }
 
-    function ensureTimeSegments(midi, tempoMap) {
+    function ensureTimeSegments(midi: MidiFileData, tempoMap?: TempoEvent[]): TimeSegmentCollection {
         if (midi._timeSegments) {
             return midi._timeSegments;
         }
@@ -488,7 +487,7 @@
         }
     };
 
-    function midiFormatLabel(format) {
+    function midiFormatLabel(format: number): string {
         if (format === 0) {
             return "0 (single track)";
         }
@@ -501,7 +500,7 @@
         return String(format);
     }
 
-    function formatMidiDuration(seconds) {
+    function formatMidiDuration(seconds: number): string {
         var mins;
         var secs;
         seconds = Number(seconds) || 0;
@@ -517,7 +516,7 @@
         return 60000000 / (Number(microsecondsPerQuarter) || 500000);
     };
 
-    function countChannelControllers(channel) {
+    function countChannelControllers(channel: MidiChannel | null | undefined): number {
         var total = 0;
         var controller;
         if (!channel || !channel.controllers) {
@@ -531,21 +530,23 @@
         return total;
     }
 
-    function uniqueSorted(values) {
-        var seen = {};
-        var result = [];
+    function uniqueSorted(values: string[]): string[] {
+        var seen: StringKeyedMap<boolean> = {};
+        var result: string[] = [];
         var i;
+        var value;
         for (i = 0; i < values.length; i += 1) {
-            if (values[i] !== undefined && values[i] !== null && !seen[values[i]]) {
-                seen[values[i]] = true;
-                result.push(values[i]);
+            value = values[i];
+            if (value !== undefined && value !== null && !seen[value]) {
+                seen[value] = true;
+                result.push(value);
             }
         }
         result.sort();
         return result;
     }
 
-    function summarizeList(items, maxItems) {
+    function summarizeList(items: string[], maxItems?: number): string {
         var shown;
         if (!items || !items.length) {
             return "none";
@@ -557,7 +558,7 @@
         return shown.join(", ");
     }
 
-    function formatReportTime(seconds) {
+    function formatReportTime(seconds: number): string {
         var mins;
         var secs;
         seconds = Math.max(0, Number(seconds) || 0);
@@ -569,7 +570,7 @@
         return secs.toFixed(3) + "s";
     }
 
-    function formatChannelInfoLabel(channel) {
+    function formatChannelInfoLabel(channel: MidiChannel): string {
         var label = api.formatChannelEffectPrefix(channel);
         if (api.isDrumChannel(channel.midiChannel)) {
             label += " (Drums)";
@@ -581,7 +582,12 @@
         return label;
     }
 
-    function summarizePitchBends(bends) {
+    function summarizePitchBends(bends: PitchBendEvent[]): {
+        count: number;
+        min: number;
+        max: number;
+        kind: string;
+    } {
         var summary = {
             count: bends.length,
             min: 0,
@@ -614,7 +620,7 @@
         return summary;
     }
 
-    function appendConstantOffsetSummary(lines, offsetCounts) {
+    function appendConstantOffsetSummary(lines: string[], offsetCounts: StringKeyedMap<number>): void {
         var offsets = [];
         var offset;
         var j;
@@ -636,7 +642,7 @@
         }
     }
 
-    api.buildMidiFileInfoReport = function (midi, filePath) {
+    api.buildMidiFileInfoReport = function (midi: MidiFileData | null | undefined, filePath?: string): string {
         var activeChannels = [];
         var controllerCount = 0;
         var pitchBendCount = 0;
@@ -904,7 +910,7 @@
         return lines.join("\n");
     };
 
-    api.discardMidiFileData = function (midi) {
+    api.discardMidiFileData = function (midi: MidiFileData | null | undefined): void {
         if (!midi) {
             return;
         }
@@ -920,7 +926,7 @@
         midi._tempoMap = null;
     };
 
-    api.MidiFile = MidiFile;
+    api.MidiFile = MidiFile as unknown as MidiFileConstructor;
 
     if (typeof module !== "undefined" && module.exports) {
         module.exports = MidiFile;

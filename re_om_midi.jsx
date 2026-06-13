@@ -16,7 +16,6 @@
 */
 
 // ---- dist/compiled/core/namespace.jsx ----
-// @ts-nocheck
 (function (root) {
     if (!root.ReOmMIDI) {
         root.ReOmMIDI = {};
@@ -444,7 +443,6 @@
 
 
 // ---- dist/compiled/core/midi-file.jsx ----
-// @ts-nocheck
 (function (api) {
     var MAX_TICK = 2147483647; // INT32_MAX — sentinel for "end of file"
     function readByte(data, offset) {
@@ -939,10 +937,12 @@
         var seen = {};
         var result = [];
         var i;
+        var value;
         for (i = 0; i < values.length; i += 1) {
-            if (values[i] !== undefined && values[i] !== null && !seen[values[i]]) {
-                seen[values[i]] = true;
-                result.push(values[i]);
+            value = values[i];
+            if (value !== undefined && value !== null && !seen[value]) {
+                seen[value] = true;
+                result.push(value);
             }
         }
         result.sort();

@@ -1,14 +1,7 @@
-/** ReOm MIDI public API — extended incrementally as modules attach methods. */
-interface ReOmMIDIApi {
-    VERSION: string;
-    __NO_AUTO_LAUNCH__?: boolean;
-    [key: string]: any;
-}
-
-declare var ReOmMIDI: ReOmMIDIApi;
+/** ExtendScript / Node host globals used by ReOm MIDI core modules. */
 
 interface ReOmGlobalState {
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 interface ReOmDollar {
@@ -16,12 +9,17 @@ interface ReOmDollar {
     os?: string;
 }
 
-declare var $: ReOmDollar;
+/** Root object passed to the namespace IIFE (global in Node, `this` in ExtendScript). */
+interface ReOmRootObject {
+    ReOmMIDI?: ReOmMIDIApi;
+}
 
-declare var global: any;
+declare var ReOmMIDI: ReOmMIDIApi;
+declare var $: ReOmDollar;
+declare var global: ReOmRootObject & typeof globalThis;
 
 interface NodeModule {
-    exports: any;
+    exports: unknown;
 }
 
 declare var module: NodeModule | undefined;

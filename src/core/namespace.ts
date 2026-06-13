@@ -1,7 +1,6 @@
-// @ts-nocheck
-(function (root) {
+(function (root: ReOmRootObject) {
     if (!root.ReOmMIDI) {
-        root.ReOmMIDI = {};
+        root.ReOmMIDI = {} as ReOmMIDIApi;
     }
 
     var api = root.ReOmMIDI;
@@ -15,7 +14,7 @@
             if (!$.global.__reomMidiState) {
                 $.global.__reomMidiState = {};
             }
-            return $.global.__reomMidiState;
+            return $.global.__reomMidiState as ReOmGlobalState;
         } catch (e) {}
         return null;
     };
@@ -62,7 +61,7 @@
         return value;
     };
 
-    function byteLength(value) {
+    function byteLength(value: string | number | null | undefined): number {
         return encodeURIComponent(String(value || "")).replace(/%[A-F0-9]{2}/g, "x").length;
     }
 
@@ -443,4 +442,4 @@
     if (typeof module !== "undefined" && module.exports) {
         module.exports = api;
     }
-})(typeof global !== "undefined" ? global : this);
+})(typeof global !== "undefined" ? global : (this as ReOmRootObject));
