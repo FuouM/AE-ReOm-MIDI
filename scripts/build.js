@@ -38,11 +38,22 @@ const banner = `/*
 
 `;
 
-const body = sourceFiles
-  .map((relativePath) => {
-    return `// ---- ${relativePath.replace(/\\/g, "/")} ----\n${readSource(relativePath)}\n`;
-  })
-  .join("\n");
+function buildBundle() {
+  const body = sourceFiles
+    .map((relativePath) => {
+      return `// ---- ${relativePath.replace(/\\/g, "/")} ----\n${readSource(relativePath)}\n`;
+    })
+    .join("\n");
 
-fs.writeFileSync(output, banner + body, "utf8");
-console.log(`Built ${path.relative(root, output)} v${VERSION} from ${sourceFiles.length} source files.`);
+  fs.writeFileSync(output, banner + body, "utf8");
+  console.log(`Built ${path.relative(root, output)} v${VERSION} from ${sourceFiles.length} source files.`);
+}
+
+if (require.main === module) {
+  buildBundle();
+}
+
+module.exports = {
+  sourceFiles,
+  buildBundle
+};

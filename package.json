@@ -11,7 +11,7 @@
     "format:check": "prettier --check .",
     "preview:actions": "node scripts/preview-actions.js",
     "preview:map": "node scripts/preview-map.js",
-    "test": "npm run compile && node scripts/test-midi.js && node scripts/test-bundle-smoke.js",
+    "test": "npm run compile && node scripts/build.js && node scripts/test-midi.js && node scripts/test-bundle-smoke.js && node scripts/test-build-pipeline.js",
     "check": "npm run typecheck && npm run build && npm test"
   },
   "devDependencies": {
