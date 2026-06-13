@@ -1,7 +1,20 @@
 (function (api: ReOmMIDIApi) {
     api.TONE_WAVEFORM_OPTIONS = ["Sine", "Triangle", "Saw", "Square", "White Noise"];
 
-    var TONE_FREQUENCY_PROPERTY_NAMES = ["Frequency 1", "Frequency 2", "Frequency 3", "Frequency 4", "Frequency 5"];
+    var TONE_WAVEFORM_PROPERTY_CANDIDATES: (string | number)[] = [
+        "ADBE Aud Tone-0001",
+        "Waveform options",
+        "Waveform Options",
+        1
+    ];
+    var TONE_FREQUENCY_PROPERTY_CANDIDATES: (string | number)[][] = [
+        ["ADBE Aud Tone-0002", "Frequency 1", 2],
+        ["ADBE Aud Tone-0003", "Frequency 2", 3],
+        ["ADBE Aud Tone-0004", "Frequency 3", 4],
+        ["ADBE Aud Tone-0005", "Frequency 4", 5],
+        ["ADBE Aud Tone-0006", "Frequency 5", 6]
+    ];
+    var TONE_LEVEL_PROPERTY_CANDIDATES: (string | number)[] = ["ADBE Aud Tone-0007", "Level", 7];
 
     function numeric(value: string | number | null | undefined, fallback: number): number {
         var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
@@ -12,17 +25,20 @@
         return Math.max(min, Math.min(max, value));
     }
 
-    function toneEffectProperty(effect: PropContainerLike | null, names: string | string[]): PropContainerLike | null {
+    function toneEffectProperty(
+        effect: PropContainerLike | null,
+        candidates: string | number | (string | number)[]
+    ): PropContainerLike | null {
         var i: number;
         var prop: PropContainerLike | null;
-        var nameList: string[];
+        var nameList: (string | number)[];
         if (!effect) {
             return null;
         }
-        if (typeof names === "string") {
-            nameList = [names];
+        if (typeof candidates === "string" || typeof candidates === "number") {
+            nameList = [candidates];
         } else {
-            nameList = names;
+            nameList = candidates;
         }
         for (i = 0; i < nameList.length; i += 1) {
             prop = api.safeProperty(effect, nameList[i]);
@@ -209,12 +225,7 @@
             added = effectsLayer.Effects.addProperty("ADBE Aud Tone");
             effect = api.isPropContainerLike(added) ? added : null;
         } catch (e) {
-            try {
-                added = effectsLayer.Effects.addProperty("Tone");
-                effect = api.isPropContainerLike(added) ? added : null;
-            } catch (e2) {
-                return null;
-            }
+            return null;
         }
         if (effect) {
             effect.name = "Tone";
@@ -239,15 +250,15 @@
         if (!effect || !plan) {
             return false;
         }
-        waveformProp = toneEffectProperty(effect, ["Waveform options", "Waveform Options"]);
+        waveformProp = toneEffectProperty(effect, TONE_WAVEFORM_PROPERTY_CANDIDATES);
         if (waveformProp && waveformProp.setValue) {
             waveformProp.setValue(toneWaveformValue(options.waveform));
         }
-        for (i = 0; i < TONE_FREQUENCY_PROPERTY_NAMES.length; i += 1) {
-            freqProp = toneEffectProperty(effect, TONE_FREQUENCY_PROPERTY_NAMES[i]);
+        for (i = 0; i < TONE_FREQUENCY_PROPERTY_CANDIDATES.length; i += 1) {
+            freqProp = toneEffectProperty(effect, TONE_FREQUENCY_PROPERTY_CANDIDATES[i]);
             applyToneSeries(freqProp, plan.frequency);
         }
-        levelProp = toneEffectProperty(effect, "Level");
+        levelProp = toneEffectProperty(effect, TONE_LEVEL_PROPERTY_CANDIDATES);
         applyToneSeries(levelProp, plan.level);
         return true;
     }

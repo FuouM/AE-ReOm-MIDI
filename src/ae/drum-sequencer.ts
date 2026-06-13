@@ -286,7 +286,7 @@
     function namedDrumSequencerRuntime(): string[] {
         return [
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
+            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -353,7 +353,7 @@
     function legacyDrumSequencerRuntime(): string[] {
         return [
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
+            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -759,7 +759,15 @@
         } catch (enableErr) {
             throw new Error('Could not enable Time Remap on layer "' + targetLayer.name + '".');
         }
-        timeRemap = targetLayer.property("Time Remap") as Property;
+        timeRemap = null;
+        try {
+            timeRemap = targetLayer.property("ADBE Time Remapping") as Property;
+        } catch (propErr) {}
+        if (!timeRemap) {
+            try {
+                timeRemap = targetLayer.property("Time Remap") as Property;
+            } catch (legacyPropErr) {}
+        }
         if (!timeRemap || timeRemap.canSetExpression === false) {
             throw new Error('The Time Remap property on "' + targetLayer.name + '" cannot receive expressions.');
         }

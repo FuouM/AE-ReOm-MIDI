@@ -152,7 +152,7 @@
     api.midiActionUsesFalloffField = midiActionUsesFalloffField;
 
     function outputSliderExpression(effectName: string): string {
-        return "thisLayer.effect(" + quote(api.limitEffectName(effectName)) + ')("Slider")';
+        return "thisLayer.effect(" + quote(api.limitEffectName(effectName)) + ")(1)";
     }
 
     function resolveMidiActionBaseExpression(
@@ -308,7 +308,7 @@
         sliderByName: [
             "// Helper to safely access a slider on the MIDI layer by name",
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }",
             "}"
         ],
         pitchSlider: [
@@ -963,7 +963,7 @@
         } catch (paradeErr) {}
         try {
             if (effectsLayer && effectsLayer.effect) {
-                slider = effectsLayer.effect(effectName)("Slider") as Property;
+                slider = effectsLayer.effect(effectName)(1) as Property;
                 if (sliderHasKeys(slider)) {
                     return slider;
                 }
@@ -1404,7 +1404,7 @@
             return found;
         }
         try {
-            return api.asLayerWithEffects(layer)!.effect!(limitedName)("Slider") as Property;
+            return api.asLayerWithEffects(layer)!.effect!(limitedName)(1) as Property;
         } catch (e) {}
         return null;
     }
@@ -3815,14 +3815,8 @@
         return api.limitEffectName("MIDI Piano Roll" + suffix);
     }
 
-    function pianoRollControlExpression(effectName: string, propertyName: string): string {
-        return (
-            "try { thisLayer.parent.effect(" +
-            quote(effectName) +
-            ")(" +
-            quote(propertyName) +
-            "); } catch (e) { value; }"
-        );
+    function pianoRollControlExpression(effectName: string): string {
+        return "try { thisLayer.parent.effect(" + quote(effectName) + ")(1); } catch (e) { value; }";
     }
 
     function pianoRollMasterOpacityExpression(controllerEffects: PianoRollControllerEffects): string {
@@ -3830,16 +3824,16 @@
             return (
                 "try { var c = thisLayer.parent; c.effect(" +
                 quote(controllerEffects.masterOpacity) +
-                ')("Slider") * ' +
+                ")(1) * " +
                 "c.effect(" +
                 quote(controllerEffects.fillOpacity) +
-                ')("Slider") / 100; } catch (e) { 100; }'
+                ")(1) / 100; } catch (e) { 100; }"
             );
         }
         return (
             "try { thisLayer.parent.effect(" +
             quote(controllerEffects.masterOpacity) +
-            ')("Slider"); } catch (e) { 100; }'
+            ")(1); } catch (e) { 100; }"
         );
     }
 
@@ -3851,16 +3845,15 @@
             return null;
         }
         try {
-            fx = effectsLayer.Effects.addProperty("Slider Control") as PropertyGroup;
+            fx = effectsLayer.Effects.addProperty("ADBE Slider Control") as PropertyGroup;
         } catch (addSliderErr) {
-            try {
-                fx = effectsLayer.Effects.addProperty("ADBE Slider Control") as PropertyGroup;
-            } catch (legacySliderErr) {
-                return null;
-            }
+            return null;
         }
         fx.name = api.limitEffectName(name);
-        sliderProp = api.safeProperty(fx, 1) || api.safeProperty(fx, "Slider");
+        sliderProp =
+            api.safeProperty(fx, 1) ||
+            api.safeProperty(fx, "ADBE Slider Control-0001") ||
+            api.safeProperty(fx, "Slider");
         if (sliderProp && sliderProp.setValue) {
             try {
                 sliderProp.setValue(value);
@@ -3878,22 +3871,12 @@
         }
         fx = effectsLayer.Effects.addProperty("ADBE Color Control") as PropertyGroup;
         fx.name = api.limitEffectName(name);
-        try {
-            colorProp = api.asPropContainerLike(fx.property("Color"));
-        } catch (colorErr) {
-            colorProp = null;
-        }
-        if (!colorProp) {
-            try {
-                colorProp = api.asPropContainerLike(fx.property(1));
-            } catch (colorErr2) {
-                colorProp = null;
-            }
-        }
+        colorProp =
+            api.safeProperty(fx, 1) ||
+            api.safeProperty(fx, "ADBE Color Control-0001") ||
+            api.safeProperty(fx, "Color");
         if (colorProp && colorProp.setValue) {
             colorProp.setValue(rgb);
-        } else {
-            setPropValue(fx, "Color", rgb);
         }
         return fx;
     }
@@ -4053,15 +4036,15 @@
         }
         setPropExpression(
             shapeStrokeColorProp(stroke),
-            pianoRollControlExpression(controllerEffects.strokeColor, "Color")
+            pianoRollControlExpression(controllerEffects.strokeColor)
         );
         setPropExpression(
             shapeStrokeOpacityProp(stroke),
-            pianoRollControlExpression(controllerEffects.strokeOpacity, "Slider")
+            pianoRollControlExpression(controllerEffects.strokeOpacity)
         );
         setPropExpression(
             shapeStrokeWidthProp(stroke),
-            pianoRollControlExpression(controllerEffects.strokeWidth, "Slider")
+            pianoRollControlExpression(controllerEffects.strokeWidth)
         );
     }
 
@@ -4085,7 +4068,7 @@
         if (fill) {
             setPropExpression(
                 shapeFillColorProp(fill),
-                pianoRollControlExpression(controllerEffects.fillColor || "Fill Color", "Color")
+                pianoRollControlExpression(controllerEffects.fillColor || "Fill Color")
             );
         }
         wireShapeStrokeFromController(layer, controllerEffects);

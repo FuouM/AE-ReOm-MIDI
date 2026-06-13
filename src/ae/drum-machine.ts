@@ -690,7 +690,7 @@
             "var drumEffectName = " + quote(options.drumEffectName || "") + ";",
             drumMachineFalloffRuntime(),
             "function drumSlider() {",
-            '    try { return midiLayer.effect(drumEffectName)("Slider"); } catch (e) { return null; }',
+            '    try { return midiLayer.effect(drumEffectName)(1); } catch (e) { return null; }',
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -795,7 +795,7 @@
         lines.push("    return n;");
         lines.push("}");
         lines.push("function latestPitchHitForLayer(layer, sliderName, t, pitch) {");
-        lines.push('    try { var s = layer.effect(sliderName)("Slider"); } catch (e) { return null; }');
+        lines.push("    try { var s = layer.effect(sliderName)(1); } catch (e) { return null; }");
         lines.push("    var n = lastKeyAtOrBefore(s, t);");
         lines.push("    var value;");
         lines.push("    while (n >= 1) {");

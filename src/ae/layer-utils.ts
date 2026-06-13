@@ -1,7 +1,7 @@
 (function (api: ReOmMIDIApi) {
     api.addSliderControl = function (layer: Layer, sliderName: string): Property {
         var effects = (layer as Layer & { Effects: PropertyGroup }).Effects;
-        var effect = effects.addProperty("Slider Control");
+        var effect = effects.addProperty("ADBE Slider Control");
         effect.name = sliderName;
         return effects.property(sliderName).property(1) as Property;
     };

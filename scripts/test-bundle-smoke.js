@@ -252,12 +252,36 @@ function createFakeLayer() {
             }
           };
         } else if (matchName === "ADBE Aud Tone" || matchName === "Tone") {
+          const tonePropertyAliases = {
+            "ADBE Aud Tone-0001": "Waveform options",
+            "ADBE Aud Tone-0002": "Frequency 1",
+            "ADBE Aud Tone-0003": "Frequency 2",
+            "ADBE Aud Tone-0004": "Frequency 3",
+            "ADBE Aud Tone-0005": "Frequency 4",
+            "ADBE Aud Tone-0006": "Frequency 5",
+            "ADBE Aud Tone-0007": "Level"
+          };
+          const tonePropertyByIndex = [
+            "Waveform options",
+            "Frequency 1",
+            "Frequency 2",
+            "Frequency 3",
+            "Frequency 4",
+            "Frequency 5",
+            "Level"
+          ];
           effect.toneProperties = {};
           effect.property = function toneProperty(name) {
-            if (!this.toneProperties[name]) {
-              this.toneProperties[name] = makeSliderProperty();
+            let key = name;
+            if (typeof name === "number") {
+              key = tonePropertyByIndex[name - 1] || String(name);
+            } else if (tonePropertyAliases[name]) {
+              key = tonePropertyAliases[name];
             }
-            return this.toneProperties[name];
+            if (!this.toneProperties[key]) {
+              this.toneProperties[key] = makeSliderProperty();
+            }
+            return this.toneProperties[key];
           };
         } else {
           effect.valueProperty = makeSliderProperty();
@@ -1805,7 +1829,7 @@ textComp.layers = {
       name: "",
       comment: "",
       property(name) {
-        if (name === "Source Text") {
+        if (name === "ADBE Text Document" || name === "Source Text") {
           return sourceText;
         }
         return null;

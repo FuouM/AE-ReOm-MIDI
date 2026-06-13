@@ -1396,7 +1396,7 @@ function asScriptUiPenHost(g) {
 (function (api) {
     api.addSliderControl = function (layer, sliderName) {
         var effects = layer.Effects;
-        var effect = effects.addProperty("Slider Control");
+        var effect = effects.addProperty("ADBE Slider Control");
         effect.name = sliderName;
         return effects.property(sliderName).property(1);
     };
@@ -2046,7 +2046,7 @@ function asScriptUiPenHost(g) {
     api.midiActionUsesAmountDurationFields = midiActionUsesAmountDurationSliders;
     api.midiActionUsesFalloffField = midiActionUsesFalloffField;
     function outputSliderExpression(effectName) {
-        return "thisLayer.effect(" + quote(api.limitEffectName(effectName)) + ')("Slider")';
+        return "thisLayer.effect(" + quote(api.limitEffectName(effectName)) + ")(1)";
     }
     function resolveMidiActionBaseExpression(options, literalFallback) {
         if (options.useOutputSliders && midiActionUsesBaseSlider(options.preset || "pump")) {
@@ -2181,7 +2181,7 @@ function asScriptUiPenHost(g) {
         sliderByName: [
             "// Helper to safely access a slider on the MIDI layer by name",
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }",
             "}"
         ],
         pitchSlider: [
@@ -2748,7 +2748,7 @@ function asScriptUiPenHost(g) {
         catch (paradeErr) { }
         try {
             if (effectsLayer && effectsLayer.effect) {
-                slider = effectsLayer.effect(effectName)("Slider");
+                slider = effectsLayer.effect(effectName)(1);
                 if (sliderHasKeys(slider)) {
                     return slider;
                 }
@@ -3164,7 +3164,7 @@ function asScriptUiPenHost(g) {
             return found;
         }
         try {
-            return api.asLayerWithEffects(layer).effect(limitedName)("Slider");
+            return api.asLayerWithEffects(layer).effect(limitedName)(1);
         }
         catch (e) { }
         return null;
@@ -5220,25 +5220,21 @@ function asScriptUiPenHost(g) {
         var suffix = sourceLayer && sourceLayer.name ? " " + sourceLayer.name : "";
         return api.limitEffectName("MIDI Piano Roll" + suffix);
     }
-    function pianoRollControlExpression(effectName, propertyName) {
-        return ("try { thisLayer.parent.effect(" +
-            quote(effectName) +
-            ")(" +
-            quote(propertyName) +
-            "); } catch (e) { value; }");
+    function pianoRollControlExpression(effectName) {
+        return "try { thisLayer.parent.effect(" + quote(effectName) + ")(1); } catch (e) { value; }";
     }
     function pianoRollMasterOpacityExpression(controllerEffects) {
         if (controllerEffects && controllerEffects.fillOpacity) {
             return ("try { var c = thisLayer.parent; c.effect(" +
                 quote(controllerEffects.masterOpacity) +
-                ')("Slider") * ' +
+                ")(1) * " +
                 "c.effect(" +
                 quote(controllerEffects.fillOpacity) +
-                ')("Slider") / 100; } catch (e) { 100; }');
+                ")(1) / 100; } catch (e) { 100; }");
         }
         return ("try { thisLayer.parent.effect(" +
             quote(controllerEffects.masterOpacity) +
-            ')("Slider"); } catch (e) { 100; }');
+            ")(1); } catch (e) { 100; }");
     }
     function addPianoRollControllerSlider(layer, name, value) {
         var fx;
@@ -5248,18 +5244,16 @@ function asScriptUiPenHost(g) {
             return null;
         }
         try {
-            fx = effectsLayer.Effects.addProperty("Slider Control");
+            fx = effectsLayer.Effects.addProperty("ADBE Slider Control");
         }
         catch (addSliderErr) {
-            try {
-                fx = effectsLayer.Effects.addProperty("ADBE Slider Control");
-            }
-            catch (legacySliderErr) {
-                return null;
-            }
+            return null;
         }
         fx.name = api.limitEffectName(name);
-        sliderProp = api.safeProperty(fx, 1) || api.safeProperty(fx, "Slider");
+        sliderProp =
+            api.safeProperty(fx, 1) ||
+                api.safeProperty(fx, "ADBE Slider Control-0001") ||
+                api.safeProperty(fx, "Slider");
         if (sliderProp && sliderProp.setValue) {
             try {
                 sliderProp.setValue(value);
@@ -5277,25 +5271,12 @@ function asScriptUiPenHost(g) {
         }
         fx = effectsLayer.Effects.addProperty("ADBE Color Control");
         fx.name = api.limitEffectName(name);
-        try {
-            colorProp = api.asPropContainerLike(fx.property("Color"));
-        }
-        catch (colorErr) {
-            colorProp = null;
-        }
-        if (!colorProp) {
-            try {
-                colorProp = api.asPropContainerLike(fx.property(1));
-            }
-            catch (colorErr2) {
-                colorProp = null;
-            }
-        }
+        colorProp =
+            api.safeProperty(fx, 1) ||
+                api.safeProperty(fx, "ADBE Color Control-0001") ||
+                api.safeProperty(fx, "Color");
         if (colorProp && colorProp.setValue) {
             colorProp.setValue(rgb);
-        }
-        else {
-            setPropValue(fx, "Color", rgb);
         }
         return fx;
     }
@@ -5411,9 +5392,9 @@ function asScriptUiPenHost(g) {
         if (!stroke) {
             return;
         }
-        setPropExpression(shapeStrokeColorProp(stroke), pianoRollControlExpression(controllerEffects.strokeColor, "Color"));
-        setPropExpression(shapeStrokeOpacityProp(stroke), pianoRollControlExpression(controllerEffects.strokeOpacity, "Slider"));
-        setPropExpression(shapeStrokeWidthProp(stroke), pianoRollControlExpression(controllerEffects.strokeWidth, "Slider"));
+        setPropExpression(shapeStrokeColorProp(stroke), pianoRollControlExpression(controllerEffects.strokeColor));
+        setPropExpression(shapeStrokeOpacityProp(stroke), pianoRollControlExpression(controllerEffects.strokeOpacity));
+        setPropExpression(shapeStrokeWidthProp(stroke), pianoRollControlExpression(controllerEffects.strokeWidth));
     }
     function wireShapeMasterOpacityFromController(layer, controllerEffects) {
         var opacityProp;
@@ -5432,7 +5413,7 @@ function asScriptUiPenHost(g) {
         }
         fill = findShapeFill(layer);
         if (fill) {
-            setPropExpression(shapeFillColorProp(fill), pianoRollControlExpression(controllerEffects.fillColor || "Fill Color", "Color"));
+            setPropExpression(shapeFillColorProp(fill), pianoRollControlExpression(controllerEffects.fillColor || "Fill Color"));
         }
         wireShapeStrokeFromController(layer, controllerEffects);
     }
@@ -6351,7 +6332,7 @@ function asScriptUiPenHost(g) {
             .concat(mapBlock)
             .concat([
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
+            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -6491,7 +6472,17 @@ function asScriptUiPenHost(g) {
         layer.name = api.limitEffectName("MIDI Map " + (sourceLayer && sourceLayer.name ? sourceLayer.name : "MIDI"));
         layer.comment =
             "Generated by ReOm MIDI Map\nSource: " + (sourceLayer && sourceLayer.name ? sourceLayer.name : "MIDI");
-        textProp = layer.property("Source Text");
+        textProp = null;
+        try {
+            textProp = layer.property("ADBE Text Document");
+        }
+        catch (propErr) { }
+        if (!textProp) {
+            try {
+                textProp = layer.property("Source Text");
+            }
+            catch (legacyPropErr) { }
+        }
         if (!textProp || textProp.canSetExpression === false) {
             throw new Error("The text layer Source Text property cannot receive expressions.");
         }
@@ -6510,7 +6501,20 @@ function asScriptUiPenHost(g) {
 "use strict";
 (function (api) {
     api.TONE_WAVEFORM_OPTIONS = ["Sine", "Triangle", "Saw", "Square", "White Noise"];
-    var TONE_FREQUENCY_PROPERTY_NAMES = ["Frequency 1", "Frequency 2", "Frequency 3", "Frequency 4", "Frequency 5"];
+    var TONE_WAVEFORM_PROPERTY_CANDIDATES = [
+        "ADBE Aud Tone-0001",
+        "Waveform options",
+        "Waveform Options",
+        1
+    ];
+    var TONE_FREQUENCY_PROPERTY_CANDIDATES = [
+        ["ADBE Aud Tone-0002", "Frequency 1", 2],
+        ["ADBE Aud Tone-0003", "Frequency 2", 3],
+        ["ADBE Aud Tone-0004", "Frequency 3", 4],
+        ["ADBE Aud Tone-0005", "Frequency 4", 5],
+        ["ADBE Aud Tone-0006", "Frequency 5", 6]
+    ];
+    var TONE_LEVEL_PROPERTY_CANDIDATES = ["ADBE Aud Tone-0007", "Level", 7];
     function numeric(value, fallback) {
         var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
         return isNaN(parsed) ? fallback : parsed;
@@ -6518,18 +6522,18 @@ function asScriptUiPenHost(g) {
     function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
     }
-    function toneEffectProperty(effect, names) {
+    function toneEffectProperty(effect, candidates) {
         var i;
         var prop;
         var nameList;
         if (!effect) {
             return null;
         }
-        if (typeof names === "string") {
-            nameList = [names];
+        if (typeof candidates === "string" || typeof candidates === "number") {
+            nameList = [candidates];
         }
         else {
-            nameList = names;
+            nameList = candidates;
         }
         for (i = 0; i < nameList.length; i += 1) {
             prop = api.safeProperty(effect, nameList[i]);
@@ -6689,13 +6693,7 @@ function asScriptUiPenHost(g) {
             effect = api.isPropContainerLike(added) ? added : null;
         }
         catch (e) {
-            try {
-                added = effectsLayer.Effects.addProperty("Tone");
-                effect = api.isPropContainerLike(added) ? added : null;
-            }
-            catch (e2) {
-                return null;
-            }
+            return null;
         }
         if (effect) {
             effect.name = "Tone";
@@ -6714,15 +6712,15 @@ function asScriptUiPenHost(g) {
         if (!effect || !plan) {
             return false;
         }
-        waveformProp = toneEffectProperty(effect, ["Waveform options", "Waveform Options"]);
+        waveformProp = toneEffectProperty(effect, TONE_WAVEFORM_PROPERTY_CANDIDATES);
         if (waveformProp && waveformProp.setValue) {
             waveformProp.setValue(toneWaveformValue(options.waveform));
         }
-        for (i = 0; i < TONE_FREQUENCY_PROPERTY_NAMES.length; i += 1) {
-            freqProp = toneEffectProperty(effect, TONE_FREQUENCY_PROPERTY_NAMES[i]);
+        for (i = 0; i < TONE_FREQUENCY_PROPERTY_CANDIDATES.length; i += 1) {
+            freqProp = toneEffectProperty(effect, TONE_FREQUENCY_PROPERTY_CANDIDATES[i]);
             applyToneSeries(freqProp, plan.frequency);
         }
-        levelProp = toneEffectProperty(effect, "Level");
+        levelProp = toneEffectProperty(effect, TONE_LEVEL_PROPERTY_CANDIDATES);
         applyToneSeries(levelProp, plan.level);
         return true;
     }
@@ -7600,7 +7598,7 @@ function asScriptUiPenHost(g) {
             "var drumEffectName = " + quote(options.drumEffectName || "") + ";",
             drumMachineFalloffRuntime(),
             "function drumSlider() {",
-            '    try { return midiLayer.effect(drumEffectName)("Slider"); } catch (e) { return null; }',
+            '    try { return midiLayer.effect(drumEffectName)(1); } catch (e) { return null; }',
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -7700,7 +7698,7 @@ function asScriptUiPenHost(g) {
         lines.push("    return n;");
         lines.push("}");
         lines.push("function latestPitchHitForLayer(layer, sliderName, t, pitch) {");
-        lines.push('    try { var s = layer.effect(sliderName)("Slider"); } catch (e) { return null; }');
+        lines.push("    try { var s = layer.effect(sliderName)(1); } catch (e) { return null; }");
         lines.push("    var n = lastKeyAtOrBefore(s, t);");
         lines.push("    var value;");
         lines.push("    while (n >= 1) {");
@@ -8310,7 +8308,7 @@ function asScriptUiPenHost(g) {
     function namedDrumSequencerRuntime() {
         return [
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
+            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -8376,7 +8374,7 @@ function asScriptUiPenHost(g) {
     function legacyDrumSequencerRuntime() {
         return [
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
+            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -8731,7 +8729,17 @@ function asScriptUiPenHost(g) {
         catch (enableErr) {
             throw new Error('Could not enable Time Remap on layer "' + targetLayer.name + '".');
         }
-        timeRemap = targetLayer.property("Time Remap");
+        timeRemap = null;
+        try {
+            timeRemap = targetLayer.property("ADBE Time Remapping");
+        }
+        catch (propErr) { }
+        if (!timeRemap) {
+            try {
+                timeRemap = targetLayer.property("Time Remap");
+            }
+            catch (legacyPropErr) { }
+        }
         if (!timeRemap || timeRemap.canSetExpression === false) {
             throw new Error('The Time Remap property on "' + targetLayer.name + '" cannot receive expressions.');
         }
