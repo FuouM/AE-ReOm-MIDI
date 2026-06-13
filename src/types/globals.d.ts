@@ -54,6 +54,8 @@ interface ReOmExtendScriptGlobal {
 interface ReOmDollar {
     global: ReOmExtendScriptGlobal;
     os?: string;
+    /** High-resolution timer in microseconds (ExtendScript). */
+    hiresTimer?: number;
 }
 
 /** Root object passed to the namespace IIFE (global in Node, `this` in ExtendScript). */

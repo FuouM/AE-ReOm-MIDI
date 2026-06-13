@@ -1,5 +1,5 @@
 /*
- ReOm MIDI v1.1.1
+ ReOm MIDI v1.1.2
  Modernized After Effects MIDI import script.
 
  Copyright (c) 2026 Fuou Marinas
@@ -22,7 +22,7 @@
         root.ReOmMIDI = {};
     }
     var api = root.ReOmMIDI;
-    api.VERSION = "1.1.1";
+    api.VERSION = "1.1.2";
     api.getGlobalState = function () {
         try {
             if (typeof $ === "undefined" || !$.global) {
@@ -8921,45 +8921,43 @@ function asScriptUiPenHost(g) {
             return;
         }
         hostWidth = Math.max(0, hostWidth || 0);
+        if (node._reomLastClearedWidth === hostWidth) {
+            return;
+        }
         children = node.children;
         if (children) {
             for (i = 0; i < children.length; i += 1) {
                 clearStaleScriptUiWidthLocks(children[i], hostWidth);
             }
         }
-        if (!scriptUiControlHasStaleWidthLock(node, hostWidth)) {
-            return;
-        }
-        if (scriptUiPreservesWidthMin(node)) {
-            return;
-        }
-        type = node.type;
-        if (type === "group" || type === "panel" || type === "tab" || type === "tabbedpanel") {
-            minH = node.minimumSize ? node.minimumSize[1] : 0;
-            node.minimumSize = [0, minH];
-            prefH = node.preferredSize ? node.preferredSize[1] : -1;
-            node.preferredSize = [0, prefH != null ? prefH : -1];
-            return;
-        }
-        if (type === "dropdownlist" || type === "listbox") {
-            minH = node.minimumSize ? node.minimumSize[1] : 0;
-            node.minimumSize = [0, minH];
-            prefH = node.preferredSize ? node.preferredSize[1] : -1;
-            node.preferredSize = [-1, prefH != null ? prefH : -1];
-            maxH = node.maximumSize ? node.maximumSize[1] : 10000;
-            node.maximumSize = [10000, maxH != null ? maxH : 10000];
-            return;
-        }
-        if (type === "statictext" || type === "edittext") {
-            minH = node.minimumSize ? node.minimumSize[1] : 0;
-            node.minimumSize = [0, minH];
-            if (node.preferredSize) {
-                prefH = node.preferredSize[1];
-                if (node.preferredSize[0] === -1 || node.preferredSize[0] > hostWidth) {
-                    node.preferredSize = [0, prefH != null ? prefH : -1];
+        if (scriptUiControlHasStaleWidthLock(node, hostWidth) && !scriptUiPreservesWidthMin(node)) {
+            type = node.type;
+            if (type === "group" || type === "panel" || type === "tab" || type === "tabbedpanel") {
+                minH = node.minimumSize ? node.minimumSize[1] : 0;
+                node.minimumSize = [0, minH];
+                prefH = node.preferredSize ? node.preferredSize[1] : -1;
+                node.preferredSize = [0, prefH != null ? prefH : -1];
+            }
+            else if (type === "dropdownlist" || type === "listbox") {
+                minH = node.minimumSize ? node.minimumSize[1] : 0;
+                node.minimumSize = [0, minH];
+                prefH = node.preferredSize ? node.preferredSize[1] : -1;
+                node.preferredSize = [-1, prefH != null ? prefH : -1];
+                maxH = node.maximumSize ? node.maximumSize[1] : 10000;
+                node.maximumSize = [10000, maxH != null ? maxH : 10000];
+            }
+            else if (type === "statictext" || type === "edittext") {
+                minH = node.minimumSize ? node.minimumSize[1] : 0;
+                node.minimumSize = [0, minH];
+                if (node.preferredSize) {
+                    prefH = node.preferredSize[1];
+                    if (node.preferredSize[0] === -1 || node.preferredSize[0] > hostWidth) {
+                        node.preferredSize = [0, prefH != null ? prefH : -1];
+                    }
                 }
             }
         }
+        node._reomLastClearedWidth = hostWidth;
     }
     function scriptUiControlBoundsWidth(control) {
         var boundsControl;
@@ -9130,8 +9128,8 @@ function asScriptUiPenHost(g) {
     api.PREVIEW_MAX_DURATION_SEC = 30;
     // Delay before running deferred preview compute off the UI thread.
     api.DEFERRED_PREVIEW_TASK_MS = 32;
-    // Throttle live window resize relayout to avoid ScriptUI jank while dragging narrower.
-    var PANEL_LIVE_RESIZE_MS = 24;
+    // Throttle live resize (~25 fps); ScriptUI repaints synchronously so tighter intervals hurt more than they help.
+    var PANEL_LIVE_RESIZE_MS = 40;
     function applyLockedWindowHeightFromState(state) {
         if (!state || !state.win) {
             return;
@@ -9166,7 +9164,11 @@ function asScriptUiPenHost(g) {
             if (previewLayoutGuardIsActive()) {
                 return;
             }
-            now = new Date().getTime();
+            // $.hiresTimer is microseconds; fall back to Date when unavailable (e.g. tests).
+            now =
+                typeof $ !== "undefined" && $.hiresTimer != null
+                    ? Math.floor($.hiresTimer / 1000)
+                    : new Date().getTime();
             lastLiveResizeMs = globalState().panelHostLiveResizeMs;
             if (typeof lastLiveResizeMs === "number" && now - lastLiveResizeMs < PANEL_LIVE_RESIZE_MS) {
                 return;
@@ -9182,7 +9184,7 @@ function asScriptUiPenHost(g) {
             }
             globalState().panelHostLiveWidth = hostWidth;
             layoutScriptUiHost(win, false, false);
-            repaintScriptUiHost(win);
+            // layoutScriptUiHost already triggers layout; skip repaint to avoid duplicate ScriptUI work.
         }
         function finalizePanelHostResize() {
             var hostWidth;
@@ -9195,12 +9197,17 @@ function asScriptUiPenHost(g) {
             clearStaleScriptUiWidthLocks(win, hostWidth);
             layoutScriptUiHost(win, false, true);
             repaintScriptUiHost(win);
-            refreshExpandedPreviewHosts(win, mapPreviewState, actionPreviewState);
+            // Defer preview refresh so finalize repaint is not immediately followed by preview repaints.
+            try {
+                app.scheduleTask("try { if (ReOmMIDI.refreshPreviewPanels) { ReOmMIDI.refreshPreviewPanels(); } } catch(e) {}", 1, false);
+            }
+            catch (schedErr) {
+                refreshExpandedPreviewHosts(win, mapPreviewState, actionPreviewState);
+            }
         }
         win.onResize = finalizePanelHostResize;
-        if (!panelState.isPanel) {
-            win.onResizing = relayoutPanelHostDuringResize;
-        }
+        // Lightweight onResizing relayout for both floating windows and docked AE panels.
+        win.onResizing = relayoutPanelHostDuringResize;
     }
     function primePreviewHostLayout(previewState, _rootWin, forceReprime) {
         var container;
@@ -9408,9 +9415,6 @@ function asScriptUiPenHost(g) {
             canvasPanel.preferredSize = [-1, h + 1];
             if (canvasPanel.parent && canvasPanel.parent.layout && canvasPanel.parent.layout.resize) {
                 canvasPanel.parent.layout.resize();
-            }
-            if (canvasPanel.layout && canvasPanel.layout.resize) {
-                canvasPanel.layout.resize();
             }
             canvasPanel.preferredSize = [-1, -1];
         }
