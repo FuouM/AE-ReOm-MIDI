@@ -22,11 +22,14 @@ const context = {
 context.global = context;
 vm.createContext(context);
 
-["src/core/namespace.jsx", "src/core/midi-file.jsx", "src/ae/keyframes.jsx", "src/ae/timing-layers.jsx"].forEach(
-  (relativePath) => {
-    vm.runInContext(readSource(relativePath), context, { filename: relativePath });
-  }
-);
+[
+  "dist/compiled/core/namespace.jsx",
+  "dist/compiled/core/midi-file.jsx",
+  "dist/compiled/ae/keyframes.jsx",
+  "dist/compiled/ae/timing-layers.jsx"
+].forEach((relativePath) => {
+  vm.runInContext(readSource(relativePath), context, { filename: relativePath });
+});
 
 assert.strictEqual(context.ReOmMIDI.VERSION, VERSION, "api.VERSION should match package.json");
 

@@ -1,20 +1,19 @@
-/* global ReOmMIDI, app, CompItem. */
-(function (api) {
+(function (api: ReOmMIDIApi) {
     var MAP_BEGIN = "// --- string map (edit labels below) ---";
     var MAP_END = "// --- end string map ---";
 
-    function quote(value) {
+    function quote(value: string | number | null | undefined): string {
         value = String(value || "");
         value = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         value = value.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
         return '"' + value + '"';
     }
 
-    function joinLines(lines) {
+    function joinLines(lines: string[]): string {
         return lines.join("\n");
     }
 
-    function defaultMapLabel(pitch, labelMode) {
+    function defaultMapLabel(pitch: number, labelMode: MidiMapLabelMode | string): string {
         if (labelMode === "drums" && api.GM_DRUM_NAMES && api.GM_DRUM_NAMES[pitch]) {
             return api.GM_DRUM_NAMES[pitch];
         }
@@ -24,18 +23,21 @@
         return String(pitch);
     }
 
-    api.buildMidiMapDefaultLabels = function (pitches, labelMode) {
-        var labels = [];
-        var i;
+    api.buildMidiMapDefaultLabels = function (
+        pitches: number[],
+        labelMode?: MidiMapLabelMode | string
+    ): NoteLabelPair[] {
+        var labels: NoteLabelPair[] = [];
+        var i: number;
         for (i = 0; i < pitches.length; i += 1) {
             labels.push([pitches[i], defaultMapLabel(pitches[i], labelMode || "notes")]);
         }
         return labels;
     };
 
-    function formatNoteLabelsBlock(noteLabels) {
+    function formatNoteLabelsBlock(noteLabels: NoteLabelPair[]): string[] {
         var lines = [MAP_BEGIN, "var noteLabels = ["];
-        var i;
+        var i: number;
         for (i = 0; i < noteLabels.length; i += 1) {
             lines.push(
                 "    [" +
@@ -53,7 +55,7 @@
 
     api.formatMidiMapNoteLabelsBlock = formatNoteLabelsBlock;
 
-    api.buildMidiMapExpression = function (options) {
+    api.buildMidiMapExpression = function (options: MidiMapExpressionOptions): string {
         var sourceLayer = options.sourceLayerName || "MIDI";
         var pitchSlider = options.pitchSliderName || "T01 Ch01 pitch";
         var defaultLabel = quote(options.defaultLabel || "");
@@ -101,14 +103,14 @@
         );
     };
 
-    api.parseMidiMapNoteLabelsFromExpression = function (expression) {
+    api.parseMidiMapNoteLabelsFromExpression = function (expression: string): NoteLabelPair[] | null {
         var text = String(expression || "");
         var begin = text.indexOf(MAP_BEGIN);
         var end = text.indexOf(MAP_END);
-        var block;
-        var labels = [];
+        var block: string;
+        var labels: NoteLabelPair[] = [];
         var re = /\[\s*(\d+)\s*,\s*"((?:\\.|[^"\\])*)"\s*\]/g;
-        var match;
+        var match: RegExpExecArray | null;
 
         if (begin < 0 || end < 0 || end <= begin) {
             return null;
@@ -123,12 +125,16 @@
         return labels.length ? labels : null;
     };
 
-    api.prepareMidiMapExpression = function (comp, sourceLayer, options) {
-        var range;
-        var noteLabels;
-        var labelMode;
-        var expression;
-        var state;
+    api.prepareMidiMapExpression = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiMapOptions
+    ): MidiMapPrepared {
+        var range: PitchValuesFromLayerResult;
+        var noteLabels: NoteLabelPair[];
+        var labelMode: MidiMapLabelMode;
+        var expression: string;
+        var state: MidiMapState;
 
         options = options || {};
         if (!sourceLayer) {
@@ -176,8 +182,8 @@
         };
     };
 
-    api.regenerateMidiMapExpression = function (state, labelMode) {
-        var noteLabels;
+    api.regenerateMidiMapExpression = function (state: MidiMapState, labelMode?: MidiMapLabelMode | string): string {
+        var noteLabels: NoteLabelPair[];
         if (!state || !state.pitches || !state.pitches.length) {
             throw new Error("Generate a MIDI Map from the selected layer first.");
         }
@@ -190,7 +196,7 @@
         });
     };
 
-    function setPropExpression(prop, expression) {
+    function setPropExpression(prop: Property | null, expression: string): boolean {
         if (!prop) {
             return false;
         }
@@ -207,9 +213,13 @@
         return false;
     }
 
-    api.createMidiMapTextLayer = function (comp, sourceLayer, expression) {
-        var layer;
-        var textProp;
+    api.createMidiMapTextLayer = function (
+        comp: CompItem,
+        sourceLayer: Layer | null,
+        expression: string
+    ): MidiMapTextLayerResult {
+        var layer: TextLayer;
+        var textProp: Property | null;
         if (!comp || !comp.layers || !comp.layers.addText) {
             throw new Error("Could not create a text layer in the active composition.");
         }
@@ -220,7 +230,7 @@
         layer.name = api.limitEffectName("MIDI Map " + (sourceLayer && sourceLayer.name ? sourceLayer.name : "MIDI"));
         layer.comment =
             "Generated by ReOm MIDI Map\nSource: " + (sourceLayer && sourceLayer.name ? sourceLayer.name : "MIDI");
-        textProp = layer.property("Source Text");
+        textProp = layer.property("Source Text") as Property;
         if (!textProp || textProp.canSetExpression === false) {
             throw new Error("The text layer Source Text property cannot receive expressions.");
         }

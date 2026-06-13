@@ -1,5 +1,14 @@
-/* global ReOmMIDI, app, Window, CompItem, File, $ */
-(function (api, thisObj) {
+(function (api: ReOmMIDIApi, thisObj: Panel | Window | undefined) {
+    function formatCatchError(err: unknown): string {
+        if (err && typeof err === "object" && "message" in err) {
+            var message = (err as { message: unknown }).message;
+            if (typeof message === "string" && message) {
+                return message;
+            }
+        }
+        return String(err);
+    }
+
     function requireActiveComp() {
         var item = app.project.activeItem;
         if (!item || !(item instanceof CompItem)) {
@@ -41,11 +50,11 @@
             }
             report = null;
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
-    function loadMidiFromOptions(options) {
+    function loadMidiFromOptions(options: MidiFileRunnerOptions): MidiFileData {
         var file;
         var midi;
 
@@ -70,13 +79,14 @@
         var midi;
         var comp;
         var result;
+        var runnerOptions = options || {};
 
         try {
             comp = requireActiveComp();
-            midi = loadMidiFromOptions(options);
+            midi = loadMidiFromOptions(runnerOptions);
             app.beginUndoGroup("ReOm MIDI Metronome Layer");
             result = api.createMetronomeLayer(comp, midi, {
-                quantizeToFrames: !!options.quantizeToFrames
+                quantizeToFrames: !!runnerOptions.quantizeToFrames
             });
             app.endUndoGroup();
             alert(
@@ -89,7 +99,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -97,13 +107,14 @@
         var midi;
         var comp;
         var result;
+        var runnerOptions = options || {};
 
         try {
             comp = requireActiveComp();
-            midi = loadMidiFromOptions(options);
+            midi = loadMidiFromOptions(runnerOptions);
             app.beginUndoGroup("ReOm MIDI BPM Layer");
             result = api.createBpmLayer(comp, midi, {
-                quantizeToFrames: !!options.quantizeToFrames
+                quantizeToFrames: !!runnerOptions.quantizeToFrames
             });
             app.endUndoGroup();
             alert(
@@ -118,7 +129,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -126,8 +137,8 @@
         var file;
         var midi;
         var comp;
-        var progress;
-        var importedChannels = 0;
+        var progress: ProgressHandle | undefined;
+        var importedChannels: ImportResult = 0;
         var message;
 
         if (!options || !options.midiFileName) {
@@ -156,12 +167,15 @@
 
             app.beginUndoGroup("ReOm MIDI Import");
             importedChannels = api.importMidiToComp(comp, midi, options, function (text, ratio) {
+                if (!progress) {
+                    return true;
+                }
                 return progress.update(text, ratio);
             });
             app.endUndoGroup();
             progress.close();
 
-            if (importedChannels && importedChannels.cancelled) {
+            if (importedChannels && typeof importedChannels === "object" && importedChannels.cancelled) {
                 alert("ReOm MIDI Import cancelled.\n\nImported channels before cancel: " + importedChannels.imported);
                 return;
             }
@@ -184,7 +198,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -213,9 +227,17 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
+
+    function requireGlobalState(): ReOmGlobalState {
+        var state = api.getGlobalState();
+        if (!state) {
+            throw new Error("ReOm MIDI global state is unavailable.");
+        }
+        return state;
+    }
 
     api.runCopyMidiActionExpression = function (options) {
         var comp;
@@ -227,7 +249,7 @@
             if (api.openMidiActionExpressionCopyDialog) {
                 api.openMidiActionExpressionCopyDialog(sourceLayer.name);
             }
-            api.getGlobalState().copyExpressionPayload = {
+            requireGlobalState().copyExpressionPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {}
@@ -238,18 +260,18 @@
                 false
             );
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
     api.__runDeferredCopyExpression = function () {
-        var payload = api.getGlobalState().copyExpressionPayload;
+        var payload = requireGlobalState().copyExpressionPayload;
         var prepared;
 
         if (!payload) {
             return;
         }
-        api.getGlobalState().copyExpressionPayload = null;
+        requireGlobalState().copyExpressionPayload = null;
         try {
             prepared = api.prepareMidiActionExpression(payload.comp, payload.sourceLayer, payload.options);
             if (api.completeMidiActionExpressionCopyDialog) {
@@ -263,7 +285,7 @@
             if (api.closeMidiActionExpressionCopyDialog) {
                 api.closeMidiActionExpressionCopyDialog();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -283,7 +305,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -302,7 +324,7 @@
             if (api.scheduleDeferredPreviewUi && uiGeneration) {
                 api.scheduleDeferredPreviewUi(uiGeneration, 1);
             }
-            api.getGlobalState().actionPreviewPayload = {
+            requireGlobalState().actionPreviewPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {},
@@ -310,19 +332,19 @@
             };
             app.scheduleTask(
                 "try { if (ReOmMIDI.__runDeferredActionPreview) { ReOmMIDI.__runDeferredActionPreview(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }",
-                api.DEFERRED_PREVIEW_TASK_MS,
+                api.DEFERRED_PREVIEW_TASK_MS || 1,
                 false
             );
         } catch (err) {
             if (api.stopMidiActionPreviewLoadingAnimation) {
                 api.stopMidiActionPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
     api.__runDeferredActionPreview = function () {
-        var payload = api.getGlobalState().actionPreviewPayload;
+        var payload = requireGlobalState().actionPreviewPayload;
         var comp;
         var sourceLayer;
         var options;
@@ -335,7 +357,7 @@
         sourceLayer = payload.sourceLayer;
         options = payload.options;
         uiGeneration = payload.uiGeneration;
-        api.getGlobalState().actionPreviewPayload = null;
+        requireGlobalState().actionPreviewPayload = null;
 
         try {
             if (!comp || !sourceLayer) {
@@ -355,7 +377,7 @@
             if (api.stopMidiActionPreviewLoadingAnimation) {
                 api.stopMidiActionPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -383,7 +405,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -402,7 +424,7 @@
             if (api.scheduleDeferredPreviewUi && uiGeneration) {
                 api.scheduleDeferredPreviewUi(uiGeneration, 1);
             }
-            api.getGlobalState().pianoRollPreviewPayload = {
+            requireGlobalState().pianoRollPreviewPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {},
@@ -410,19 +432,19 @@
             };
             app.scheduleTask(
                 "try { if (ReOmMIDI.__runDeferredPianoRollPreview) { ReOmMIDI.__runDeferredPianoRollPreview(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }",
-                api.DEFERRED_PREVIEW_TASK_MS,
+                api.DEFERRED_PREVIEW_TASK_MS || 1,
                 false
             );
         } catch (err) {
             if (api.stopPianoRollPreviewLoadingAnimation) {
                 api.stopPianoRollPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
     api.__runDeferredPianoRollPreview = function () {
-        var payload = api.getGlobalState().pianoRollPreviewPayload;
+        var payload = requireGlobalState().pianoRollPreviewPayload;
         var comp;
         var sourceLayer;
         var options;
@@ -435,7 +457,7 @@
         sourceLayer = payload.sourceLayer;
         options = payload.options;
         uiGeneration = payload.uiGeneration;
-        api.getGlobalState().pianoRollPreviewPayload = null;
+        requireGlobalState().pianoRollPreviewPayload = null;
 
         try {
             if (!comp || !sourceLayer) {
@@ -455,7 +477,7 @@
             if (api.stopPianoRollPreviewLoadingAnimation) {
                 api.stopPianoRollPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -482,7 +504,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -495,7 +517,7 @@
             comp = requireActiveComp();
             sourceLayer = api.resolveMidiSourceLayer(comp, options || {});
             prepared = api.prepareMidiMapExpression(comp, sourceLayer, options || {});
-            api.getGlobalState().mapState = prepared.state;
+            requireGlobalState().mapState = prepared.state;
             if (api.__midiMapHost) {
                 if (api.__midiMapHost.selectTab) {
                     api.__midiMapHost.selectTab();
@@ -504,27 +526,27 @@
                 api.__midiMapHost.setState(prepared.state);
             }
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
     api.runSwitchMidiMapLabels = function (labelMode) {
-        var state = api.getGlobalState().mapState;
+        var state = requireGlobalState().mapState;
         var expression;
 
         try {
             if (!state || !state.pitches || !state.pitches.length) {
                 throw new Error("Generate from the selected layer first.");
             }
-            state.labelMode = labelMode || "notes";
+            state.labelMode = (labelMode || "notes") as MidiMapLabelMode;
             expression = api.regenerateMidiMapExpression(state, state.labelMode);
-            api.getGlobalState().mapState = state;
+            requireGlobalState().mapState = state;
             if (api.__midiMapHost) {
                 api.__midiMapHost.setExpression(expression);
                 api.__midiMapHost.setState(state);
             }
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -561,7 +583,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -575,14 +597,14 @@
             options = options || {};
             prevState =
                 (api.__drumSequencerHost && api.__drumSequencerHost.getState && api.__drumSequencerHost.getState()) ||
-                api.getGlobalState().drumSequencerState;
+                requireGlobalState().drumSequencerState;
             if (prevState && typeof prevState.totalFrames !== "undefined") {
                 options.previousTotalFrames = prevState.totalFrames;
             }
             comp = requireActiveComp();
             sourceLayer = api.resolveDrumSourceLayer(comp, options);
             prepared = api.prepareDrumSequencerExpression(comp, sourceLayer, options);
-            api.getGlobalState().drumSequencerState = prepared.state;
+            requireGlobalState().drumSequencerState = prepared.state;
             if (api.__drumSequencerHost) {
                 if (api.__drumSequencerHost.selectTab) {
                     api.__drumSequencerHost.selectTab();
@@ -591,7 +613,7 @@
                 api.__drumSequencerHost.setState(prepared.state);
             }
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -615,7 +637,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -630,7 +652,7 @@
             }
             state =
                 (api.__drumSequencerHost && api.__drumSequencerHost.getState && api.__drumSequencerHost.getState()) ||
-                api.getGlobalState().drumSequencerState;
+                requireGlobalState().drumSequencerState;
             sourceLabel = state && state.sourceLayerName ? state.sourceLayerName : "Drum MIDI";
             if (api.showMidiActionExpressionCopyDialog) {
                 api.showMidiActionExpressionCopyDialog(expressionText, sourceLabel);
@@ -638,7 +660,7 @@
                 alert("ReOm MIDI Drum Sequencer\n\nExpression ready.\nSource layer: " + sourceLabel);
             }
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -677,7 +699,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -706,7 +728,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -734,7 +756,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -763,7 +785,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -787,7 +809,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -805,4 +827,4 @@
     if (!api.__NO_AUTO_LAUNCH__) {
         api.launch(thisObj);
     }
-})(ReOmMIDI, this);
+})(ReOmMIDI, reomScriptThis(this));

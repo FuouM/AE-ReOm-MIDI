@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "target": "ES3",
+        "module": "None",
+        "ignoreDeprecations": "5.0",
+        "strict": true,
+        "noEmitOnError": true,
+        "rootDir": "src",
+        "outDir": "dist/compiled",
+        "skipLibCheck": true,
+        "lib": ["ES2015"],
+        "types": ["types-for-adobe/AfterEffects/24.0"]
+    },
+    "include": ["src/**/*.ts", "src/types/**/*.d.ts"]
+}

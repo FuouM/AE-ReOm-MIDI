@@ -96,10 +96,10 @@ Contains utility tools to quickly generate audio and screen animations:
 
 ## Repository Layout
 
-* `src/core/`: Host-independent logic (e.g., MIDI file parser) that runs in both Node.js and ExtendScript.
-* `src/ae/`: After Effects-specific code, including ScriptUI interface code, expressions, and keyframe generation scripts.
-* `src/main.jsx`: Script entry point.
-* `scripts/build.js`: Concatenates and bundles the modular source files into `re_om_midi.jsx`.
+* `src/core/`: Host-independent logic (e.g., MIDI file parser) that runs in both Node.js and ExtendScript. Written in TypeScript (`.ts`).
+* `src/ae/`: After Effects-specific code, including ScriptUI interface code, expressions, and keyframe generation scripts. Written in TypeScript (`.ts`).
+* `src/main.ts`: Script entry point.
+* `scripts/build.js`: Compiles TypeScript to ES3-compatible `.jsx`, then concatenates the modular sources into `re_om_midi.jsx`.
 * `test_midis/`: Standard MIDI fixtures used by parser tests and preview scripts.
 * `scripts/test-midi.js`: Tests the MIDI parser in a Node environment by parsing files in `test_midis/`.
 * `scripts/preview-actions.js`: Renders MIDI Actions curves to a browser preview.
@@ -109,9 +109,21 @@ Contains utility tools to quickly generate audio and screen animations:
 
 ## Development & Testing
 
-Requires **Node.js 18** or newer. No third-party npm dependencies are required to run builds or tests.
+Requires **Node.js 18** or newer. Development uses **TypeScript 5.4** (ES3 emit for ExtendScript) plus Prettier.
 
 ### Commands
+
+* **Type-check sources**:
+
+  ```sh
+  npm run typecheck
+  ```
+
+* **Compile TypeScript to intermediate `.jsx`** (output in `dist/compiled/`):
+
+  ```sh
+  npm run compile
+  ```
 
 * **Build the After Effects script**:
 
@@ -119,7 +131,7 @@ Requires **Node.js 18** or newer. No third-party npm dependencies are required t
   npm run build
   ```
 
-  This generates `re_om_midi.jsx` in the root directory.
+  This compiles `src/*.ts` and generates `re_om_midi.jsx` in the root directory. Edit TypeScript under `src/`, not the bundle.
 
 * **Run parser and bundle tests**:
 

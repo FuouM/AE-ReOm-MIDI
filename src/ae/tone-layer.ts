@@ -1,42 +1,31 @@
-/* global ReOmMIDI, CompItem, KeyframeInterpolationType */
-(function (api) {
+(function (api: ReOmMIDIApi) {
     api.TONE_WAVEFORM_OPTIONS = ["Sine", "Triangle", "Saw", "Square", "White Noise"];
 
     var TONE_FREQUENCY_PROPERTY_NAMES = ["Frequency 1", "Frequency 2", "Frequency 3", "Frequency 4", "Frequency 5"];
 
-    function numeric(value, fallback) {
-        var parsed = parseFloat(value);
+    function numeric(value: string | number | null | undefined, fallback: number): number {
+        var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
         return isNaN(parsed) ? fallback : parsed;
     }
 
-    function clamp(value, min, max) {
+    function clamp(value: number, min: number, max: number): number {
         return Math.max(min, Math.min(max, value));
     }
 
-    function safeProperty(group, nameOrIndex) {
-        var prop;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            prop = group.property(nameOrIndex);
-            return prop || null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function toneEffectProperty(effect, names) {
-        var i;
-        var prop;
+    function toneEffectProperty(effect: PropContainerLike | null, names: string | string[]): PropContainerLike | null {
+        var i: number;
+        var prop: PropContainerLike | null;
+        var nameList: string[];
         if (!effect) {
             return null;
         }
         if (typeof names === "string") {
-            names = [names];
+            nameList = [names];
+        } else {
+            nameList = names;
         }
-        for (i = 0; i < names.length; i += 1) {
-            prop = safeProperty(effect, names[i]);
+        for (i = 0; i < nameList.length; i += 1) {
+            prop = api.safeProperty(effect, nameList[i]);
             if (prop) {
                 return prop;
             }
@@ -44,8 +33,8 @@
         return null;
     }
 
-    function toneWaveformValue(label) {
-        var i;
+    function toneWaveformValue(label: ToneWaveform | string): number {
+        var i: number;
         for (i = 0; i < api.TONE_WAVEFORM_OPTIONS.length; i += 1) {
             if (api.TONE_WAVEFORM_OPTIONS[i] === label) {
                 return i + 1;
@@ -54,35 +43,45 @@
         return 1;
     }
 
-    api.resolveToneLayerOptions = function (comp, options) {
-        var resolved = {};
-        options = options || {};
-        resolved.waveform = options.waveform || "Sine";
-        resolved.level = clamp(numeric(options.level, 20), 0, 100);
-        resolved.quantizeToFrames = !!options.quantizeToFrames;
-        resolved.useWorkArea = !!options.useWorkArea;
-        resolved.useDrumLanes = typeof options.useDrumLanes === "undefined" ? true : !!options.useDrumLanes;
-        resolved.frameDuration = comp && comp.frameDuration ? comp.frameDuration : options.frameDuration;
+    api.resolveToneLayerOptions = function (
+        comp: CompItem | null,
+        options?: ToneLayerOptionsInput
+    ): ToneLayerOptionsResolved {
+        var resolved: ToneLayerOptionsResolved;
+        var input = options || {};
+        resolved = {
+            waveform: input.waveform || "Sine",
+            level: clamp(numeric(input.level, 20), 0, 100),
+            quantizeToFrames: !!input.quantizeToFrames,
+            useWorkArea: !!input.useWorkArea,
+            useDrumLanes: typeof input.useDrumLanes === "undefined" ? true : !!input.useDrumLanes,
+            frameDuration: comp && comp.frameDuration ? comp.frameDuration : input.frameDuration
+        };
         if (resolved.useWorkArea && comp && typeof comp.workAreaStart !== "undefined") {
             resolved.timeStart = comp.workAreaStart;
             resolved.timeEnd = comp.workAreaStart + comp.workAreaDuration;
-        } else if (typeof options.timeStart !== "undefined") {
-            resolved.timeStart = options.timeStart;
+        } else if (typeof input.timeStart !== "undefined") {
+            resolved.timeStart = input.timeStart;
         }
-        if (!resolved.useWorkArea && typeof options.timeEnd !== "undefined") {
-            resolved.timeEnd = options.timeEnd;
+        if (!resolved.useWorkArea && typeof input.timeEnd !== "undefined") {
+            resolved.timeEnd = input.timeEnd;
         }
         return resolved;
     };
 
-    function quantizeToneTime(time, options) {
+    function quantizeToneTime(time: number, options: ToneLayerOptionsResolved): number {
         if (options && options.quantizeToFrames) {
             return api.quantizeTimeToFrame(time, options.frameDuration);
         }
         return time;
     }
 
-    function pushToneSeriesPoint(series, time, value, options) {
+    function pushToneSeriesPoint(
+        series: KeyframeSeries,
+        time: number,
+        value: number,
+        options: ToneLayerOptionsResolved
+    ): void {
         time = quantizeToneTime(time, options);
         if (series.times.length && time === series.times[series.times.length - 1]) {
             series.values[series.values.length - 1] = value;
@@ -95,9 +94,9 @@
         series.values.push(value);
     }
 
-    function activePitchFromMap(activeNotes) {
-        var pitch;
-        var bestPitch = null;
+    function activePitchFromMap(activeNotes: StringKeyedMap<boolean>): number | null {
+        var pitch: string;
+        var bestPitch: number | null = null;
         for (pitch in activeNotes) {
             if (!activeNotes.hasOwnProperty(pitch)) {
                 continue;
@@ -109,7 +108,13 @@
         return bestPitch;
     }
 
-    function compareToneEvents(a, b) {
+    interface ToneEvent {
+        time: number;
+        type: "on" | "off";
+        pitch: number;
+    }
+
+    function compareToneEvents(a: ToneEvent, b: ToneEvent): number {
         if (a.time !== b.time) {
             return a.time - b.time;
         }
@@ -119,21 +124,24 @@
         return a.type === "off" ? -1 : 1;
     }
 
-    api.buildToneLayerKeyframePlan = function (notes, options) {
-        var events = [];
-        var activeNotes = {};
-        var frequency = { times: [0], values: [0] };
-        var level = { times: [0], values: [0] };
+    api.buildToneLayerKeyframePlan = function (
+        notes: PianoRollNote[],
+        options?: ToneLayerOptionsResolved
+    ): ToneKeyframePlan {
+        var events: ToneEvent[] = [];
+        var activeNotes: StringKeyedMap<boolean> = {};
+        var frequency: KeyframeSeries = { times: [0], values: [0] };
+        var level: KeyframeSeries = { times: [0], values: [0] };
         var levelScale = clamp(numeric(options && options.level, 20), 0, 100);
-        var i;
-        var note;
-        var event;
-        var active;
-        var freqValue;
-        var levelValue;
+        var i: number;
+        var note: PianoRollNote;
+        var event: ToneEvent;
+        var active: number | null;
+        var freqValue: number;
+        var levelValue: number;
+        var resolved = options || ({} as ToneLayerOptionsResolved);
 
         notes = notes || [];
-        options = options || {};
 
         for (i = 0; i < notes.length; i += 1) {
             note = notes[i];
@@ -169,8 +177,8 @@
                 freqValue = frequency.values[frequency.values.length - 1] || 0;
                 levelValue = 0;
             }
-            pushToneSeriesPoint(frequency, event.time, freqValue, options);
-            pushToneSeriesPoint(level, event.time, levelValue, options);
+            pushToneSeriesPoint(frequency, event.time, freqValue, resolved);
+            pushToneSeriesPoint(level, event.time, levelValue, resolved);
         }
 
         return {
@@ -179,25 +187,31 @@
         };
     };
 
-    function applyToneSeries(property, series) {
-        if (!property || !series || !series.times.length) {
+    function applyToneSeries(property: PropContainerLike | null, series: KeyframeSeries): boolean {
+        var prop = property as Property | null;
+        if (!prop || !series || !series.times.length) {
             return false;
         }
-        property.setValuesAtTimes(series.times, series.values);
-        api.setHoldInterpolation(property);
+        prop.setValuesAtTimes(series.times, series.values);
+        api.setHoldInterpolation(prop);
         return true;
     }
 
-    function addToneEffect(layer) {
-        var effect;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+    function addToneEffect(layer: Layer): PropContainerLike | null {
+        var effect: PropContainerLike | null;
+        var added: PropContainerLike | PropertyGroup | null;
+        var effectsLayer: LayerWithEffects | null;
+        effectsLayer = api.asLayerWithEffects(layer);
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
         try {
-            effect = layer.Effects.addProperty("ADBE Aud Tone");
+            added = effectsLayer.Effects.addProperty("ADBE Aud Tone");
+            effect = api.isPropContainerLike(added) ? added : null;
         } catch (e) {
             try {
-                effect = layer.Effects.addProperty("Tone");
+                added = effectsLayer.Effects.addProperty("Tone");
+                effect = api.isPropContainerLike(added) ? added : null;
             } catch (e2) {
                 return null;
             }
@@ -208,16 +222,20 @@
         return effect;
     }
 
-    function toneLayerName(sourceLayer) {
+    function toneLayerName(sourceLayer: Layer | null): string {
         var suffix = sourceLayer && sourceLayer.name ? " " + sourceLayer.name : "";
         return api.limitEffectName("MIDI Tone" + suffix);
     }
 
-    function applyToneKeyframePlan(effect, plan, options) {
-        var waveformProp;
-        var levelProp;
-        var i;
-        var freqProp;
+    function applyToneKeyframePlan(
+        effect: PropContainerLike | null,
+        plan: ToneKeyframePlan,
+        options: ToneLayerOptionsResolved
+    ): boolean {
+        var waveformProp: PropContainerLike | null;
+        var levelProp: PropContainerLike | null;
+        var i: number;
+        var freqProp: PropContainerLike | null;
         if (!effect || !plan) {
             return false;
         }
@@ -234,12 +252,16 @@
         return true;
     }
 
-    api.createToneLayer = function (comp, sourceLayer, options) {
-        var resolved;
-        var notes;
-        var plan;
-        var layer;
-        var effect;
+    api.createToneLayer = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: ToneLayerOptionsInput
+    ): ToneLayerResult {
+        var resolved: ToneLayerOptionsResolved;
+        var notes: PianoRollNote[];
+        var plan: ToneKeyframePlan;
+        var layer: LayerWithEffects | null;
+        var effect: PropContainerLike | null;
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before creating a tone layer.");
         }
@@ -265,12 +287,17 @@
         if (!comp.layers || !comp.layers.addNull) {
             throw new Error("Could not create a null layer in the active composition.");
         }
-        layer = comp.layers.addNull(
-            Math.max(
-                comp.duration || 1,
-                plan.frequency.times.length ? plan.frequency.times[plan.frequency.times.length - 1] + 1 : 1
+        layer = api.asLayerWithEffects(
+            comp.layers.addNull(
+                Math.max(
+                    comp.duration || 1,
+                    plan.frequency.times.length ? plan.frequency.times[plan.frequency.times.length - 1] + 1 : 1
+                )
             )
         );
+        if (!layer) {
+            throw new Error("Could not create a null layer in the active composition.");
+        }
         layer.name = toneLayerName(sourceLayer);
         layer.comment = "MIDI tone playback\nTone effect driven by note pitch from " + sourceLayer.name + ".";
         effect = addToneEffect(layer);

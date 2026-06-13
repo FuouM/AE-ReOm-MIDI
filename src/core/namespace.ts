@@ -1,7 +1,6 @@
-/* global $. */
-(function (root) {
+(function (root: ReOmRootObject) {
     if (!root.ReOmMIDI) {
-        root.ReOmMIDI = {};
+        root.ReOmMIDI = {} as Partial<ReOmMIDIApi> as ReOmMIDIApi;
     }
 
     var api = root.ReOmMIDI;
@@ -22,13 +21,15 @@
 
     api.resetGlobalState = function () {
         var key;
+        var globalBag: Record<string, unknown>;
         try {
             if (typeof $ === "undefined" || !$.global) {
                 return;
             }
-            for (key in $.global) {
-                if ($.global.hasOwnProperty(key) && key.indexOf("__reomMidi") === 0) {
-                    delete $.global[key];
+            globalBag = $.global as Record<string, unknown>;
+            for (key in globalBag) {
+                if (globalBag.hasOwnProperty(key) && key.indexOf("__reomMidi") === 0) {
+                    delete globalBag[key];
                 }
             }
             $.global.__reomMidiState = {};
@@ -62,7 +63,7 @@
         return value;
     };
 
-    function byteLength(value) {
+    function byteLength(value: string | number | null | undefined): number {
         return encodeURIComponent(String(value || "")).replace(/%[A-F0-9]{2}/g, "x").length;
     }
 
@@ -443,4 +444,4 @@
     if (typeof module !== "undefined" && module.exports) {
         module.exports = api;
     }
-})(typeof global !== "undefined" ? global : this);
+})(typeof global !== "undefined" ? global : (this as ReOmRootObject));

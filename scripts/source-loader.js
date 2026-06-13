@@ -25,10 +25,12 @@ function readSource(relativePath) {
   const normalizedPath = relativePath.replace(/\\/g, "/");
   let text = fs.readFileSync(path.join(root, relativePath), "utf8");
 
-  if (normalizedPath === "src/core/namespace.jsx") {
+  if (normalizedPath === "dist/compiled/core/namespace.jsx") {
     if (!text.includes(VERSION_PLACEHOLDER)) {
       throw new Error(
-        "src/core/namespace.jsx must define api.VERSION with " + VERSION_PLACEHOLDER + " (synced from package.json)."
+        "src/core/namespace.ts must define api.VERSION with " +
+          VERSION_PLACEHOLDER +
+          " (synced from package.json at build time)."
       );
     }
     text = text.replace(new RegExp(VERSION_PLACEHOLDER, "g"), VERSION);

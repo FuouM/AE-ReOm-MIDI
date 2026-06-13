@@ -1,15 +1,14 @@
-/* global ReOmMIDI, CompItem, KeyframeInterpolationType */
-(function (api) {
-    function numeric(value, fallback) {
-        var parsed = parseFloat(value);
+(function (api: ReOmMIDIApi) {
+    function numeric(value: string | number | null | undefined, fallback: number): number {
+        var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
         return isNaN(parsed) ? fallback : parsed;
     }
 
-    function quote(text) {
+    function quote(text: string | number | null | undefined): string {
         return JSON.stringify(String(text || ""));
     }
 
-    function parseMaxNotes(value, fallback) {
+    function parseMaxNotes(value: string | number | null | undefined, fallback: number): number {
         var parsed = numeric(value, fallback);
         if (parsed < 0) {
             return -1;
@@ -17,7 +16,7 @@
         return Math.max(1, Math.floor(parsed));
     }
 
-    function parsePitchFilter(value) {
+    function parsePitchFilter(value: string | number | number[] | null | undefined): number[] {
         var parts;
         var result = [];
         var i;
@@ -30,7 +29,7 @@
         }
         if (typeof value === "object" && value.length !== undefined) {
             for (i = 0; i < value.length; i += 1) {
-                n = parseInt(value[i], 10);
+                n = parseInt(String(value[i]), 10);
                 if (!isNaN(n)) {
                     result.push(n);
                 }
@@ -52,7 +51,7 @@
         return result;
     }
 
-    function pitchMatchesFilter(pitch, filter) {
+    function pitchMatchesFilter(pitch: number, filter: number[]): boolean {
         var i;
         if (!filter || !filter.length) {
             return true;
@@ -66,7 +65,7 @@
         return false;
     }
 
-    function midiChannelFromLayer(layer) {
+    function midiChannelFromLayer(layer: Layer | null): number {
         var prefix = api.channelPrefixFromLayer(layer);
         var match;
         if (prefix) {
@@ -82,7 +81,7 @@
         return -1;
     }
 
-    function layerHasDrumNotes(layer) {
+    function layerHasDrumNotes(layer: Layer): boolean {
         var notes;
         var i;
         notes = api.collectPianoRollNotesFromLayer(layer, { maxNotes: 1, useDrumLanes: true });
@@ -94,7 +93,7 @@
         return false;
     }
 
-    function layerIsDrumMidiLayer(layer) {
+    function layerIsDrumMidiLayer(layer: Layer | null): boolean {
         var channel;
         var name;
 
@@ -109,7 +108,7 @@
         return layerHasDrumNotes(layer);
     }
 
-    api.resolveDrumSourceLayer = function (comp, options) {
+    api.resolveDrumSourceLayer = function (comp: CompItem, options?: MidiActionOptionsInput): Layer {
         var layer;
 
         layer = api.resolveMidiSourceLayer(comp, options || {});
@@ -124,22 +123,22 @@
         );
     };
 
-    function normalizeDrumMachineSourceLayers(sourceLayerOrLayers) {
-        var layers = sourceLayerOrLayers;
+    function normalizeDrumMachineSourceLayers(sourceLayerOrLayers: Layer | Layer[] | null | undefined): Layer[] {
+        var layers: Layer | Layer[] | null | undefined = sourceLayerOrLayers;
         if (!layers) {
             return [];
         }
-        if (layers.length !== undefined && layers[0] && layers[0].name) {
-            return layers;
+        if (layers.length !== undefined && (layers as Layer[])[0] && (layers as Layer[])[0].name) {
+            return layers as Layer[];
         }
-        return [layers];
+        return [layers as Layer];
     }
 
-    api.resolveDrumMachineSourceLayers = function (comp, options) {
+    api.resolveDrumMachineSourceLayers = function (comp: CompItem, options?: DrumMachineOptionsInput): Layer[] {
         var selected = api.getCompSelectedLayers(comp);
-        var imported = [];
-        var i;
-        var layer;
+        var imported: Layer[] = [];
+        var i: number;
+        var layer: Layer;
 
         options = options || {};
         for (i = 0; i < selected.length; i += 1) {
@@ -164,15 +163,15 @@
             return imported;
         }
 
-        layer = api.resolveMidiSourceLayer(comp, options);
+        layer = api.resolveMidiSourceLayer(comp, options as MidiActionOptionsInput);
         return [layer];
     };
 
-    api.resolveDrumMachineSourceLayer = function (comp, options) {
+    api.resolveDrumMachineSourceLayer = function (comp: CompItem, options?: DrumMachineOptionsInput): Layer {
         return api.resolveDrumMachineSourceLayers(comp, options || {})[0];
     };
 
-    api.drumMachineColorForPitch = function (pitch) {
+    api.drumMachineColorForPitch = function (pitch: number): number[] {
         var hue = ((Math.round(pitch) * 47) % 360) / 360;
         var sat = 0.72;
         var val = 0.88;
@@ -220,8 +219,8 @@
         return [r, g, b];
     };
 
-    api.buildDrumMachineColorMap = function (pitches) {
-        var map = {};
+    api.buildDrumMachineColorMap = function (pitches: number[]): StringKeyedMap<number[]> {
+        var map: StringKeyedMap<number[]> = {};
         var i;
         var pitch;
         pitches = pitches || [];
@@ -234,27 +233,33 @@
         return map;
     };
 
-    api.resolveDrumMachineOptions = function (comp, options, sourceLayer) {
-        var resolved = {};
-        options = options || {};
-        resolved.maxNotes = options.maxNotes;
-        resolved.squareSize = options.squareSize || options.noteHeight || 20;
-        resolved.useWorkArea = !!options.useWorkArea;
-        resolved.limitNotes = options.limitNotes !== false;
-        resolved.pitchFilter = parsePitchFilter(options.pitchFilter);
-        resolved.animateScale = options.animateScale !== false;
-        resolved.animateOpacity = options.animateOpacity !== false;
-        resolved.animateRotation = !!options.animateRotation;
-        resolved.falloff = options.falloff || "linear";
-        resolved.duration = options.duration || "0.2";
-        resolved.amountScale = typeof options.amountScale !== "undefined" ? options.amountScale : "100";
-        resolved.amountOpacity = typeof options.amountOpacity !== "undefined" ? options.amountOpacity : "100";
-        resolved.amountRotation = typeof options.amountRotation !== "undefined" ? options.amountRotation : "90";
-        resolved.baseScale = typeof options.baseScale !== "undefined" ? options.baseScale : "0";
-        resolved.baseOpacity = typeof options.baseOpacity !== "undefined" ? options.baseOpacity : "0";
-        resolved.baseRotation = typeof options.baseRotation !== "undefined" ? options.baseRotation : "0";
-        resolved.useExpression = options.useExpression !== false;
-        resolved.sourceLayerName = sourceLayer ? sourceLayer.name : options.sourceLayerName;
+    api.resolveDrumMachineOptions = function (
+        comp: CompItem | null,
+        options: DrumMachineOptionsInput | null | undefined,
+        sourceLayer: Layer | null | undefined
+    ): DrumMachineOptionsResolved {
+        var resolved: DrumMachineOptionsResolved;
+        var input = options || {};
+        resolved = {
+            maxNotes: input.maxNotes,
+            squareSize: input.squareSize || input.noteHeight || 20,
+            useWorkArea: !!input.useWorkArea,
+            limitNotes: input.limitNotes !== false,
+            pitchFilter: parsePitchFilter(input.pitchFilter),
+            animateScale: input.animateScale !== false,
+            animateOpacity: input.animateOpacity !== false,
+            animateRotation: !!input.animateRotation,
+            falloff: input.falloff || "linear",
+            duration: input.duration || "0.2",
+            amountScale: typeof input.amountScale !== "undefined" ? input.amountScale : "100",
+            amountOpacity: typeof input.amountOpacity !== "undefined" ? input.amountOpacity : "100",
+            amountRotation: typeof input.amountRotation !== "undefined" ? input.amountRotation : "90",
+            baseScale: typeof input.baseScale !== "undefined" ? input.baseScale : "0",
+            baseOpacity: typeof input.baseOpacity !== "undefined" ? input.baseOpacity : "0",
+            baseRotation: typeof input.baseRotation !== "undefined" ? input.baseRotation : "0",
+            useExpression: input.useExpression !== false,
+            sourceLayerName: sourceLayer ? sourceLayer.name : input.sourceLayerName
+        };
         if (resolved.useWorkArea && comp && typeof comp.workAreaStart !== "undefined") {
             resolved.timeStart = comp.workAreaStart;
             resolved.timeEnd = comp.workAreaStart + comp.workAreaDuration;
@@ -262,14 +267,18 @@
         return resolved;
     };
 
-    function drumMachineCollectOptions(sourceLayer, options, discoverAllTypes) {
-        var collectOptions = {};
+    function drumMachineCollectOptions(
+        sourceLayer: Layer,
+        options: DrumMachineOptionsInput | DrumMachineOptionsResolved,
+        discoverAllTypes: boolean
+    ): PianoRollMapOptions & DrumMachineOptionsInput {
+        var collectOptions: PianoRollMapOptions & DrumMachineOptionsInput = {};
         var key;
 
         options = options || {};
         for (key in options) {
             if (options.hasOwnProperty(key)) {
-                collectOptions[key] = options[key];
+                (collectOptions as StringKeyedMap<unknown>)[key] = (options as StringKeyedMap<unknown>)[key];
             }
         }
         collectOptions.useDrumLanes = true;
@@ -282,7 +291,19 @@
         return collectOptions;
     }
 
-    function collectDrumMachinePitchModeNotes(sourceLayer, options) {
+    function drumMachinePitchFilter(
+        options: DrumMachineOptionsInput | DrumMachineOptionsResolved | null | undefined
+    ): number[] {
+        if (!options || !options.pitchFilter) {
+            return [];
+        }
+        if (typeof options.pitchFilter === "object" && options.pitchFilter.length !== undefined) {
+            return options.pitchFilter as number[];
+        }
+        return parsePitchFilter(options.pitchFilter);
+    }
+
+    function collectDrumMachinePitchModeNotes(sourceLayer: Layer, options: PianoRollMapOptions): PianoRollNote[] {
         var notes;
         var filtered = [];
         var i;
@@ -302,23 +323,27 @@
         return filtered;
     }
 
-    api.collectDrumMachineNotes = function (sourceLayer, options) {
+    api.collectDrumMachineNotes = function (sourceLayer: Layer, options?: DrumMachineOptionsInput): PianoRollNote[] {
         var notes;
         var drumNotes = [];
         var maxNotes;
         var i;
         var note;
 
-        options = drumMachineCollectOptions(sourceLayer, options, false);
+        options = drumMachineCollectOptions(sourceLayer, options || {}, false);
         notes = collectDrumMachinePitchModeNotes(sourceLayer, options);
         maxNotes = options.limitNotes === false ? -1 : parseMaxNotes(options.maxNotes, -1);
 
         for (i = 0; i < notes.length; i += 1) {
             note = notes[i];
-            if (!pitchMatchesFilter(note.pitch, options.pitchFilter)) {
+            if (!pitchMatchesFilter(note.pitch, drumMachinePitchFilter(options))) {
                 continue;
             }
-            if (options.useWorkArea && typeof options.timeStart !== "undefined") {
+            if (
+                options.useWorkArea &&
+                typeof options.timeStart !== "undefined" &&
+                typeof options.timeEnd !== "undefined"
+            ) {
                 if (note.time < options.timeStart || note.time >= options.timeEnd) {
                     continue;
                 }
@@ -335,11 +360,14 @@
         return drumNotes;
     };
 
-    api.collectDrumMachinePitchGroups = function (sourceLayer, options) {
+    api.collectDrumMachinePitchGroups = function (
+        sourceLayer: Layer,
+        options?: DrumMachineOptionsInput
+    ): DrumPadGroup[] {
         var notes;
-        var groups = {};
-        var order = [];
-        var result = [];
+        var groups: StringKeyedMap<DrumPadGroup> = {};
+        var order: number[] = [];
+        var result: DrumPadGroup[] = [];
         var collectOptions;
         var i;
         var note;
@@ -356,13 +384,14 @@
         notes = collectDrumMachinePitchModeNotes(sourceLayer, collectOptions);
         for (i = 0; i < notes.length; i += 1) {
             note = notes[i];
-            if (!pitchMatchesFilter(note.pitch, options && options.pitchFilter)) {
+            if (!pitchMatchesFilter(note.pitch, drumMachinePitchFilter(options))) {
                 continue;
             }
             if (
                 options &&
                 options.useWorkArea &&
                 typeof options.timeStart !== "undefined" &&
+                typeof options.timeEnd !== "undefined" &&
                 (note.time < options.timeStart || note.time >= options.timeEnd)
             ) {
                 continue;
@@ -395,8 +424,11 @@
         return result;
     };
 
-    function collectDrumMachineLayerInstrumentGroups(layers, options) {
-        var result = [];
+    function collectDrumMachineLayerInstrumentGroups(
+        layers: Layer[],
+        options: DrumMachineOptionsInput
+    ): DrumPadGroup[] {
+        var result: DrumPadGroup[] = [];
         var collectOptions;
         var notes;
         var hits;
@@ -416,6 +448,7 @@
                 if (
                     options.useWorkArea &&
                     typeof options.timeStart !== "undefined" &&
+                    typeof options.timeEnd !== "undefined" &&
                     (note.time < options.timeStart || note.time >= options.timeEnd)
                 ) {
                     continue;
@@ -440,7 +473,7 @@
                     sourceRefs: [
                         {
                             sourceLayerName: layer.name,
-                            pitchSliderName: api.resolvePitchSliderName(layer, options)
+                            pitchSliderName: api.resolvePitchSliderName(layer, options as MidiActionOptionsInput)
                         }
                     ]
                 });
@@ -449,7 +482,10 @@
         return result;
     }
 
-    api.collectDrumMachinePitchGroupsFromLayers = function (sourceLayers, options) {
+    api.collectDrumMachinePitchGroupsFromLayers = function (
+        sourceLayers: Layer | Layer[],
+        options?: DrumMachineOptionsInput
+    ): DrumPadGroup[] {
         var layers = normalizeDrumMachineSourceLayers(sourceLayers);
 
         if (!layers.length) {
@@ -459,11 +495,15 @@
             return api.collectDrumMachinePitchGroups(layers[0], options);
         }
 
-        return collectDrumMachineLayerInstrumentGroups(layers, options);
+        return collectDrumMachineLayerInstrumentGroups(layers, options || {});
     };
 
-    api.buildDrumMachineGridRects = function (pitchGroups, comp, options) {
-        var rects = [];
+    api.buildDrumMachineGridRects = function (
+        pitchGroups: DrumPadGroup[],
+        comp: CompItem | null,
+        options?: DrumMachineOptionsInput | DrumMachineOptionsResolved
+    ): DrumMachineRect[] {
+        var rects: DrumMachineRect[] = [];
         var squareSize;
         var gap;
         var margin;
@@ -475,6 +515,7 @@
         var cell;
 
         pitchGroups = pitchGroups || [];
+        options = options || {};
         if (!pitchGroups.length) {
             return rects;
         }
@@ -499,8 +540,11 @@
                 sourceRefs: group.sourceRefs || [],
                 x: margin + col * cell + squareSize / 2,
                 y: margin + row * cell + squareSize / 2,
+                left: margin + col * cell,
+                right: margin + col * cell + squareSize,
                 width: squareSize,
                 height: squareSize,
+                opacity: 100,
                 color: api.drumMachineColorForPitch(
                     typeof group.layerIndex !== "undefined" ? group.layerIndex : group.pitch
                 ),
@@ -514,7 +558,7 @@
         return rects;
     };
 
-    function computeDrumMachineGridCenter(rects) {
+    function computeDrumMachineGridCenter(rects: DrumMachineRect[]): GridCenter {
         var minX = Infinity;
         var maxX = -Infinity;
         var minY = Infinity;
@@ -545,7 +589,11 @@
 
     api.computeDrumMachineGridCenter = computeDrumMachineGridCenter;
 
-    api.buildDrumMachineRects = function (sourceLayerOrLayers, comp, options) {
+    api.buildDrumMachineRects = function (
+        sourceLayerOrLayers: Layer | Layer[],
+        comp: CompItem | null,
+        options?: DrumMachineOptionsInput
+    ): DrumMachineRect[] {
         var sourceLayers = normalizeDrumMachineSourceLayers(sourceLayerOrLayers);
         var pitchGroups;
 
@@ -597,11 +645,11 @@
         ].join("\n");
     }
 
-    function drumMachineExpressionLiteral(value, fallback) {
+    function drumMachineExpressionLiteral(value: string | number | null | undefined, fallback: number): string {
         return String(numeric(value, fallback));
     }
 
-    function resolveDrumMachinePadBaseLiteral(options, fallback) {
+    function resolveDrumMachinePadBaseLiteral(options: DrumMachinePadExpressionOptions, fallback: number): string {
         var value;
         options = options || {};
         if (typeof options.baseValue !== "undefined") {
@@ -614,7 +662,7 @@
         return drumMachineExpressionLiteral(value, fallback);
     }
 
-    function resolveDrumMachinePadAmountLiteral(options, fallback) {
+    function resolveDrumMachinePadAmountLiteral(options: DrumMachinePadExpressionOptions, fallback: number): string {
         var value;
         options = options || {};
         if (typeof options.amount !== "undefined") {
@@ -627,7 +675,7 @@
         return drumMachineExpressionLiteral(value, fallback);
     }
 
-    api.buildDrumMachinePadExpression = function (options) {
+    api.buildDrumMachinePadExpression = function (options?: DrumMachinePadExpressionOptions): string {
         options = options || {};
         var duration = numeric(options.duration, 0.2);
         var base = resolveDrumMachinePadBaseLiteral(options, 0);
@@ -688,7 +736,7 @@
         ].join("\n");
     };
 
-    api.buildDrumMachineHitExpression = function (options) {
+    api.buildDrumMachineHitExpression = function (options?: DrumMachinePadExpressionOptions): string {
         options = options || {};
         var hitTime = numeric(options.hitTime, 0);
         var duration = numeric(options.duration, 0.2);
@@ -715,11 +763,12 @@
         ].join("\n");
     };
 
-    api.buildDrumMachineExpression = function (options) {
+    api.buildDrumMachineExpression = function (options?: DrumMachinePadExpressionOptions): string {
         return api.buildDrumMachineHitExpression(options || {});
     };
 
-    api.buildDrumMachineMultiSourcePumpExpression = function (options) {
+    api.buildDrumMachineMultiSourcePumpExpression = function (options?: DrumMachinePadExpressionOptions): string {
+        options = options || {};
         var sourceRefs = options.sourceRefs || [];
         var pitchFilter = options.pitchFilter || [];
         var targetPitch = pitchFilter.length ? Math.round(pitchFilter[0]) : 0;
@@ -790,7 +839,7 @@
         return lines.join("\n");
     };
 
-    function drumMachineControllerName(sourceLayerOrLayers) {
+    function drumMachineControllerName(sourceLayerOrLayers: Layer | Layer[]): string {
         var layers = normalizeDrumMachineSourceLayers(sourceLayerOrLayers);
         if (!layers.length) {
             return api.sanitizeName("MIDI Drum Machine MIDI");
@@ -801,65 +850,63 @@
         return api.sanitizeName("MIDI Drum Machine " + layers.length + " layers");
     }
 
-    function safeProperty(group, nameOrIndex) {
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            return group.property(nameOrIndex);
-        } catch (e) {
-            return null;
-        }
+    function findLayerTransformProp(layer: Layer, matchName: string): PropContainerLike | null {
+        var transform = api.safeProperty(layer, "ADBE Transform Group");
+        return api.safeProperty(transform, matchName);
     }
 
-    function findLayerTransformProp(layer, matchName) {
-        var transform = safeProperty(layer, "ADBE Transform Group");
-        return safeProperty(transform, matchName);
-    }
-
-    function setLayerExpression(prop, expression) {
-        if (!prop || !prop.canSetExpression) {
+    function setLayerExpression(prop: PropContainerLike | null, expression: string): boolean {
+        var property = prop as Property | null;
+        if (!property || !property.canSetExpression) {
             return false;
         }
-        prop.expression = expression;
-        prop.expressionEnabled = true;
+        property.expression = expression;
+        property.expressionEnabled = true;
         return true;
     }
 
-    function applyBakePlan(property, plan) {
-        var i;
-        if (!property) {
+    function applyBakePlan(property: PropContainerLike | null, plan: MidiActionBakePlan): boolean {
+        var prop = property as Property | null;
+        var i: number;
+        if (!prop) {
             return false;
         }
-        if (property.setValuesAtTimes) {
-            property.setValuesAtTimes(plan.times, plan.values);
-        } else if (property.setValueAtTime) {
+        if (prop.setValuesAtTimes) {
+            prop.setValuesAtTimes(plan.times, plan.values);
+        } else if (prop.setValueAtTime) {
             for (i = 0; i < plan.times.length; i += 1) {
-                property.setValueAtTime(plan.times[i], plan.values[i]);
+                prop.setValueAtTime(plan.times[i], plan.values[i]);
             }
         } else {
             return false;
         }
-        if (property.canSetExpression) {
-            property.expressionEnabled = false;
+        if (prop.canSetExpression) {
+            prop.expressionEnabled = false;
         }
         return true;
     }
 
-    function drumMachineTriggersFromRect(rect) {
-        var triggers = [];
+    function drumMachineTriggersFromRect(rect: DrumMachineRect): MidiActionTrigger[] {
+        var triggers: MidiActionTrigger[] = [];
         var hits = rect.hits || [];
         var i;
         for (i = 0; i < hits.length; i += 1) {
             triggers.push({
                 time: hits[i].time,
-                amount: 1
+                label: "",
+                amount: 1,
+                source: ""
             });
         }
         return triggers;
     }
 
-    function drumMachineActionOptions(rect, options, baseValue, amountValue) {
+    function drumMachineActionOptions(
+        rect: DrumMachineRect,
+        options: DrumMachineOptionsResolved,
+        baseValue: string | number,
+        amountValue: string | number
+    ): DrumMachineActionOptions {
         var baseLiteral = drumMachineExpressionLiteral(baseValue, 0);
         var amountLiteral = drumMachineExpressionLiteral(amountValue, 100);
         var sourceRefs = rect.sourceRefs || [];
@@ -907,17 +954,27 @@
         };
     }
 
-    function setDrumMachinePropertyExpression(prop, actionOptions) {
+    function setDrumMachinePropertyExpression(
+        prop: PropContainerLike | null,
+        actionOptions: DrumMachineActionOptions
+    ): boolean {
         if (actionOptions.drumEffectName) {
             return setLayerExpression(prop, api.buildDrumMachinePadExpression(actionOptions));
         }
         if (actionOptions.multiSource && actionOptions.sourceRefs && actionOptions.sourceRefs.length > 1) {
             return setLayerExpression(prop, api.buildDrumMachineMultiSourcePumpExpression(actionOptions));
         }
-        return setLayerExpression(prop, api.buildPumpExpression(actionOptions));
+        return setLayerExpression(prop, api.buildPumpExpression(actionOptions as MidiActionOptionsInput));
     }
 
-    function bakeDrumTypeProperty(property, comp, rect, options, baseValue, amountValue) {
+    function bakeDrumTypeProperty(
+        property: PropContainerLike | null,
+        comp: CompItem,
+        rect: DrumMachineRect,
+        options: DrumMachineOptionsResolved,
+        baseValue: string | number,
+        amountValue: string | number
+    ): boolean {
         var plan;
         var triggers = drumMachineTriggersFromRect(rect);
         var bakeOptions;
@@ -926,18 +983,23 @@
             return false;
         }
         bakeOptions = {
-            preset: "pump",
+            preset: "pump" as MidiActionPreset,
             baseValue: drumMachineExpressionLiteral(baseValue, 0),
             amount: drumMachineExpressionLiteral(amountValue, 100),
             duration: String(options.duration || "0.2"),
             falloff: options.falloff || "linear",
             frameDuration: comp && comp.frameDuration ? comp.frameDuration : 1 / 24
         };
-        plan = api.buildMidiActionBakePlan(triggers, property, comp, bakeOptions);
+        plan = api.buildMidiActionBakePlan(triggers, property as Property, comp, bakeOptions as MidiActionOptionsInput);
         return applyBakePlan(property, plan);
     }
 
-    function applyDrumMachineAnimation(layer, comp, rect, options) {
+    function applyDrumMachineAnimation(
+        layer: Layer,
+        comp: CompItem,
+        rect: DrumMachineRect,
+        options: DrumMachineOptionsResolved
+    ): number {
         var scaleProp;
         var opacityProp;
         var rotationProp;
@@ -1007,7 +1069,7 @@
         return applied;
     }
 
-    function setDrumMachineLayerTransformValue(layer, matchName, value) {
+    function setDrumMachineLayerTransformValue(layer: Layer, matchName: string, value: number | number[]): boolean {
         var prop = findLayerTransformProp(layer, matchName);
         if (prop && prop.setValue) {
             prop.setValue(value);
@@ -1016,7 +1078,7 @@
         return false;
     }
 
-    function positionDrumMachineControllerNull(layer, center) {
+    function positionDrumMachineControllerNull(layer: Layer, center: GridCenter): boolean {
         if (!layer || !center) {
             return false;
         }
@@ -1024,7 +1086,13 @@
         return setDrumMachineLayerTransformValue(layer, "ADBE Position", [center.x, center.y]);
     }
 
-    function createDrumMachineControllerNull(comp, sourceLayer, options, sourceLabel, gridCenter) {
+    function createDrumMachineControllerNull(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options: DrumMachineOptionsResolved,
+        sourceLabel: string,
+        gridCenter: GridCenter
+    ): PianoRollControllerNullResult | null {
         var controllerInfo;
         var controllerOptions;
         var label;
@@ -1032,11 +1100,12 @@
         if (!api.createPianoRollControllerNull) {
             return null;
         }
-        controllerOptions = { includeFillControls: false };
-        options = options || {};
+        controllerOptions = { includeFillControls: false } as PianoRollMapOptions;
         for (key in options) {
             if (options.hasOwnProperty(key)) {
-                controllerOptions[key] = options[key];
+                (controllerOptions as StringKeyedMap<unknown>)[key] = (options as unknown as StringKeyedMap<unknown>)[
+                    key
+                ];
             }
         }
         controllerInfo = api.createPianoRollControllerNull(comp, sourceLayer, controllerOptions);
@@ -1052,7 +1121,11 @@
         return controllerInfo;
     }
 
-    api.createDrumMachineShapes = function (comp, sourceLayerOrLayers, options) {
+    api.createDrumMachineShapes = function (
+        comp: CompItem,
+        sourceLayerOrLayers: Layer | Layer[],
+        options?: DrumMachineOptionsInput
+    ): DrumMachineShapesResult {
         var sourceLayers = normalizeDrumMachineSourceLayers(sourceLayerOrLayers);
         var primaryLayer = sourceLayers[0];
         var resolved;
@@ -1075,7 +1148,7 @@
 
         resolved = api.resolveDrumMachineOptions(comp, options || {}, primaryLayer);
         if (sourceLayers.length === 1 && !api.layerHasNamedDrumSliders(primaryLayer)) {
-            resolved.pitchSliderName = api.resolvePitchSliderName(primaryLayer, options || {});
+            resolved.pitchSliderName = api.resolvePitchSliderName(primaryLayer, options as MidiActionOptionsInput);
         }
         rects = api.buildDrumMachineRects(sourceLayers, comp, resolved);
         sourceLabel =
@@ -1112,7 +1185,7 @@
                 created += 1;
                 noteStyle.layer.name =
                     "Drum " +
-                    api.pad2(rects[i].index) +
+                    api.pad2(rects[i].index || i + 1) +
                     " " +
                     api.sanitizeName(rects[i].label) +
                     (rects[i].layerInstrument ? "" : " (" + rects[i].pitch + ")");
@@ -1152,13 +1225,21 @@
         };
     };
 
-    api.createDrumMachineShapesWithExpression = function (comp, sourceLayer, options) {
+    api.createDrumMachineShapesWithExpression = function (
+        comp: CompItem,
+        sourceLayer: Layer | Layer[],
+        options?: DrumMachineOptionsInput
+    ): DrumMachineShapesResult {
         options = options || {};
         options.useExpression = true;
         return api.createDrumMachineShapes(comp, sourceLayer, options);
     };
 
-    api.createDrumMachineShapesWithBake = function (comp, sourceLayer, options) {
+    api.createDrumMachineShapesWithBake = function (
+        comp: CompItem,
+        sourceLayer: Layer | Layer[],
+        options?: DrumMachineOptionsInput
+    ): DrumMachineShapesResult {
         options = options || {};
         options.useExpression = false;
         return api.createDrumMachineShapes(comp, sourceLayer, options);

@@ -1,21 +1,20 @@
-/* global ReOmMIDI, app, CompItem, KeyframeInterpolationType. */
-(function (api) {
-    function quote(value) {
+(function (api: ReOmMIDIApi) {
+    function quote(value: string | number | null | undefined): string {
         value = String(value || "");
         value = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         value = value.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
         return '"' + value + '"';
     }
 
-    function numeric(value, fallback) {
-        var parsed = parseFloat(value);
+    function numeric(value: string | number | null | undefined, fallback: number): number {
+        var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
         return isNaN(parsed) ? fallback : parsed;
     }
 
-    function normalizePitchFilter(value) {
+    function normalizePitchFilter(value: string | number | number[] | null | undefined): number[] {
         var parts;
-        var out = [];
-        var seen = {};
+        var out: number[] = [];
+        var seen: StringKeyedMap<boolean> = {};
         var i;
         var n;
 
@@ -28,7 +27,7 @@
         }
         if (value && value.length !== undefined && typeof value !== "string") {
             for (i = 0; i < value.length; i += 1) {
-                n = Math.round(parseFloat(value[i]));
+                n = Math.round(parseFloat(String(value[i])));
                 if (n > 0 && n <= 127 && !seen[n]) {
                     seen[n] = true;
                     out.push(n);
@@ -60,7 +59,7 @@
         return out;
     }
 
-    function formatPitchFilterLiteral(filter) {
+    function formatPitchFilterLiteral(filter: string | number | number[] | null | undefined): string {
         filter = normalizePitchFilter(filter);
         if (!filter.length) {
             return "[]";
@@ -68,7 +67,10 @@
         return "[" + filter.join(", ") + "]";
     }
 
-    function midiActionPitchMatchesFilter(pitch, options) {
+    function midiActionPitchMatchesFilter(
+        pitch: number,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined
+    ): boolean {
         var filter;
         var i;
 
@@ -85,7 +87,9 @@
         return false;
     }
 
-    function previewProgressHook(options) {
+    function previewProgressHook(
+        options: MidiActionOptionsInput | PianoRollMapOptions | null | undefined
+    ): PreviewProgressHook | null {
         if (options && options.__previewProgressHook) {
             return options.__previewProgressHook;
         }
@@ -95,7 +99,13 @@
         return null;
     }
 
-    function reportPreviewProgress(options, stageId, done, total, detail) {
+    function reportPreviewProgress(
+        options: MidiActionOptionsInput | PianoRollMapOptions | null | undefined,
+        stageId?: string | null,
+        done?: number,
+        total?: number,
+        detail?: string
+    ): void {
         var hook = previewProgressHook(options);
         if (!hook) {
             return;
@@ -106,11 +116,11 @@
         if (typeof done === "number" && typeof total === "number" && total > 0) {
             hook.step(done, total, detail || hook.stageLabel);
         } else if (detail) {
-            hook.report(hook.percent, detail);
+            hook.report(typeof hook.percent === "number" ? hook.percent : 0, detail);
         }
     }
 
-    function expressionValue(value, fallback) {
+    function expressionValue(value: string | number | null | undefined, fallback: string): string {
         value = String(value || "").replace(/^\s+|\s+$/g, "");
         return value || fallback;
     }
@@ -120,19 +130,19 @@
     var MIDI_ACTION_AMOUNT_SLIDER = "Amount";
     var MIDI_ACTION_DURATION_SLIDER = "Duration";
 
-    function midiActionUsesAmountDurationSliders(preset) {
+    function midiActionUsesAmountDurationSliders(preset: MidiActionPreset | string): boolean {
         return preset === "pump" || preset === "accumulator";
     }
 
-    function midiActionUsesActiveSlider(preset) {
+    function midiActionUsesActiveSlider(preset: MidiActionPreset | string): boolean {
         return preset === "toggle" || preset === "interpolate";
     }
 
-    function midiActionUsesBaseSlider(preset) {
+    function midiActionUsesBaseSlider(preset: MidiActionPreset | string): boolean {
         return !!preset;
     }
 
-    function midiActionUsesFalloffField(preset) {
+    function midiActionUsesFalloffField(preset: MidiActionPreset | string): boolean {
         return preset === "pump" || preset === "interpolate" || preset === "accumulator";
     }
 
@@ -141,68 +151,74 @@
     api.midiActionUsesAmountDurationFields = midiActionUsesAmountDurationSliders;
     api.midiActionUsesFalloffField = midiActionUsesFalloffField;
 
-    function outputSliderExpression(effectName) {
+    function outputSliderExpression(effectName: string): string {
         return "thisLayer.effect(" + quote(api.limitEffectName(effectName)) + ')("Slider")';
     }
 
-    function resolveMidiActionBaseExpression(options, literalFallback) {
+    function resolveMidiActionBaseExpression(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        literalFallback: string
+    ): string {
         if (options.useOutputSliders && midiActionUsesBaseSlider(options.preset || "pump")) {
             return outputSliderExpression(MIDI_ACTION_BASE_SLIDER);
         }
         return expressionValue(options.baseValue, literalFallback);
     }
 
-    function resolveMidiActionActiveExpression(options, literalFallback) {
+    function resolveMidiActionActiveExpression(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        literalFallback: string
+    ): string {
         if (options.useOutputSliders && midiActionUsesActiveSlider(options.preset || "pump")) {
             return outputSliderExpression(MIDI_ACTION_ACTIVE_SLIDER);
         }
         return expressionValue(options.activeValue, literalFallback);
     }
 
-    function defaultBaseSliderValue(options) {
+    function defaultBaseSliderValue(options: MidiActionOptionsInput | MidiActionOptionsResolved): number {
         var preset = options.preset || "pump";
-        var normalized = {};
+        var normalized: MidiActionOptionsInput = {};
         var i;
         for (i in options) {
             if (options.hasOwnProperty(i)) {
-                normalized[i] = options[i];
+                (normalized as StringKeyedMap<unknown>)[i] = (options as StringKeyedMap<unknown>)[i];
             }
         }
         if (preset === "toggle") {
             normalizeTogglePresetOptions(normalized);
-            return numeric(parseValueLiteral(normalized.baseValue, 1), 1);
+            return numeric(parseValueLiteral(normalized.baseValue, 1) as string | number, 1);
         }
         if (preset === "interpolate") {
             normalizeInterpolatePresetOptions(normalized);
-            return numeric(parseValueLiteral(normalized.baseValue, 25), 25);
+            return numeric(parseValueLiteral(normalized.baseValue, 25) as string | number, 25);
         }
-        return numeric(parseValueLiteral(normalized.baseValue, 0), 0);
+        return numeric(parseValueLiteral(normalized.baseValue, 0) as string | number, 0);
     }
 
-    function defaultActiveSliderValue(options) {
-        var normalized = {};
+    function defaultActiveSliderValue(options: MidiActionOptionsInput | MidiActionOptionsResolved): number {
+        var normalized: MidiActionOptionsInput = {};
         var i;
         for (i in options) {
             if (options.hasOwnProperty(i)) {
-                normalized[i] = options[i];
+                (normalized as StringKeyedMap<unknown>)[i] = (options as StringKeyedMap<unknown>)[i];
             }
         }
         normalizeTogglePresetOptions(normalized);
         normalizeInterpolatePresetOptions(normalized);
         if ((options.preset || "pump") === "toggle") {
-            return numeric(parseValueLiteral(normalized.activeValue, -1), -1);
+            return numeric(parseValueLiteral(normalized.activeValue, -1) as string | number, -1);
         }
         if (options.preset === "interpolate") {
-            return numeric(parseValueLiteral(normalized.activeValue, 100), 100);
+            return numeric(parseValueLiteral(normalized.activeValue, 100) as string | number, 100);
         }
         return 0;
     }
 
-    function joinExpressionLines(lines) {
+    function joinExpressionLines(lines: string[]): string {
         return lines.join("\n");
     }
 
-    function expressionTryCatch(bodyLines, fallbackExpr) {
+    function expressionTryCatch(bodyLines: string[], fallbackExpr: string): string[] {
         var lines = ["try {"];
         var i;
         for (i = 0; i < bodyLines.length; i += 1) {
@@ -214,7 +230,9 @@
         return lines;
     }
 
-    function resolveAmountDurationExpressions(options) {
+    function resolveAmountDurationExpressions(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): AmountDurationExpressions {
         if (options.useOutputSliders) {
             return {
                 amount: outputSliderExpression(MIDI_ACTION_AMOUNT_SLIDER),
@@ -227,7 +245,7 @@
         };
     }
 
-    function resolveAccumulatorDurationExpression(options) {
+    function resolveAccumulatorDurationExpression(options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         if (options.useOutputSliders) {
             return outputSliderExpression(MIDI_ACTION_DURATION_SLIDER);
         }
@@ -237,7 +255,7 @@
         return String(numeric(options.duration, 0.1));
     }
 
-    function resolveAccumulatorInterpolation(options) {
+    function resolveAccumulatorInterpolation(options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         if (options.falloff === "instant") {
             return "linear";
         }
@@ -254,20 +272,20 @@
         accumulator: ["pitchHitCountAt", "latestHit", "addDelta", "fitPropertyValue"]
     };
 
-    var FUNCTION_DEPS = {
-        sliderByName: [],
+    var FUNCTION_DEPS: StringKeyedMap<string[]> = {
+        sliderByName: [] as string[],
         pitchSlider: ["sliderByName"],
-        lastKeyAtOrBefore: [],
-        pitchAllowed: [],
+        lastKeyAtOrBefore: [] as string[],
+        pitchAllowed: [] as string[],
         pitchHitCountAt: ["pitchSlider", "pitchAllowed"],
         pitchEventTimes: ["pitchSlider", "pitchAllowed"],
         latestPitchHit: ["pitchSlider", "pitchAllowed", "lastKeyAtOrBefore"],
         latestHit: ["latestPitchHit"],
-        addDelta: [],
-        mixValue: [],
-        falloffFactor: [],
-        segmentProgress: [],
-        fitPropertyValue: []
+        addDelta: [] as string[],
+        mixValue: [] as string[],
+        falloffFactor: [] as string[],
+        segmentProgress: [] as string[],
+        fitPropertyValue: [] as string[]
     };
 
     var RUNTIME_FUNCTION_ORDER = [
@@ -461,16 +479,20 @@
         ]
     };
 
-    function resolveRequiredFunctions(preset) {
-        var roots = PRESET_FUNCTIONS[preset] || PRESET_FUNCTIONS["pump"];
-        var required = {};
-        var queue = [].concat(roots);
+    function resolveRequiredFunctions(preset: MidiActionPreset | string): string[] {
+        var presetKey = preset as keyof typeof PRESET_FUNCTIONS;
+        var roots = PRESET_FUNCTIONS[presetKey] || PRESET_FUNCTIONS["pump"];
+        var required: StringKeyedMap<boolean> = {};
+        var queue: string[] = roots.slice();
         var name;
         var deps;
         var i;
 
         while (queue.length > 0) {
             name = queue.shift();
+            if (typeof name === "undefined") {
+                continue;
+            }
             if (!required[name]) {
                 required[name] = true;
                 deps = FUNCTION_DEPS[name] || [];
@@ -480,7 +502,7 @@
             }
         }
 
-        var sorted = [];
+        var sorted: string[] = [];
         for (i = 0; i < RUNTIME_FUNCTION_ORDER.length; i += 1) {
             name = RUNTIME_FUNCTION_ORDER[i];
             if (required[name]) {
@@ -490,20 +512,21 @@
         return sorted;
     }
 
-    function midiActionRuntime(preset) {
+    function midiActionRuntime(preset: MidiActionPreset | string): string {
         var requiredNames = resolveRequiredFunctions(preset);
         var lines = ["", "// ---- Runtime Helpers ----"];
         var i;
         var name;
+        var impls = RUNTIME_FUNCTION_IMPLS as StringKeyedMap<string[]>;
         for (i = 0; i < requiredNames.length; i += 1) {
             name = requiredNames[i];
-            lines = lines.concat(RUNTIME_FUNCTION_IMPLS[name]);
+            lines = lines.concat(impls[name]);
             lines.push("");
         }
         return joinExpressionLines(lines);
     }
 
-    function commonHeader(options) {
+    function commonHeader(options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var sourceLayer = options.sourceLayerName || "MIDI";
         var pitchSlider = options.pitchSliderName || "T01 Ch01 pitch";
         var preset = options.preset || "pump";
@@ -519,7 +542,7 @@
         ]);
     }
 
-    function coerceScalarPresetLiteral(value, fallback) {
+    function coerceScalarPresetLiteral(value: string | number | null | undefined, fallback: string): string {
         var pair;
         var parsed;
         var text;
@@ -542,7 +565,9 @@
         return text || fallback;
     }
 
-    function normalizeTogglePresetOptions(options) {
+    function normalizeTogglePresetOptions(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined
+    ): MidiActionOptionsInput | MidiActionOptionsResolved {
         options = options || {};
         if ((options.preset || "pump") !== "toggle") {
             return options;
@@ -556,7 +581,7 @@
         return options;
     }
 
-    api.buildToggleExpression = function (options) {
+    api.buildToggleExpression = function (options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         options = normalizeTogglePresetOptions(options || {});
         var baseValue = resolveMidiActionBaseExpression(options, "1");
         var activeValue = resolveMidiActionActiveExpression(options, "-1");
@@ -574,7 +599,7 @@
         );
     };
 
-    function splitBracketPair(text) {
+    function splitBracketPair(text: string | number | null | undefined): BracketPair | null {
         var match = String(text || "")
             .replace(/^\s+|\s+$/g, "")
             .match(/^\[\s*([^,\]]+)\s*,\s*([^\]]+)\s*\]$/);
@@ -587,7 +612,9 @@
         };
     }
 
-    function normalizeInterpolatePresetOptions(options) {
+    function normalizeInterpolatePresetOptions(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined
+    ): MidiActionOptionsInput | MidiActionOptionsResolved {
         var pair;
         options = options || {};
         if ((options.preset || "pump") !== "interpolate") {
@@ -609,7 +636,7 @@
         return options;
     }
 
-    api.buildInterpolateExpression = function (options) {
+    api.buildInterpolateExpression = function (options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         options = normalizeInterpolatePresetOptions(options || {});
         var baseValue = resolveMidiActionBaseExpression(options, "25");
         var activeValue = resolveMidiActionActiveExpression(options, "100");
@@ -649,7 +676,7 @@
         );
     };
 
-    api.buildPumpExpression = function (options) {
+    api.buildPumpExpression = function (options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var baseValue = resolveMidiActionBaseExpression(options, "0");
         var falloff = options.falloff || "linear";
         var amountDuration = resolveAmountDurationExpressions(options || {});
@@ -677,7 +704,7 @@
         );
     };
 
-    api.buildAccumulatorExpression = function (options) {
+    api.buildAccumulatorExpression = function (options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var baseValue = resolveMidiActionBaseExpression(options, "0");
         var durationExpr = resolveAccumulatorDurationExpression(options || {});
         var interpolation = resolveAccumulatorInterpolation(options || {});
@@ -712,7 +739,7 @@
         );
     };
 
-    api.buildMidiActionExpression = function (options) {
+    api.buildMidiActionExpression = function (options?: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         options = options || {};
         if (options.preset === "toggle") {
             return api.buildToggleExpression(options);
@@ -726,34 +753,49 @@
         return api.buildPumpExpression(options);
     };
 
-    api.collectMidiActionTriggers = function (midi, options) {
-        var triggers = [];
+    api.collectMidiActionTriggers = function (
+        midi: MidiFileData,
+        options?: MidiActionOptionsInput
+    ): MidiActionTrigger[] {
+        var triggers: MidiActionTrigger[] = [];
         var noteEvents = midi.notes || [];
         var i;
         var note;
 
         for (i = 0; i < noteEvents.length; i += 1) {
             note = noteEvents[i];
-            if (note.velocity > 0 && midiActionPitchMatchesFilter(note.pitch, options)) {
-                triggers.push({
-                    time: note.time,
-                    label: String(note.pitch),
-                    amount: 1,
-                    source: "pitch",
-                    pitch: note.pitch
-                });
+            if (
+                !note ||
+                note.velocity <= 0 ||
+                !midiActionPitchMatchesFilter(note.pitch, options) ||
+                typeof note.time === "undefined"
+            ) {
+                continue;
             }
+            triggers.push({
+                time: note.time,
+                label: String(note.pitch),
+                amount: 1,
+                source: "pitch",
+                pitch: note.pitch
+            });
         }
 
         return filterMidiActionTriggers(
             triggers.sort(function (a, b) {
                 return a.time - b.time;
             }),
-            options
+            options || {}
         );
     };
 
-    function falloffValue(t, start, duration, falloff, step) {
+    function falloffValue(
+        t: number,
+        start: number,
+        duration: number,
+        falloff: FalloffMode | string,
+        step?: number
+    ): number {
         var x;
         if (falloff === "instant") {
             return t >= start && t < start + (step || 0.0001) ? 1 : 0;
@@ -780,11 +822,16 @@
         return 1 - x;
     }
 
-    function midiActionUsesTriggerLimits(options) {
+    function midiActionUsesTriggerLimits(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined
+    ): boolean {
         return !!(options && options.limitTriggers);
     }
 
-    function midiActionTriggerInTimeRange(trigger, options) {
+    function midiActionTriggerInTimeRange(
+        trigger: { time: number },
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): boolean {
         var start;
         var end;
         if (!midiActionUsesTriggerLimits(options) || !options.useWorkArea) {
@@ -795,14 +842,17 @@
         return trigger.time >= start && trigger.time < end;
     }
 
-    function limitMidiActionTriggers(triggers, maxNotes) {
+    function limitMidiActionTriggers(triggers: MidiActionTrigger[], maxNotes: number): MidiActionTrigger[] {
         if (maxNotes < 0 || triggers.length <= maxNotes) {
             return triggers;
         }
         return triggers.slice(0, maxNotes);
     }
 
-    function filterMidiActionTriggers(triggers, options) {
+    function filterMidiActionTriggers(
+        triggers: MidiActionTrigger[],
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionTrigger[] {
         var filtered = [];
         var i;
         var maxNotes;
@@ -818,8 +868,12 @@
         return limitMidiActionTriggers(filtered, maxNotes);
     }
 
-    api.resolveMidiActionOptions = function (comp, options, sourceLayer) {
-        var resolved = {};
+    api.resolveMidiActionOptions = function (
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | null | undefined,
+        sourceLayer: Layer | null | undefined
+    ): MidiActionOptionsResolved {
+        var resolved = {} as MidiActionOptionsResolved;
         options = options || {};
         resolved.triggerMode = "pitch";
         resolved.preset = options.preset || "pump";
@@ -856,7 +910,7 @@
         return resolved;
     };
 
-    function latestTriggerIndex(triggers, time) {
+    function latestTriggerIndex(triggers: MidiActionTrigger[], time: number): number {
         var i;
         var result = -1;
         for (i = 0; i < triggers.length; i += 1) {
@@ -869,17 +923,18 @@
         return result;
     }
 
-    function sortTriggers(triggers) {
+    function sortTriggers(triggers: MidiActionTrigger[]): MidiActionTrigger[] {
         return triggers.sort(function (a, b) {
             return a.time - b.time;
         });
     }
 
-    function layerSlider(layer, effectName) {
+    function layerSlider(layer: Layer | null | undefined, effectName: string): Property | null {
         var slider;
         var parade;
         var i;
         var effect;
+        var effectsLayer = api.asLayerWithEffects(layer);
         if (!layer || !effectName) {
             return null;
         }
@@ -890,13 +945,13 @@
         try {
             parade = getLayerEffectParade(layer);
             if (parade) {
-                effect = parade.property(effectName);
+                effect = parade.property(effectName) as PropertyGroup;
                 slider = sliderFromEffectGroup(effect);
                 if (sliderHasKeys(slider)) {
                     return slider;
                 }
                 for (i = 1; i <= parade.numProperties; i += 1) {
-                    effect = parade.property(i);
+                    effect = parade.property(i) as PropertyGroup;
                     if (String(effect.name) === effectName) {
                         slider = sliderFromEffectGroup(effect);
                         if (sliderHasKeys(slider)) {
@@ -907,21 +962,25 @@
             }
         } catch (paradeErr) {}
         try {
-            slider = layer.effect(effectName)("Slider");
-            if (sliderHasKeys(slider)) {
-                return slider;
+            if (effectsLayer && effectsLayer.effect) {
+                slider = effectsLayer.effect(effectName)("Slider") as Property;
+                if (sliderHasKeys(slider)) {
+                    return slider;
+                }
             }
         } catch (effectErr) {}
         try {
-            slider = layer.Effects.property(effectName).property(1);
-            if (sliderHasKeys(slider)) {
-                return slider;
+            if (effectsLayer && effectsLayer.Effects) {
+                slider = effectsLayer.Effects.property(effectName).property(1) as Property;
+                if (sliderHasKeys(slider)) {
+                    return slider;
+                }
             }
         } catch (propertyErr) {}
         return null;
     }
 
-    function sliderKeyCount(slider) {
+    function sliderKeyCount(slider: Property | null | undefined): number {
         if (!slider) {
             return 0;
         }
@@ -933,24 +992,29 @@
         return 0;
     }
 
-    function sliderHasKeys(slider) {
+    function sliderHasKeys(slider: Property | null | undefined): boolean {
         return sliderKeyCount(slider) > 0;
     }
 
-    function readSliderKey(slider, index) {
+    function readSliderKey(slider: Property | null | undefined, index: number): SliderKeyFrame | null {
         var time;
         var value;
+        var sliderLike: SliderPropertyLike | null;
         if (!slider || index < 1 || index > sliderKeyCount(slider)) {
             return null;
         }
+        sliderLike = api.isSliderPropertyLike(slider) ? slider : null;
+        if (!sliderLike) {
+            return null;
+        }
         try {
-            if (typeof slider.key === "function") {
-                return slider.key(index);
+            if (typeof sliderLike.key === "function") {
+                return sliderLike.key(index);
             }
         } catch (e) {}
         try {
-            time = slider.keyTime(index);
-            value = slider.keyValue(index);
+            time = sliderLike.keyTime!(index);
+            value = sliderLike.keyValue!(index);
             return {
                 time: time,
                 value: value
@@ -959,10 +1023,13 @@
         return null;
     }
 
-    function buildSliderKeyCache(slider, options) {
-        var cache = {
-            times: [],
-            values: []
+    function buildSliderKeyCache(
+        slider: Property | null,
+        options?: MidiActionOptionsInput | PianoRollMapOptions | null
+    ): SliderKeyCache {
+        var cache: SliderKeyCache = {
+            times: [] as number[],
+            values: [] as number[]
         };
         var i;
         var key;
@@ -984,7 +1051,7 @@
         return cache;
     }
 
-    function exactValueAtCachedTime(cache, time, fallback) {
+    function exactValueAtCachedTime(cache: SliderKeyCache | null, time: number, fallback: number): number {
         var i;
         if (!cache || !cache.times.length) {
             return fallback;
@@ -997,7 +1064,7 @@
         return fallback;
     }
 
-    function durationFromKeyCache(cache, keyIndex) {
+    function durationFromKeyCache(cache: SliderKeyCache | null, keyIndex: number): number {
         var startTime;
         var i;
         if (!cache || keyIndex < 0 || keyIndex >= cache.times.length) {
@@ -1015,13 +1082,13 @@
         return 0.05;
     }
 
-    function buildLayerEffectSliderIndex(layer) {
-        var byName = {};
-        var names = [];
+    function buildLayerEffectSliderIndex(layer: Layer): LayerEffectSliderIndex {
+        var byName: { [effectName: string]: Property } = {};
+        var names: string[] = [];
         forEachLayerEffect(layer, function (effect) {
             var name = String(effect.name || "");
             var slider = sliderFromEffectGroup(effect);
-            if (!name || !sliderHasKeys(slider)) {
+            if (!name || !slider || !sliderHasKeys(slider)) {
                 return;
             }
             byName[name] = slider;
@@ -1033,14 +1100,14 @@
         };
     }
 
-    function sliderFromEffectIndex(sliderIndex, effectName) {
+    function sliderFromEffectIndex(sliderIndex: LayerEffectSliderIndex, effectName: string): Property | null {
         if (!sliderIndex || !effectName) {
             return null;
         }
         return sliderIndex.byName[effectName] || null;
     }
 
-    function sliderValueAtTime(slider, time, fallback) {
+    function sliderValueAtTime(slider: Property | null | undefined, time: number, fallback: number): number {
         var i;
         var key;
         var value = fallback;
@@ -1062,16 +1129,16 @@
         return value;
     }
 
-    function layerHasEffects(layer) {
+    function layerHasEffects(layer: Layer | null | undefined): boolean {
         var parade = getLayerEffectParade(layer);
-        return parade && parade.numProperties > 0;
+        return !!(parade && parade.numProperties > 0);
     }
 
-    function layersShareIndex(a, b) {
-        return a && b && a.index === b.index;
+    function layersShareIndex(a: Layer | null | undefined, b: Layer | null | undefined): boolean {
+        return !!(a && b && a.index === b.index);
     }
 
-    function dedupeLayers(layers) {
+    function dedupeLayers(layers: Layer[]): Layer[] {
         var out = [];
         var i;
         var j;
@@ -1088,7 +1155,7 @@
         return out;
     }
 
-    function getLayerFromSelectedProperties(comp) {
+    function getLayerFromSelectedProperties(comp: CompItem | null | undefined): Layer | null {
         var props;
         var prop;
         var depth;
@@ -1102,15 +1169,15 @@
                 prop = prop.propertyGroup(1);
                 depth -= 1;
             }
-            if (prop && (prop.Effects || (prop.property && prop.property("ADBE Effect Parade")))) {
-                return prop;
+            if (prop && (api.asLayerWithEffects(prop as Layer) || (prop as PropContainerLike).property)) {
+                return prop as Layer;
             }
         } catch (e) {}
         return null;
     }
 
-    function getCompSelectedLayers(comp) {
-        var layers = [];
+    function getCompSelectedLayers(comp: CompItem | null | undefined): Layer[] {
+        var layers: Layer[] = [];
         var selected;
         var fromProps;
         var i;
@@ -1137,7 +1204,7 @@
         return dedupeLayers(layers);
     }
 
-    api.resolveMidiSourceLayer = function (comp, options) {
+    api.resolveMidiSourceLayer = function (comp: CompItem, options?: MidiActionOptionsInput): Layer {
         var selected = getCompSelectedLayers(comp);
         var imported = [];
         var remembered;
@@ -1171,35 +1238,41 @@
         throw new Error("Select one imported MIDI null layer in the timeline.");
     };
 
-    function isGeneratedMidiActionLayer(layer) {
+    function isGeneratedMidiActionLayer(layer: Layer | null | undefined): boolean {
         var name = String((layer && layer.name) || "");
         return name.indexOf("MIDI Action") === 0;
     }
 
-    function layerHasImportPitchSlider(layer) {
+    function layerHasImportPitchSlider(layer: Layer | null | undefined): boolean {
+        if (!layer) {
+            return false;
+        }
         var resolved = resolvePitchSlider(layer, {});
         return !!(resolved && resolved.slider && sliderHasKeys(resolved.slider));
     }
 
-    function isMidiImportSourceLayer(layer) {
+    function isMidiImportSourceLayer(layer: Layer | null | undefined): boolean {
         if (!layer || isGeneratedMidiActionLayer(layer)) {
             return false;
         }
         return layerHasImportPitchSlider(layer);
     }
 
-    function midiActionGlobalStore() {
+    function midiActionGlobalStore(): ReOmGlobalState | null {
         return api.getGlobalState();
     }
 
-    function rememberMidiActionSourceLayer(layer) {
+    function rememberMidiActionSourceLayer(layer: Layer | null | undefined): void {
         var store = midiActionGlobalStore();
         if (store && layer && layer.name) {
             store.actionSourceLayerName = layer.name;
         }
     }
 
-    function resolveRememberedMidiActionSourceLayer(comp, options) {
+    function resolveRememberedMidiActionSourceLayer(
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | null | undefined
+    ): Layer | null {
         var store = midiActionGlobalStore();
         var name = options && options.sourceLayerName;
         var layer;
@@ -1221,43 +1294,50 @@
 
     api.rememberMidiActionSourceLayer = rememberMidiActionSourceLayer;
 
-    function getLayerEffectParade(layer) {
+    function getLayerEffectParade(layer: Layer | null | undefined): PropertyGroup | null {
         var parade;
-        if (!layer) {
+        var effectsLayer = api.asLayerWithEffects(layer);
+        if (!effectsLayer) {
             return null;
         }
         try {
-            if (layer.Effects && layer.Effects.numProperties > 0) {
-                return layer.Effects;
+            if (effectsLayer.Effects && effectsLayer.Effects.numProperties > 0) {
+                return effectsLayer.Effects;
             }
         } catch (effectsErr) {}
         try {
-            parade = layer.property("ADBE Effect Parade");
+            if (!layer) {
+                return null;
+            }
+            parade = layer.property("ADBE Effect Parade") as PropertyGroup;
             if (parade && parade.numProperties > 0) {
                 return parade;
             }
         } catch (paradeErr) {}
         try {
-            if (layer.Effects) {
-                return layer.Effects;
+            if (effectsLayer.Effects) {
+                return effectsLayer.Effects;
             }
         } catch (fallbackEffectsErr) {}
         return null;
     }
 
-    function isPitchEffectName(name) {
-        return /(?:^| )pitch$/i.test(name) || /_pitch$/i.test(name);
+    function isPitchEffectName(name: string | number | null | undefined): boolean {
+        var text = String(name || "");
+        return /(?:^| )pitch$/i.test(text) || /_pitch$/i.test(text);
     }
 
-    function isVelocityEffectName(name) {
-        return /(?:^| )velocity$/i.test(name) || /_vel$/i.test(name);
+    function isVelocityEffectName(name: string | number | null | undefined): boolean {
+        var text = String(name || "");
+        return /(?:^| )velocity$/i.test(text) || /_vel$/i.test(text);
     }
 
-    function isDurationEffectName(name) {
-        return /(?:^| )duration$/i.test(name) || /_dur$/i.test(name);
+    function isDurationEffectName(name: string | number | null | undefined): boolean {
+        var text = String(name || "");
+        return /(?:^| )duration$/i.test(text) || /_dur$/i.test(text);
     }
 
-    function parseMidiChannelFromName(name) {
+    function parseMidiChannelFromName(name: string | number | null | undefined): number {
         var match = String(name || "").match(/ Ch(\d{1,2})(?: |$)/i);
         var legacy = String(name || "").match(/^ch_(\d+)_/i);
         if (match) {
@@ -1269,7 +1349,7 @@
         return -1;
     }
 
-    function parseDrumEffectName(name) {
+    function parseDrumEffectName(name: string | number | null | undefined): ParsedDrumEffectName | null {
         var match = String(name || "").match(/^(.*) d(\d+)(?: (.*))?$/);
         var legacy;
         if (match) {
@@ -1290,7 +1370,7 @@
         return null;
     }
 
-    function effectSliderProperty(effect) {
+    function effectSliderProperty(effect: PropertyGroup | null | undefined): Property | null {
         var slider;
         var propNames = ["ADBE Slider Control-0001", "Slider", 1];
         var i;
@@ -1299,18 +1379,22 @@
         }
         for (i = 0; i < propNames.length; i += 1) {
             try {
-                slider = effect.property(propNames[i]);
+                if (typeof propNames[i] === "number") {
+                    slider = effect.property(propNames[i] as number);
+                } else {
+                    slider = effect.property(propNames[i] as string);
+                }
                 if (slider) {
-                    return slider;
+                    return slider as Property;
                 }
             } catch (e) {}
         }
         return null;
     }
 
-    function layerEffectSliderByName(layer, effectName) {
+    function layerEffectSliderByName(layer: Layer, effectName: string): Property | null {
         var limitedName = api.limitEffectName(effectName);
-        var found = null;
+        var found: Property | null = null;
         forEachLayerEffect(layer, function (effect) {
             if (!found && String(effect.name) === limitedName) {
                 found = effectSliderProperty(effect);
@@ -1320,12 +1404,12 @@
             return found;
         }
         try {
-            return layer.effect(limitedName)("Slider");
+            return api.asLayerWithEffects(layer)!.effect!(limitedName)("Slider") as Property;
         } catch (e) {}
         return null;
     }
 
-    function sliderFromEffectGroup(effect) {
+    function sliderFromEffectGroup(effect: PropertyGroup | null | undefined): Property | null {
         var slider = effectSliderProperty(effect);
         if (slider && sliderHasKeys(slider)) {
             return slider;
@@ -1333,7 +1417,7 @@
         return null;
     }
 
-    function sliderFromLayerEffectByName(layer, effectName) {
+    function sliderFromLayerEffectByName(layer: Layer | null | undefined, effectName: string): Property | null {
         var slider = null;
         if (!layer || !effectName) {
             return null;
@@ -1352,7 +1436,7 @@
         return slider;
     }
 
-    function resolvePitchSlider(layer, options) {
+    function resolvePitchSlider(layer: Layer, options?: MidiActionOptionsInput): EffectSliderResolution {
         var resolvedName = null;
         var resolvedSlider = null;
         var prefix;
@@ -1449,7 +1533,7 @@
         };
     }
 
-    function resolveDurationSlider(layer, options) {
+    function resolveDurationSlider(layer: Layer, options?: MidiActionOptionsInput): EffectSliderResolution {
         var resolvedSlider = null;
         var prefix;
         var candidate;
@@ -1545,7 +1629,7 @@
         };
     }
 
-    function defaultDurationSliderName(layer) {
+    function defaultDurationSliderName(layer: Layer): string {
         var prefix = channelPrefixFromLayer(layer);
         if (prefix) {
             return prefix + " duration";
@@ -1553,7 +1637,7 @@
         return "T01 Ch01 duration";
     }
 
-    function forEachLayerEffect(layer, callback) {
+    function forEachLayerEffect(layer: Layer | null | undefined, callback: LayerEffectCallback): void {
         var parade;
         var i;
         parade = getLayerEffectParade(layer);
@@ -1561,11 +1645,11 @@
             return;
         }
         for (i = 1; i <= parade.numProperties; i += 1) {
-            callback(parade.property(i));
+            callback(parade.property(i) as PropertyGroup);
         }
     }
 
-    api.countLayerSliderEffects = function (layer) {
+    api.countLayerSliderEffects = function (layer: Layer): number {
         var count = 0;
         forEachLayerEffect(layer, function (effect) {
             if (sliderFromEffectGroup(effect)) {
@@ -1575,7 +1659,7 @@
         return count;
     };
 
-    function durationFromSliderKey(slider, keyIndex) {
+    function durationFromSliderKey(slider: Property | null | undefined, keyIndex: number): number {
         var startKey;
         var i;
         var endKey;
@@ -1592,9 +1676,9 @@
         return 0.05;
     }
 
-    function findVelocitySliderForLayer(layer, pitchEffectName) {
+    function findVelocitySliderForLayer(layer: Layer, pitchEffectName: string | null | undefined): Property | null {
         var prefix = "";
-        var found = null;
+        var found: Property | null = null;
         var name;
         var slider;
         if (pitchEffectName) {
@@ -1628,7 +1712,10 @@
         return found;
     }
 
-    function buildPreviewSliderCaches(sourceLayer, options) {
+    function buildPreviewSliderCaches(
+        sourceLayer: Layer,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): PreviewSliderCaches {
         var resolved = resolvePitchSlider(sourceLayer, options);
         var velSlider = findVelocitySliderForLayer(sourceLayer, resolved.effectName);
         reportPreviewProgress(options, "keyframes", 0, 2, "Reading pitch keyframes");
@@ -1638,7 +1725,11 @@
         };
     }
 
-    function collectPitchTriggersFromLayer(sourceLayer, options) {
+    function collectPitchTriggersFromLayer(
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionTrigger[] {
+        options = options || {};
         var resolved = resolvePitchSlider(sourceLayer, options);
         var pitchSlider = resolved.slider;
         var velSlider = findVelocitySliderForLayer(sourceLayer, resolved.effectName);
@@ -1650,7 +1741,7 @@
                 : velSlider
                   ? buildSliderKeyCache(velSlider, options)
                   : null;
-        var triggers = [];
+        var triggers: MidiActionTrigger[] = [];
         var maxNotes = midiActionUsesTriggerLimits(options) ? parsePianoRollMaxNotes(options.maxNotes, 10) : -1;
         var i;
         var time;
@@ -1700,11 +1791,14 @@
         return triggers;
     }
 
-    api.collectPitchValuesFromLayer = function (sourceLayer, options) {
+    api.collectPitchValuesFromLayer = function (
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): PitchValuesFromLayerResult {
         var resolved = resolvePitchSlider(sourceLayer, options || {});
         var pitchCache = buildSliderKeyCache(resolved.slider);
-        var seen = {};
-        var pitches = [];
+        var seen: StringKeyedMap<boolean> = {};
+        var pitches: number[] = [];
         var i;
         var pitch;
 
@@ -1727,11 +1821,20 @@
         };
     };
 
-    api.collectMidiActionTriggersFromLayer = function (sourceLayer, options) {
-        return filterMidiActionTriggers(sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)), options);
+    api.collectMidiActionTriggersFromLayer = function (
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionTrigger[] {
+        return filterMidiActionTriggers(
+            sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)),
+            options || {}
+        );
     };
 
-    function parseValueLiteral(value, fallback) {
+    function parseValueLiteral(
+        value: string | number | null | undefined,
+        fallback: MidiActionPropertyValue
+    ): MidiActionPropertyValue {
         var text;
         var parts;
         var result;
@@ -1760,10 +1863,19 @@
         return isNaN(n) ? text : n;
     }
 
-    function cloneValue(value) {
+    function valueIsArray(value: MidiActionPropertyValue): value is number[] {
+        return (
+            value !== null &&
+            typeof value !== "string" &&
+            typeof value !== "number" &&
+            (value as number[]).length !== undefined
+        );
+    }
+
+    function cloneValue(value: MidiActionPropertyValue): MidiActionPropertyValue {
         var copy;
         var i;
-        if (value && value.length !== undefined && typeof value !== "string") {
+        if (valueIsArray(value)) {
             copy = [];
             for (i = 0; i < value.length; i += 1) {
                 copy.push(value[i]);
@@ -1773,20 +1885,20 @@
         return value;
     }
 
-    function addDeltaValue(base, delta) {
+    function addDeltaValue(base: MidiActionPropertyValue, delta: number): MidiActionPropertyValue {
         var out;
         var i;
-        if (base && base.length !== undefined && typeof base !== "string") {
+        if (valueIsArray(base)) {
             out = [];
             for (i = 0; i < base.length; i += 1) {
                 out.push(base[i] + delta);
             }
             return out;
         }
-        return base + delta;
+        return (base as number) + delta;
     }
 
-    function propertyDimensions(property) {
+    function propertyDimensions(property: Property | null | undefined): number {
         var sample;
         if (!property) {
             return 1;
@@ -1802,13 +1914,13 @@
         return 1;
     }
 
-    function fitValueToProperty(property, value) {
+    function fitValueToProperty(property: Property, value: MidiActionPropertyValue): MidiActionPropertyValue {
         var dims = propertyDimensions(property);
         var out;
         var i;
 
         if (dims <= 1) {
-            if (value && value.length !== undefined && typeof value !== "string") {
+            if (valueIsArray(value)) {
                 return value.length ? value[0] : 0;
             }
             return value;
@@ -1820,7 +1932,7 @@
             }
             return out;
         }
-        if (value && value.length !== undefined && typeof value !== "string") {
+        if (valueIsArray(value)) {
             out = [];
             for (i = 0; i < dims; i += 1) {
                 out.push(i < value.length ? value[i] : value[value.length - 1]);
@@ -1830,28 +1942,37 @@
         return value;
     }
 
-    function mixValue(base, active, progress) {
+    function mixValue(
+        base: MidiActionPropertyValue,
+        active: MidiActionPropertyValue,
+        progress: number
+    ): MidiActionPropertyValue {
         var out = [];
         var i;
         var len;
         var basePart;
         var activePart;
-        var baseIsArray = base && base.length !== undefined && typeof base !== "string";
-        var activeIsArray = active && active.length !== undefined && typeof active !== "string";
+        var baseIsArray = valueIsArray(base);
+        var activeIsArray = valueIsArray(active);
 
         if (baseIsArray || activeIsArray) {
-            len = activeIsArray ? active.length : base.length;
+            len = activeIsArray ? (active as number[]).length : baseIsArray ? (base as number[]).length : 1;
             for (i = 0; i < len; i += 1) {
-                basePart = baseIsArray ? base[i] : base;
-                activePart = activeIsArray ? active[i] : active;
+                basePart = baseIsArray ? (base as number[])[i] : (base as number);
+                activePart = activeIsArray ? (active as number[])[i] : (active as number);
                 out.push(basePart + (activePart - basePart) * progress);
             }
             return out;
         }
-        return base + (active - base) * progress;
+        return (base as number) + ((active as number) - (base as number)) * progress;
     }
 
-    function interpolationProgress(time, startTime, endTime, falloff) {
+    function interpolationProgress(
+        time: number,
+        startTime: number,
+        endTime: number,
+        falloff: FalloffMode | string
+    ): number {
         var x;
         if (endTime <= startTime) {
             return 1;
@@ -1875,11 +1996,15 @@
         return x;
     }
 
-    function targetForInterpolatedEvent(index, base, active) {
+    function targetForInterpolatedEvent(
+        index: number,
+        base: MidiActionPropertyValue,
+        active: MidiActionPropertyValue
+    ): MidiActionPropertyValue {
         return index % 2 ? cloneValue(active) : cloneValue(base);
     }
 
-    function uniqueSortedTimes(times) {
+    function uniqueSortedTimes(times: number[]): number[] {
         var sorted = times.sort(function (a, b) {
             return a - b;
         });
@@ -1895,7 +2020,7 @@
         return result;
     }
 
-    function addWindowTimes(times, start, duration, step) {
+    function addWindowTimes(times: number[], start: number, duration: number, step: number): void {
         var t;
         times.push(start);
         if (duration <= 0) {
@@ -1907,13 +2032,18 @@
         times.push(start + duration);
     }
 
-    function triggerWindowDuration(options) {
+    function triggerWindowDuration(options: MidiActionOptionsInput | MidiActionOptionsResolved): number {
         var duration = numeric(options.duration, 0.2);
         var step = options.frameDuration || 1 / 24;
         return options.falloff === "instant" ? step : duration;
     }
 
-    function addRestKeyframeBeforeNextTrigger(times, currentTriggerTime, nextTriggerTime, options) {
+    function addRestKeyframeBeforeNextTrigger(
+        times: number[],
+        currentTriggerTime: number,
+        nextTriggerTime: number,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): void {
         var step = options.frameDuration || 1 / 24;
         var windowEnd = currentTriggerTime + triggerWindowDuration(options);
         var holdTime;
@@ -1927,7 +2057,14 @@
         }
     }
 
-    function valueAtBakedTime(triggers, time, base, active, options, knownIndex) {
+    function valueAtBakedTime(
+        triggers: MidiActionTrigger[],
+        time: number,
+        base: MidiActionPropertyValue,
+        active: MidiActionPropertyValue,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        knownIndex?: number
+    ): MidiActionPropertyValue {
         var n = typeof knownIndex === "number" ? knownIndex : latestTriggerIndex(triggers, time);
         var duration = numeric(options.duration, 0.2);
         var amount = numeric(options.amount, 20);
@@ -1947,10 +2084,14 @@
             if (n >= triggers.length - 1) {
                 return targetForInterpolatedEvent(n, base, active);
             }
+            var nextTrigger = triggers[n + 1];
+            if (!nextTrigger) {
+                return targetForInterpolatedEvent(n, base, active);
+            }
             return mixValue(
                 targetForInterpolatedEvent(n, base, active),
                 targetForInterpolatedEvent(n + 1, base, active),
-                interpolationProgress(time, triggers[n].time, triggers[n + 1].time, options.falloff)
+                interpolationProgress(time, triggers[n].time, nextTrigger.time, options.falloff || "linear")
             );
         }
         if (options.preset === "accumulator") {
@@ -1960,7 +2101,9 @@
             }
             if (n >= 0 && time <= triggers[n].time + windowDuration) {
                 from = addDeltaValue(to, -triggers[n].amount);
-                f = 1 - falloffValue(time, triggers[n].time, duration, options.falloff, options.frameDuration);
+                f =
+                    1 -
+                    falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration);
                 return addDeltaValue(from, triggers[n].amount * f);
             }
             return to;
@@ -1968,13 +2111,19 @@
         if (n >= 0 && time <= triggers[n].time + windowDuration) {
             return addDeltaValue(
                 base,
-                amount * falloffValue(time, triggers[n].time, duration, options.falloff, options.frameDuration)
+                amount *
+                    falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration)
             );
         }
         return cloneValue(base);
     }
 
-    api.buildMidiActionBakePlan = function (triggers, property, comp, options) {
+    api.buildMidiActionBakePlan = function (
+        triggers: MidiActionTrigger[],
+        property: Property,
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionBakePlan {
         var step = comp && comp.frameDuration ? comp.frameDuration : numeric(options.previewStep, 1 / 24);
         var duration = numeric(options.duration, 0.2);
         var base = parseValueLiteral(
@@ -2018,7 +2167,7 @@
         return { times: times, values: values, hold: options.preset === "toggle" };
     };
 
-    function setHoldInterpolation(property) {
+    function setHoldInterpolation(property: Property | null | undefined): void {
         var i;
         if (!property || !property.setInterpolationTypeAtKey || typeof KeyframeInterpolationType === "undefined") {
             return;
@@ -2028,7 +2177,7 @@
         }
     }
 
-    function applyBakePlan(property, plan) {
+    function applyBakePlan(property: Property, plan: MidiActionBakePlan): boolean {
         var i;
         if (property.setValuesAtTimes) {
             property.setValuesAtTimes(plan.times, plan.values);
@@ -2048,7 +2197,10 @@
         return true;
     }
 
-    api.bakeMidiActionToSelectedProperties = function (comp, options) {
+    api.bakeMidiActionToSelectedProperties = function (
+        comp: CompItem,
+        options?: MidiActionOptionsInput
+    ): BakeSelectedPropertiesResult {
         var properties;
         var sourceLayer;
         var triggers;
@@ -2075,8 +2227,8 @@
         }
 
         for (i = 0; i < properties.length; i += 1) {
-            prop = properties[i];
-            if (prop && (prop.setValuesAtTimes || prop.setValueAtTime)) {
+            prop = properties[i] as Property;
+            if (prop) {
                 plan = api.buildMidiActionBakePlan(triggers, prop, comp, options || {});
                 if (applyBakePlan(prop, plan)) {
                     applied += 1;
@@ -2090,7 +2242,14 @@
         return { applied: applied, skipped: skipped, triggers: triggers.length };
     };
 
-    api.mapRange = function (value, inMin, inMax, outMin, outMax, clamp) {
+    api.mapRange = function (
+        value: number,
+        inMin: number,
+        inMax: number,
+        outMin: number,
+        outMax: number,
+        clamp?: boolean
+    ): number {
         var ratio;
         if (inMax === inMin) {
             return (outMin + outMax) / 2;
@@ -2107,7 +2266,7 @@
         return outMin + (outMax - outMin) * ratio;
     };
 
-    function sliderValueAtKeyTime(slider, time, fallback) {
+    function sliderValueAtKeyTime(slider: Property | null | undefined, time: number, fallback: number): number {
         var i;
         var key;
         var keyCount;
@@ -2134,14 +2293,14 @@
         return sliderValueAtTime(slider, time, fallback);
     }
 
-    function isNoteOnKey(velSlider, time) {
+    function isNoteOnKey(velSlider: Property | null | undefined, time: number): boolean {
         var velocity = sliderValueAtKeyTime(velSlider, time, 100);
         return velocity > 0;
     }
 
-    function channelPrefixFromLayer(layer) {
+    function channelPrefixFromLayer(layer: Layer | null | undefined): string | null {
         var match;
-        var prefix = null;
+        var prefix: string | null = null;
         if (!layer) {
             return null;
         }
@@ -2163,7 +2322,7 @@
         return prefix;
     }
 
-    function parseChannelPrefix(prefix) {
+    function parseChannelPrefix(prefix: string | null | undefined): ParsedChannelPrefix | null {
         var match = String(prefix || "").match(/T(\d{2})\s+Ch(\d{2})/i);
         if (!match) {
             return null;
@@ -2174,7 +2333,7 @@
         };
     }
 
-    function parsePianoRollMaxNotes(value, fallback) {
+    function parsePianoRollMaxNotes(value: string | number | null | undefined, fallback: number): number {
         var parsed = numeric(value, fallback);
         if (parsed < 0) {
             return -1;
@@ -2182,25 +2341,30 @@
         return Math.max(1, Math.floor(parsed));
     }
 
-    function pianoRollCanAddMore(notes, maxNotes) {
+    function pianoRollCanAddMore(notes: PianoRollNote[], maxNotes: number): boolean {
         return maxNotes < 0 || notes.length < maxNotes;
     }
 
-    function pianoRollHasTimeFilter(options) {
+    function pianoRollHasTimeFilter(
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined
+    ): boolean {
         return !!(
             options &&
             (options.useWorkArea || typeof options.timeStart !== "undefined" || typeof options.timeEnd !== "undefined")
         );
     }
 
-    function pianoRollTimeStart(options) {
+    function pianoRollTimeStart(options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined): number {
         if (!options) {
             return 0;
         }
         return numeric(options.timeStart, 0);
     }
 
-    function pianoRollTimeEnd(options, fallback) {
+    function pianoRollTimeEnd(
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined,
+        fallback: number
+    ): number {
         if (!options) {
             return fallback;
         }
@@ -2210,7 +2374,10 @@
         return fallback;
     }
 
-    function pianoRollNoteInTimeRange(note, options) {
+    function pianoRollNoteInTimeRange(
+        note: PianoRollNoteDraft | PianoRollNote,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined
+    ): boolean {
         var start;
         var end;
         var noteStart;
@@ -2225,8 +2392,11 @@
         return noteStart < end && noteEnd > start;
     }
 
-    api.resolvePianoRollMapOptions = function (comp, options) {
-        var resolved = {};
+    api.resolvePianoRollMapOptions = function (
+        comp: CompItem | null | undefined,
+        options?: PianoRollMapOptions
+    ): ResolvedPianoRollMapOptions {
+        var resolved = {} as ResolvedPianoRollMapOptions;
         options = options || {};
         resolved.maxNotes = options.maxNotes;
         resolved.noteHeight = options.noteHeight;
@@ -2249,7 +2419,15 @@
         return resolved;
     };
 
-    function appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options) {
+    function appendPitchSliderNotes(
+        pitchSlider: Property | null,
+        velSlider: Property | null,
+        durSlider: Property | null,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        midiChannel: number,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined
+    ): void {
         var pitchCache = buildSliderKeyCache(pitchSlider);
         var velCache = buildSliderKeyCache(velSlider);
         var durCache = buildSliderKeyCache(durSlider);
@@ -2273,7 +2451,7 @@
                 continue;
             }
             if (options && pianoRollHasTimeFilter(options)) {
-                noteDraft = { time: time, duration: 0.05 };
+                noteDraft = { time: time, duration: 0.05, pitch: pitch };
                 if (!pianoRollNoteInTimeRange(noteDraft, options)) {
                     continue;
                 }
@@ -2309,7 +2487,15 @@
         }
     }
 
-    function collectStandardNotesForPrefix(layer, notes, maxNotes, drumChannels, prefix, options, sliderIndex) {
+    function collectStandardNotesForPrefix(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        drumChannels: { [channel: number]: boolean },
+        prefix: string,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions,
+        sliderIndex: LayerEffectSliderIndex
+    ): void {
         var channel = parseChannelPrefix(prefix);
         var midiChannel = channel ? channel.midiChannel : parseMidiChannelFromName(prefix);
         var pitchSlider;
@@ -2322,12 +2508,27 @@
         pitchSlider = sliderFromEffectIndex(sliderIndex, prefix + " pitch");
         velSlider = sliderFromEffectIndex(sliderIndex, prefix + " velocity");
         durSlider = sliderFromEffectIndex(sliderIndex, prefix + " duration");
-        appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+        appendPitchSliderNotes(
+            pitchSlider || null,
+            velSlider || null,
+            durSlider || null,
+            notes,
+            maxNotes,
+            midiChannel,
+            options
+        );
     }
 
-    function collectDrumNotesForPrefix(layer, notes, maxNotes, prefix, options, sliderIndex) {
+    function collectDrumNotesForPrefix(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        prefix: string,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions,
+        sliderIndex: LayerEffectSliderIndex
+    ): { [channel: number]: boolean } {
+        var drumChannels: { [channel: number]: boolean } = {};
         var channel = parseChannelPrefix(prefix);
-        var drumChannels = {};
         var parsed;
         var midiChannel;
         var i;
@@ -2387,7 +2588,12 @@
 
     api.channelPrefixFromLayer = channelPrefixFromLayer;
 
-    function pushPianoRollNote(notes, note, maxNotes, options) {
+    function pushPianoRollNote(
+        notes: PianoRollNote[],
+        note: PianoRollNoteDraft,
+        maxNotes: number,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined
+    ): boolean {
         if (options && !pianoRollNoteInTimeRange(note, options)) {
             return true;
         }
@@ -2408,8 +2614,13 @@
         return true;
     }
 
-    function collectDrumSliderNotes(layer, notes, maxNotes, options) {
-        var drumChannels = {};
+    function collectDrumSliderNotes(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions
+    ): { [channel: number]: boolean } {
+        var drumChannels: { [channel: number]: boolean } = {};
         var parsed;
         var slider;
         var cache;
@@ -2458,28 +2669,46 @@
         return drumChannels;
     }
 
-    function collectStandardSliderNotes(layer, notes, maxNotes, drumChannels, options) {
-        var groups = {};
+    function collectStandardSliderNotes(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        drumChannels: { [channel: number]: boolean },
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions
+    ): void {
+        var groups: { [prefix: string]: { pitch?: Property; velocity?: Property; duration?: Property } } = {};
         var prefix;
         var group;
         var midiChannel;
         var pitchSlider;
         var velSlider;
         var durSlider;
+        var pitchProp;
+        var velProp;
+        var durProp;
 
         forEachLayerEffect(layer, function (effect) {
             if (isPitchEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )pitch$/i, "").replace(/_pitch$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].pitch = sliderFromEffectGroup(effect);
+                pitchProp = sliderFromEffectGroup(effect);
+                if (pitchProp) {
+                    groups[prefix].pitch = pitchProp;
+                }
             } else if (isVelocityEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )velocity$/i, "").replace(/_vel$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].velocity = sliderFromEffectGroup(effect);
+                velProp = sliderFromEffectGroup(effect);
+                if (velProp) {
+                    groups[prefix].velocity = velProp;
+                }
             } else if (isDurationEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )duration$/i, "").replace(/_dur$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].duration = sliderFromEffectGroup(effect);
+                durProp = sliderFromEffectGroup(effect);
+                if (durProp) {
+                    groups[prefix].duration = durProp;
+                }
             }
         });
 
@@ -2498,14 +2727,22 @@
             }
             velSlider = group.velocity;
             durSlider = group.duration;
-            appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+            appendPitchSliderNotes(
+                pitchSlider || null,
+                velSlider || null,
+                durSlider || null,
+                notes,
+                maxNotes,
+                midiChannel,
+                options
+            );
             if (!pianoRollCanAddMore(notes, maxNotes)) {
                 return;
             }
         }
     }
 
-    function looksLikePitchSlider(slider) {
+    function looksLikePitchSlider(slider: Property | null): boolean {
         var i;
         var key;
         var total = 0;
@@ -2527,7 +2764,7 @@
         return total > 0 && noteLike >= total * 0.8;
     }
 
-    function defaultPitchSliderName(layer) {
+    function defaultPitchSliderName(layer: Layer): string {
         var prefix = channelPrefixFromLayer(layer);
         if (prefix) {
             return prefix + " pitch";
@@ -2535,7 +2772,7 @@
         return "T01 Ch01 pitch";
     }
 
-    function detectPitchSliderName(layer) {
+    function detectPitchSliderName(layer: Layer | null | undefined): string | null {
         var resolved;
         if (!layer) {
             return null;
@@ -2549,7 +2786,7 @@
 
     api.detectPitchSliderName = detectPitchSliderName;
 
-    api.resolvePitchSliderName = function (layer, options) {
+    api.resolvePitchSliderName = function (layer: Layer, options?: MidiActionOptionsInput): string {
         var cache;
         var cacheKey;
         var prefix;
@@ -2582,7 +2819,7 @@
         return candidate;
     };
 
-    api.resolveDurationSliderName = function (layer, options) {
+    api.resolveDurationSliderName = function (layer: Layer, options?: MidiActionOptionsInput): string {
         var resolved;
         options = options || {};
         if (options.durationSliderName) {
@@ -2595,12 +2832,12 @@
         return defaultDurationSliderName(layer);
     };
 
-    function looksLikeVelocitySlider(slider) {
+    function looksLikeVelocitySlider(slider: Property | null): boolean {
         var first = readSliderKey(slider, 1);
         return !!(first && first.time === 0 && first.value === 0);
     }
 
-    function looksLikeDurationSlider(slider) {
+    function looksLikeDurationSlider(slider: Property | null): boolean {
         var i;
         var key;
         var total = 0;
@@ -2619,7 +2856,7 @@
         return total > 0 && durLike >= total * 0.8 && !looksLikePitchSlider(slider);
     }
 
-    function looksLikeDrumHitSlider(slider) {
+    function looksLikeDrumHitSlider(slider: Property | null): boolean {
         var i;
         var key;
         var keyCount = sliderKeyCount(slider);
@@ -2633,14 +2870,19 @@
         return hits > 0 && !looksLikePitchSlider(slider) && !looksLikeVelocitySlider(slider);
     }
 
-    function collectNotesByHeuristicScan(layer, notes, maxNotes, options) {
+    function collectNotesByHeuristicScan(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions
+    ): void {
         var prefix = channelPrefixFromLayer(layer);
         var channel = parseChannelPrefix(prefix || "");
         var midiChannel = channel ? channel.midiChannel : parseMidiChannelFromName(prefix || "");
-        var pitchSlider = null;
-        var velSlider = null;
-        var durSlider = null;
-        var unknown = [];
+        var pitchSlider: Property | null = null;
+        var velSlider: Property | null = null;
+        var durSlider: Property | null = null;
+        var unknown: Property[] = [];
         var i;
         var j;
         var cache;
@@ -2738,7 +2980,9 @@
                 }
                 return;
             }
-            unknown.push(slider);
+            if (slider) {
+                unknown.push(slider);
+            }
         });
 
         if (!pitchSlider) {
@@ -2766,15 +3010,23 @@
             }
         }
         if (pitchSlider) {
-            appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+            appendPitchSliderNotes(
+                pitchSlider || null,
+                velSlider || null,
+                durSlider || null,
+                notes,
+                maxNotes,
+                midiChannel,
+                options
+            );
         }
     }
 
-    api.collectPianoRollNotesFromLayer = function (layer, options) {
+    api.collectPianoRollNotesFromLayer = function (layer: Layer, options?: PianoRollMapOptions): PianoRollNote[] {
         options = options || {};
         var maxNotes = parsePianoRollMaxNotes(options.maxNotes, 10);
-        var notes = [];
-        var drumChannels = {};
+        var notes: PianoRollNote[] = [];
+        var drumChannels: { [channel: number]: boolean } = {};
         var prefix;
         var sliderIndex;
 
@@ -2805,7 +3057,7 @@
         return notes;
     };
 
-    function layerHasNamedDrumSliderEffects(layer, prefix) {
+    function layerHasNamedDrumSliderEffects(layer: Layer | null | undefined, prefix: string | null): boolean {
         var found = false;
         if (!layer) {
             return false;
@@ -2834,7 +3086,7 @@
         return found;
     }
 
-    api.layerHasNamedDrumSliders = function (layer) {
+    api.layerHasNamedDrumSliders = function (layer: Layer): boolean {
         var prefix = channelPrefixFromLayer(layer);
         if (layerHasNamedDrumSliderEffects(layer, prefix)) {
             return true;
@@ -2842,12 +3094,15 @@
         return layerHasNamedDrumSliderEffects(layer, null);
     };
 
-    api.collectNamedDrumPadGroupsFromLayer = function (layer, options) {
-        var groups = {};
-        var order = [];
-        var result = [];
-        var prefix;
-        var pitchFilter;
+    api.collectNamedDrumPadGroupsFromLayer = function (
+        layer: Layer,
+        options?: PianoRollMapOptions
+    ): NamedDrumPadGroup[] {
+        var groups: { [name: string]: NamedDrumPadGroup } = {};
+        var order: string[] = [];
+        var result: NamedDrumPadGroup[] = [];
+        var prefix: string | null;
+        var pitchFilter: number[];
         var i;
         var j;
         var name;
@@ -2860,7 +3115,7 @@
 
         options = options || {};
         prefix = channelPrefixFromLayer(layer);
-        pitchFilter = options.pitchFilter || [];
+        pitchFilter = normalizePitchFilter(options.pitchFilter);
 
         if (!layer) {
             return result;
@@ -2909,6 +3164,7 @@
                 if (
                     options.useWorkArea &&
                     typeof options.timeStart !== "undefined" &&
+                    typeof options.timeEnd !== "undefined" &&
                     (hit.time < options.timeStart || hit.time >= options.timeEnd)
                 ) {
                     continue;
@@ -2929,7 +3185,7 @@
         return result;
     };
 
-    function pitchMatchesFilter(pitch, filter) {
+    function pitchMatchesFilter(pitch: number, filter: number[]): boolean {
         var i;
         if (!filter || !filter.length) {
             return true;
@@ -2943,14 +3199,14 @@
         return false;
     }
 
-    api.collectDrumHitNotesFromLayer = function (layer, options) {
-        var maxNotes;
-        var notes = [];
-        var drumChannels = {};
+    api.collectDrumHitNotesFromLayer = function (layer: Layer, options?: PianoRollMapOptions): PianoRollNote[] {
+        var maxNotes: number;
+        var notes: PianoRollNote[] = [];
+        var drumChannels: { [channel: number]: boolean } = {};
         var prefix;
         var sliderIndex;
         var channel;
-        var filtered = [];
+        var filtered: PianoRollNote[] = [];
         var hasNamedDrumEffects = false;
         var i;
         var note;
@@ -2993,7 +3249,7 @@
         return filtered;
     };
 
-    function inferPianoRollDuration(notes, compLike) {
+    function inferPianoRollDuration(notes: PianoRollNote[], compLike: CompItem | PianoRollCompLike): number {
         var maxTime = 0;
         var i;
         for (i = 0; i < notes.length; i += 1) {
@@ -3005,11 +3261,11 @@
         return compLike && compLike.duration ? compLike.duration : 1;
     }
 
-    function pianoRollNoteEndTime(note) {
+    function pianoRollNoteEndTime(note: PianoRollNote | PianoRollNoteDraft): number {
         return (note.time || 0) + (typeof note.duration !== "undefined" ? note.duration : 0.05);
     }
 
-    function computePianoRollContentTimeBounds(notes) {
+    function computePianoRollContentTimeBounds(notes: PianoRollNote[] | null | undefined): PianoRollTimeRange | null {
         var i;
         var note;
         var noteStart;
@@ -3030,10 +3286,14 @@
                 end = noteEnd;
             }
         }
-        return { timeStart: start, timeEnd: end };
+        return { timeStart: start !== null ? start : 0, timeEnd: end };
     }
 
-    function resolvePianoRollTimeRange(notes, options, fallbackEnd) {
+    function resolvePianoRollTimeRange(
+        notes: PianoRollNote[],
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions,
+        fallbackEnd: number
+    ): PianoRollTimeRange {
         var bounds;
         var timeStart;
         var timeEnd;
@@ -3057,10 +3317,10 @@
         return { timeStart: timeStart, timeEnd: timeEnd };
     }
 
-    api.collectPianoRollNotes = function (midi, options) {
+    api.collectPianoRollNotes = function (midi: MidiFileData, options?: PianoRollMapOptions): PianoRollNote[] {
         options = options || {};
         var maxNotes = parsePianoRollMaxNotes(options.maxNotes, 10);
-        var notes = [];
+        var notes: PianoRollNote[] = [];
         var i;
         var note;
         var entry;
@@ -3097,21 +3357,22 @@
         return notes;
     };
 
-    function uniqueLabels(notes) {
-        var labels = [];
-        var seen = {};
+    function uniqueLabels(notes: PianoRollNote[]): string[] {
+        var labels: string[] = [];
+        var seen: StringKeyedMap<boolean> = {};
         var i;
         for (i = 0; i < notes.length; i += 1) {
-            if (notes[i].isDrum && !seen[notes[i].label]) {
-                labels.push(notes[i].label);
-                seen[notes[i].label] = true;
+            var drumLabelNote = notes[i];
+            if (drumLabelNote && drumLabelNote.isDrum && drumLabelNote.label && !seen[drumLabelNote.label]) {
+                labels.push(drumLabelNote.label);
+                seen[drumLabelNote.label] = true;
             }
         }
         labels.sort();
         return labels;
     }
 
-    function labelIndex(labels, label) {
+    function labelIndex(labels: string[], label: string): number {
         var i;
         for (i = 0; i < labels.length; i += 1) {
             if (labels[i] === label) {
@@ -3121,7 +3382,10 @@
         return -1;
     }
 
-    function computePianoRollPitchRange(notes, options) {
+    function computePianoRollPitchRange(
+        notes: PianoRollNote[],
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions
+    ): PianoRollPitchRange {
         var min = numeric(options.pitchRangeMin, -1);
         var max = numeric(options.pitchRangeMax, -1);
         var padding = numeric(options.pitchRangePadding, 1);
@@ -3162,11 +3426,22 @@
         return { min: min, max: max };
     }
 
-    api.pianoRollYForPitch = function (pitch, rangeMin, rollBottom, laneHeight) {
+    api.pianoRollYForPitch = function (
+        pitch: number,
+        rangeMin: number,
+        rollBottom: number,
+        laneHeight: number
+    ): number {
         return rollBottom - (pitch - rangeMin + 0.5) * laneHeight;
     };
 
-    function pianoRollLaneMetrics(notes, options, yMin, yMax, noteHeight) {
+    function pianoRollLaneMetrics(
+        notes: PianoRollNote[],
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions,
+        yMin: number,
+        yMax: number,
+        noteHeight: number
+    ): PianoRollLaneMetrics {
         var pitchRange = computePianoRollPitchRange(notes, options);
         var numLanes = pitchRange.max - pitchRange.min + 1;
         var rollBottom = yMin;
@@ -3183,7 +3458,13 @@
         };
     }
 
-    api.buildPianoRollRects = function (source, compLike, options) {
+    api.buildPianoRollRects = function (
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): PianoRollRect[] {
+        var layerSource = source as Layer;
+        var midiSource = source as MidiFileData;
         compLike = compLike || {};
         if (compLike instanceof CompItem) {
             options = api.resolvePianoRollMapOptions(compLike, options || {});
@@ -3196,14 +3477,14 @@
         if (options.notes && options.notes.length) {
             notes = options.notes;
             fallbackEnd = inferPianoRollDuration(notes, compLike);
-        } else if (source && source.Effects) {
-            notes = api.collectPianoRollNotesFromLayer(source, options);
+        } else if (source && (layerSource as Layer & { Effects?: PropertyGroup }).Effects) {
+            notes = api.collectPianoRollNotesFromLayer(layerSource, options);
             fallbackEnd = inferPianoRollDuration(notes, compLike);
         } else {
-            notes = api.collectPianoRollNotes(source, options);
+            notes = api.collectPianoRollNotes(midiSource, options);
             fallbackEnd = inferPianoRollDuration(notes, compLike);
             if (!notes.length) {
-                fallbackEnd = source.durationSeconds || compLike.duration || 1;
+                fallbackEnd = midiSource.durationSeconds || compLike.duration || 1;
             }
         }
         timeRange = resolvePianoRollTimeRange(notes, options, fallbackEnd);
@@ -3221,7 +3502,7 @@
         var laneHeight = laneMetrics.laneHeight;
         var rollBottom = laneMetrics.rollBottom;
         var barHeight = laneHeight * 0.85;
-        var rects = [];
+        var rects: PianoRollRect[] = [];
         var i;
         var note;
         var y;
@@ -3269,7 +3550,7 @@
         return rects;
     };
 
-    function escapePreviewHtml(value) {
+    function escapePreviewHtml(value: string | number | null | undefined): string {
         return String(value || "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
@@ -3277,14 +3558,17 @@
             .replace(/"/g, "&quot;");
     }
 
-    function pianoRollPreviewColor(rect) {
+    function pianoRollPreviewColor(rect: PianoRollRect): string {
         if (rect.isDrum) {
             return "#f59e0b";
         }
         return "#38bdf8";
     }
 
-    function pianoRollPreviewDescription(options, noteCount) {
+    function pianoRollPreviewDescription(
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined,
+        noteCount: number
+    ): string {
         var parts = ["Showing " + noteCount + " mapped note bars."];
         if (options && options.useWorkArea) {
             parts.push("Limited to the current work area.");
@@ -3292,12 +3576,17 @@
         return parts.join(" ");
     }
 
-    api.buildPianoRollPreviewLayout = function (source, compLike, options) {
-        var svgWidth;
-        var svgHeight;
-        var mapOptions;
-        var rects;
-        var sourceLabel;
+    api.buildPianoRollPreviewLayout = function (
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): PianoRollPreviewLayout {
+        var layerSource = source as Layer;
+        var svgWidth: number;
+        var svgHeight: number;
+        var mapOptions: PianoRollMapOptions;
+        var rects: PianoRollRect[];
+        var sourceLabel: string;
         options = options || {};
         compLike = compLike || {};
         svgWidth = numeric(options.previewWidth, 1400);
@@ -3315,33 +3604,37 @@
             yMax: numeric(options.yMax, 40)
         };
         reportPreviewProgress(options, "notes", 0, 1, "Collecting notes");
-        if (source && source.Effects) {
-            mapOptions.notes = api.collectPianoRollNotesFromLayer(source, mapOptions);
+        if (source && (layerSource as Layer & { Effects?: PropertyGroup }).Effects) {
+            mapOptions.notes = api.collectPianoRollNotesFromLayer(layerSource, mapOptions);
         }
         reportPreviewProgress(options, "notes", 1, 1, "Collecting notes");
         reportPreviewProgress(options, "rects");
         rects = api.buildPianoRollRects(source, compLike, mapOptions);
         reportPreviewProgress(options, "finalize", 1, 1, "Finishing preview");
-        sourceLabel = options.sourceLabel || (source && source.name) || "MIDI";
+        sourceLabel = options.sourceLabel || (layerSource && layerSource.name) || "MIDI";
         return {
             rects: rects,
             noteCount: rects.length,
             bounds: {
-                left: mapOptions.xMin,
-                right: mapOptions.xMax,
-                top: mapOptions.yMax,
-                bottom: mapOptions.yMin
+                left: numeric(mapOptions.xMin, 70),
+                right: numeric(mapOptions.xMax, svgWidth - 40),
+                top: numeric(mapOptions.yMax, 40),
+                bottom: numeric(mapOptions.yMin, svgHeight - 50)
             },
             sourceLabel: sourceLabel,
             description: pianoRollPreviewDescription(options, rects.length)
         };
     };
 
-    api.buildPianoRollPreviewHtml = function (source, compLike, options) {
-        var svgWidth;
-        var svgHeight;
-        var layout;
-        var bars;
+    api.buildPianoRollPreviewHtml = function (
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): PianoRollPreviewHtml {
+        var svgWidth: number;
+        var svgHeight: number;
+        var layout: PianoRollPreviewLayout;
+        var bars: string[] = [];
         var i;
         var rect;
         var x;
@@ -3439,8 +3732,12 @@
         };
     };
 
-    api.previewPianoRollMap = function (comp, sourceLayer, options) {
-        var preview;
+    api.previewPianoRollMap = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollMapPreviewResult {
+        var preview: PianoRollPreviewLayout;
         options = options || {};
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before previewing a piano-roll map.");
@@ -3481,21 +3778,12 @@
         };
     };
 
-    function safeProperty(group, nameOrIndex) {
-        var prop;
-        if (!group || !group.property) {
-            return null;
-        }
-        try {
-            prop = group.property(nameOrIndex);
-            return prop || null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function setPropValue(group, name, value) {
-        var prop = safeProperty(group, name);
+    function setPropValue(
+        group: PropContainerLike | null | undefined,
+        name: string,
+        value: number | number[] | string
+    ): boolean {
+        var prop = api.safeProperty(group, name);
         if (prop && prop.setValue) {
             try {
                 prop.setValue(value);
@@ -3505,29 +3793,29 @@
         return false;
     }
 
-    function setPropExpression(prop, expression) {
+    function setPropExpression(prop: PropContainerLike | null | undefined, expression: string): boolean {
         if (!prop) {
             return false;
         }
         try {
-            if (prop.canSetExpression === false) {
+            if ((prop as Property).canSetExpression === false) {
                 return false;
             }
-            prop.expression = expression;
-            if (typeof prop.expressionEnabled !== "undefined") {
-                prop.expressionEnabled = true;
+            (prop as Property).expression = expression;
+            if (typeof (prop as Property).expressionEnabled !== "undefined") {
+                (prop as Property).expressionEnabled = true;
             }
             return true;
         } catch (e) {}
         return false;
     }
 
-    function pianoRollControllerLayerName(sourceLayer) {
+    function pianoRollControllerLayerName(sourceLayer: Layer | null | undefined): string {
         var suffix = sourceLayer && sourceLayer.name ? " " + sourceLayer.name : "";
         return api.limitEffectName("MIDI Piano Roll" + suffix);
     }
 
-    function pianoRollControlExpression(effectName, propertyName) {
+    function pianoRollControlExpression(effectName: string, propertyName: string): string {
         return (
             "try { thisLayer.parent.effect(" +
             quote(effectName) +
@@ -3537,7 +3825,7 @@
         );
     }
 
-    function pianoRollMasterOpacityExpression(controllerEffects) {
+    function pianoRollMasterOpacityExpression(controllerEffects: PianoRollControllerEffects): string {
         if (controllerEffects && controllerEffects.fillOpacity) {
             return (
                 "try { var c = thisLayer.parent; c.effect(" +
@@ -3555,23 +3843,24 @@
         );
     }
 
-    function addPianoRollControllerSlider(layer, name, value) {
-        var fx;
-        var sliderProp;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+    function addPianoRollControllerSlider(layer: Layer, name: string, value: number): PropertyGroup | null {
+        var fx: PropertyGroup | null;
+        var sliderProp: PropContainerLike | null;
+        var effectsLayer = api.asLayerWithEffects(layer);
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
         try {
-            fx = layer.Effects.addProperty("Slider Control");
+            fx = effectsLayer.Effects.addProperty("Slider Control") as PropertyGroup;
         } catch (addSliderErr) {
             try {
-                fx = layer.Effects.addProperty("ADBE Slider Control");
+                fx = effectsLayer.Effects.addProperty("ADBE Slider Control") as PropertyGroup;
             } catch (legacySliderErr) {
                 return null;
             }
         }
         fx.name = api.limitEffectName(name);
-        sliderProp = safeProperty(fx, 1) || safeProperty(fx, "Slider");
+        sliderProp = api.safeProperty(fx, 1) || api.safeProperty(fx, "Slider");
         if (sliderProp && sliderProp.setValue) {
             try {
                 sliderProp.setValue(value);
@@ -3580,22 +3869,23 @@
         return fx;
     }
 
-    function addPianoRollControllerColor(layer, name, rgb) {
-        var fx;
-        var colorProp;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+    function addPianoRollControllerColor(layer: Layer, name: string, rgb: number[]): PropertyGroup | null {
+        var fx: PropertyGroup | null;
+        var colorProp: PropContainerLike | null;
+        var effectsLayer = api.asLayerWithEffects(layer);
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
-        fx = layer.Effects.addProperty("ADBE Color Control");
+        fx = effectsLayer.Effects.addProperty("ADBE Color Control") as PropertyGroup;
         fx.name = api.limitEffectName(name);
         try {
-            colorProp = fx.property("Color");
+            colorProp = api.asPropContainerLike(fx.property("Color"));
         } catch (colorErr) {
             colorProp = null;
         }
         if (!colorProp) {
             try {
-                colorProp = fx.property(1);
+                colorProp = api.asPropContainerLike(fx.property(1));
             } catch (colorErr2) {
                 colorProp = null;
             }
@@ -3608,10 +3898,14 @@
         return fx;
     }
 
-    function createPianoRollControllerNull(comp, sourceLayer, options) {
-        var layer;
-        var fx;
-        var info;
+    function createPianoRollControllerNull(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollControllerNullResult | null {
+        var layer: Layer;
+        var fx: PropertyGroup | null;
+        var info: PianoRollControllerNullResult;
         options = options || {};
         if (!comp || !comp.layers || !comp.layers.addNull) {
             return null;
@@ -3623,7 +3917,7 @@
         info = {
             layer: layer,
             name: layer.name,
-            effects: {}
+            effects: {} as PianoRollControllerEffects
         };
         if (options.includeFillControls !== false) {
             fx = addPianoRollControllerColor(layer, "Fill Color", options.fillColor || [0.22, 0.74, 0.97]);
@@ -3658,23 +3952,26 @@
         return info;
     }
 
-    function shapeContentMatches(prop, matchName) {
-        return prop && (prop.matchName === matchName || prop.name === matchName);
+    function shapeContentMatches(prop: PropContainerLike | null | undefined, matchName: string): boolean {
+        return !!(prop && ((prop as Property).matchName === matchName || prop.name === matchName));
     }
 
-    function visitShapeContentProps(layer, visitor) {
+    function visitShapeContentProps(
+        layer: Layer,
+        visitor: (prop: PropContainerLike) => boolean
+    ): PropContainerLike | null {
         var contents;
         var i;
         var prop;
         var sub;
         var j;
         var subProp;
-        contents = safeProperty(layer, "ADBE Root Vectors Group");
+        contents = api.safeProperty(layer, "ADBE Root Vectors Group");
         if (!contents || !contents.numProperties) {
             return null;
         }
         for (i = 1; i <= contents.numProperties; i += 1) {
-            prop = safeProperty(contents, i);
+            prop = api.safeProperty(contents, i);
             if (!prop) {
                 continue;
             }
@@ -3682,10 +3979,10 @@
                 return prop;
             }
             if (shapeContentMatches(prop, "ADBE Vector Group")) {
-                sub = safeProperty(prop, "ADBE Vectors Group") || safeProperty(prop, 2);
+                sub = api.safeProperty(prop, "ADBE Vectors Group") || api.safeProperty(prop, 2);
                 if (sub && sub.numProperties) {
                     for (j = 1; j <= sub.numProperties; j += 1) {
-                        subProp = safeProperty(sub, j);
+                        subProp = api.safeProperty(sub, j);
                         if (subProp && visitor(subProp)) {
                             return subProp;
                         }
@@ -3696,50 +3993,56 @@
         return null;
     }
 
-    function findShapeFill(layer) {
+    function findShapeFill(layer: Layer): PropContainerLike | null {
         return visitShapeContentProps(layer, function (prop) {
             return shapeContentMatches(prop, "ADBE Vector Graphic - Fill");
         });
     }
 
-    function findShapeStroke(layer) {
+    function findShapeStroke(layer: Layer): PropContainerLike | null {
         return visitShapeContentProps(layer, function (prop) {
             return shapeContentMatches(prop, "ADBE Vector Graphic - Stroke");
         });
     }
 
-    function findLayerOpacity(layer) {
-        var transform = safeProperty(layer, "ADBE Transform Group");
-        return safeProperty(transform, "ADBE Opacity");
+    function findLayerOpacity(layer: Layer): PropContainerLike | null {
+        var transform = api.safeProperty(layer, "ADBE Transform Group");
+        return api.safeProperty(transform, "ADBE Opacity");
     }
 
-    function shapeFillColorProp(fill) {
-        return safeProperty(fill, "ADBE Vector Fill Color") || safeProperty(fill, "Color") || safeProperty(fill, 4);
-    }
-
-    function shapeStrokeColorProp(stroke) {
+    function shapeFillColorProp(fill: PropContainerLike | null): PropContainerLike | null {
         return (
-            safeProperty(stroke, "ADBE Vector Stroke Color") || safeProperty(stroke, "Color") || safeProperty(stroke, 4)
+            api.safeProperty(fill, "ADBE Vector Fill Color") ||
+            api.safeProperty(fill, "Color") ||
+            api.safeProperty(fill, 4)
         );
     }
 
-    function shapeStrokeOpacityProp(stroke) {
+    function shapeStrokeColorProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
-            safeProperty(stroke, "ADBE Vector Stroke Opacity") ||
-            safeProperty(stroke, "Opacity") ||
-            safeProperty(stroke, 5)
+            api.safeProperty(stroke, "ADBE Vector Stroke Color") ||
+            api.safeProperty(stroke, "Color") ||
+            api.safeProperty(stroke, 4)
         );
     }
 
-    function shapeStrokeWidthProp(stroke) {
+    function shapeStrokeOpacityProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
-            safeProperty(stroke, "ADBE Vector Stroke Width") ||
-            safeProperty(stroke, "Stroke Width") ||
-            safeProperty(stroke, 6)
+            api.safeProperty(stroke, "ADBE Vector Stroke Opacity") ||
+            api.safeProperty(stroke, "Opacity") ||
+            api.safeProperty(stroke, 5)
         );
     }
 
-    function wireShapeStrokeFromController(layer, controllerEffects) {
+    function shapeStrokeWidthProp(stroke: PropContainerLike | null): PropContainerLike | null {
+        return (
+            api.safeProperty(stroke, "ADBE Vector Stroke Width") ||
+            api.safeProperty(stroke, "Stroke Width") ||
+            api.safeProperty(stroke, 6)
+        );
+    }
+
+    function wireShapeStrokeFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void {
         var stroke;
         if (!layer || !controllerEffects) {
             return;
@@ -3762,7 +4065,7 @@
         );
     }
 
-    function wireShapeMasterOpacityFromController(layer, controllerEffects) {
+    function wireShapeMasterOpacityFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void {
         var opacityProp;
         if (!layer || !controllerEffects) {
             return;
@@ -3773,7 +4076,7 @@
         }
     }
 
-    function wirePianoRollShapeStyles(layer, controllerEffects) {
+    function wirePianoRollShapeStyles(layer: Layer, controllerEffects: PianoRollControllerEffects): void {
         var fill;
         if (!layer || !controllerEffects) {
             return;
@@ -3782,7 +4085,7 @@
         if (fill) {
             setPropExpression(
                 shapeFillColorProp(fill),
-                pianoRollControlExpression(controllerEffects.fillColor, "Color")
+                pianoRollControlExpression(controllerEffects.fillColor || "Fill Color", "Color")
             );
         }
         wireShapeStrokeFromController(layer, controllerEffects);
@@ -3792,12 +4095,15 @@
     api.wireShapeStrokeFromController = wireShapeStrokeFromController;
     api.wireShapeMasterOpacityFromController = wireShapeMasterOpacityFromController;
 
-    function buildShapeRectContents(contents, rect) {
-        var rectShape = null;
-        var fill = null;
-        var stroke = null;
-        var group;
-        var vectors;
+    function buildShapeRectContents(
+        contents: PropContainerLike | null,
+        rect: PianoRollRect
+    ): { rectShape: PropContainerLike | null; fill: PropContainerLike | null; stroke: PropContainerLike | null } {
+        var rectShape: PropContainerLike | null = null;
+        var fill: PropContainerLike | null = null;
+        var stroke: PropContainerLike | null = null;
+        var group: PropContainerLike | null;
+        var vectors: PropContainerLike | null;
         var width = Math.max(1, rect.width);
         var height = Math.max(1, rect.height);
 
@@ -3806,13 +4112,13 @@
         }
 
         try {
-            rectShape = contents.addProperty("ADBE Vector Shape - Rect");
+            rectShape = api.asPropContainerLike(contents.addProperty("ADBE Vector Shape - Rect"));
             setPropValue(rectShape, "ADBE Vector Rect Size", [width, height]);
-            fill = contents.addProperty("ADBE Vector Graphic - Fill");
+            fill = api.asPropContainerLike(contents.addProperty("ADBE Vector Graphic - Fill"));
             setPropValue(fill, "ADBE Vector Fill Color", rect.color || [0.22, 0.74, 0.97]);
             setPropValue(fill, "ADBE Vector Fill Opacity", 100);
             try {
-                stroke = contents.addProperty("ADBE Vector Graphic - Stroke");
+                stroke = api.asPropContainerLike(contents.addProperty("ADBE Vector Graphic - Stroke"));
                 setPropValue(stroke, "ADBE Vector Stroke Color", [1, 1, 1]);
                 setPropValue(stroke, "ADBE Vector Stroke Opacity", 100);
                 setPropValue(stroke, "ADBE Vector Stroke Width", 0);
@@ -3823,18 +4129,18 @@
         } catch (flatErr) {}
 
         try {
-            group = contents.addProperty("ADBE Vector Group");
-            vectors = safeProperty(group, "ADBE Vectors Group") || safeProperty(group, 2);
+            group = api.asPropContainerLike(contents.addProperty("ADBE Vector Group"));
+            vectors = api.safeProperty(group, "ADBE Vectors Group") || api.safeProperty(group, 2);
             if (!vectors || !vectors.addProperty) {
                 return { rectShape: null, fill: null, stroke: null };
             }
-            rectShape = vectors.addProperty("ADBE Vector Shape - Rect");
+            rectShape = api.asPropContainerLike(vectors.addProperty("ADBE Vector Shape - Rect"));
             setPropValue(rectShape, "ADBE Vector Rect Size", [width, height]);
-            fill = vectors.addProperty("ADBE Vector Graphic - Fill");
+            fill = api.asPropContainerLike(vectors.addProperty("ADBE Vector Graphic - Fill"));
             setPropValue(fill, "ADBE Vector Fill Color", rect.color || [0.22, 0.74, 0.97]);
             setPropValue(fill, "ADBE Vector Fill Opacity", 100);
             try {
-                stroke = vectors.addProperty("ADBE Vector Graphic - Stroke");
+                stroke = api.asPropContainerLike(vectors.addProperty("ADBE Vector Graphic - Stroke"));
                 setPropValue(stroke, "ADBE Vector Stroke Color", [1, 1, 1]);
                 setPropValue(stroke, "ADBE Vector Stroke Opacity", 100);
                 setPropValue(stroke, "ADBE Vector Stroke Width", 0);
@@ -3847,7 +4153,12 @@
         return { rectShape: null, fill: null, stroke: null };
     }
 
-    function parentLayerToController(comp, layer, controllerName, controllerLayer) {
+    function parentLayerToController(
+        comp: CompItem,
+        layer: Layer | null,
+        controllerName: string | null,
+        controllerLayer: Layer | null
+    ): boolean {
         var parentLayer;
         if (!layer || (!controllerName && !controllerLayer)) {
             return false;
@@ -3867,11 +4178,11 @@
         return false;
     }
 
-    function createShapeRectLayer(comp, rect) {
-        var layer = null;
-        var contents;
-        var transform;
-        var result = {
+    function createShapeRectLayer(comp: CompItem, rect: PianoRollRect): ShapeRectLayerResult {
+        var layer: Layer | null = null;
+        var contents: PropContainerLike | null;
+        var transform: PropContainerLike | null;
+        var result: ShapeRectLayerResult = {
             layer: null,
             rect: rect
         };
@@ -3881,7 +4192,7 @@
                 return result;
             }
             layer = comp.layers.addShape();
-            layer.name = "MIDI Note " + api.pad2(rect.index) + " " + api.sanitizeName(rect.label);
+            layer.name = "MIDI Note " + api.pad2(rect.index || 0) + " " + api.sanitizeName(rect.label);
             layer.comment =
                 "Piano roll note" +
                 "\ntime: " +
@@ -3894,9 +4205,9 @@
                 rect.velocity +
                 "\nlabel: " +
                 rect.label;
-            contents = safeProperty(layer, "ADBE Root Vectors Group");
+            contents = api.safeProperty(layer, "ADBE Root Vectors Group");
             buildShapeRectContents(contents, rect);
-            transform = safeProperty(layer, "ADBE Transform Group");
+            transform = api.safeProperty(layer, "ADBE Transform Group");
             if (transform) {
                 setPropValue(transform, "ADBE Anchor Point", [0, 0]);
                 setPropValue(transform, "ADBE Position", [rect.x, rect.y]);
@@ -3910,16 +4221,20 @@
 
     api.createShapeRectLayer = createShapeRectLayer;
 
-    api.createPianoRollMapLayers = function (comp, sourceLayer, options) {
-        var rects;
+    api.createPianoRollMapLayers = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollMapResult {
+        var rects: PianoRollRect[];
         var created = 0;
-        var notes;
-        var controllerName;
-        var i;
-        var noteStyles;
-        var noteStyle;
-        var controllerInfo;
-        var opacityProp;
+        var notes: PianoRollNote[];
+        var controllerName: string;
+        var i: number;
+        var noteStyles: ShapeRectLayerResult[];
+        var noteStyle: ShapeRectLayerResult;
+        var controllerInfo: PianoRollControllerNullResult | null;
+        var opacityProp: PropContainerLike | null;
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before creating a piano-roll map.");
         }
@@ -3959,8 +4274,12 @@
                 parentLayerToController(comp, noteStyles[i].layer, null, controllerInfo.layer);
             }
             for (i = 0; i < noteStyles.length; i += 1) {
-                wirePianoRollShapeStyles(noteStyles[i].layer, controllerInfo.effects);
-                opacityProp = findLayerOpacity(noteStyles[i].layer);
+                var styledLayer = noteStyles[i].layer;
+                if (!styledLayer) {
+                    continue;
+                }
+                wirePianoRollShapeStyles(styledLayer, controllerInfo.effects);
+                opacityProp = findLayerOpacity(styledLayer);
                 if (opacityProp) {
                     setPropExpression(opacityProp, pianoRollMasterOpacityExpression(controllerInfo.effects));
                 }
@@ -3974,12 +4293,12 @@
         };
     };
 
-    function previewScalarValue(value) {
+    function previewScalarValue(value: MidiActionPropertyValue): number {
         if (typeof value === "number" && !isNaN(value)) {
             return value;
         }
-        if (value && value.length !== undefined && typeof value !== "string") {
-            return typeof value[0] === "number" ? value[0] : 0;
+        if (value && (value as number[]).length !== undefined && typeof value !== "string") {
+            return typeof (value as number[])[0] === "number" ? (value as number[])[0] : 0;
         }
         if (typeof value === "string") {
             return value ? 1 : 0;
@@ -3987,7 +4306,11 @@
         return 0;
     }
 
-    function resolveMidiActionPreviewRange(comp, options, triggers) {
+    function resolveMidiActionPreviewRange(
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        triggers?: MidiActionTrigger[]
+    ): MidiActionPreviewRange {
         var step = comp && comp.frameDuration ? comp.frameDuration : numeric(options.previewStep, 1 / 24);
         var startTime = 0;
         var endTime = 0;
@@ -4018,7 +4341,7 @@
         return { step: step, startTime: startTime, endTime: endTime };
     }
 
-    function midiActionPreviewSampleStep(range, maxPoints) {
+    function midiActionPreviewSampleStep(range: MidiActionPreviewRange, maxPoints?: number): number {
         var span;
         var step = range.step;
         maxPoints = maxPoints || 256;
@@ -4032,11 +4355,16 @@
         return step;
     }
 
-    function midiActionPreviewUsesSharpSamples(preset) {
+    function midiActionPreviewUsesSharpSamples(preset: MidiActionPreset | string): boolean {
         return preset !== "interpolate";
     }
 
-    function pushPreviewSampleEntry(entries, seen, plotTime, evalTime) {
+    function pushPreviewSampleEntry(
+        entries: PreviewSampleEntry[],
+        seen: StringKeyedMap<boolean>,
+        plotTime: number,
+        evalTime: number
+    ): void {
         var key;
         if (plotTime === null || typeof plotTime === "undefined" || isNaN(plotTime)) {
             return;
@@ -4052,7 +4380,7 @@
         entries.push({ plotTime: plotTime, evalTime: evalTime });
     }
 
-    function sortPreviewSampleEntries(entries) {
+    function sortPreviewSampleEntries(entries: PreviewSampleEntry[]): PreviewSampleEntry[] {
         return entries.sort(function (a, b) {
             if (a.plotTime === b.plotTime) {
                 return a.evalTime - b.evalTime;
@@ -4061,15 +4389,19 @@
         });
     }
 
-    function buildMidiActionPreviewSampleEntries(range, triggers, options) {
+    function buildMidiActionPreviewSampleEntries(
+        range: MidiActionPreviewRange,
+        triggers: MidiActionTrigger[],
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): PreviewSampleEntry[] {
         var maxPoints = 256;
         var preset = options.preset || "pump";
         var step = midiActionPreviewSampleStep(range, maxPoints);
         var duration = numeric(options.duration, 0.2);
         var windowDuration = options.falloff === "instant" ? step || duration : duration;
         var eps = Math.min(step * 0.001, range.step * 0.001, 0.00001);
-        var entries = [];
-        var seen = {};
+        var entries: PreviewSampleEntry[] = [];
+        var seen: StringKeyedMap<boolean> = {};
         var budget;
         var coarseStep;
         var reserved = 0;
@@ -4118,7 +4450,7 @@
         return sortPreviewSampleEntries(entries);
     }
 
-    function triggerIndexAtTime(triggers, time) {
+    function triggerIndexAtTime(triggers: MidiActionTrigger[], time: number): number {
         var index = -1;
         while (index + 1 < triggers.length && triggers[index + 1].time <= time) {
             index += 1;
@@ -4126,19 +4458,30 @@
         return index;
     }
 
-    function pushMidiActionSimulationPoint(points, t, value) {
+    function pushMidiActionSimulationPoint(
+        points: MidiActionSimulationPoint[],
+        t: number,
+        value: MidiActionPropertyValue
+    ): void {
         points.push({
             time: t,
             value: previewScalarValue(value)
         });
     }
 
-    function buildMidiActionSimulationPoints(triggers, comp, options) {
+    function buildMidiActionSimulationPoints(
+        triggers: MidiActionTrigger[],
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionSimulationPoint[] {
         var range = resolveMidiActionPreviewRange(comp, options, triggers);
         var sampleEntries = buildMidiActionPreviewSampleEntries(range, triggers, options);
         var previewBaseFallback = options.baseValue === "value" ? 100 : numeric(options.previewBaseValue, 0);
         var base = parseValueLiteral(options.baseValue, previewBaseFallback);
-        var active = parseValueLiteral(options.activeValue, numeric(options.previewActiveValue, base));
+        var active = parseValueLiteral(
+            options.activeValue,
+            typeof base === "number" ? base : numeric(options.previewActiveValue, 0)
+        );
         var simOptions = {
             preset: options.preset || "pump",
             duration: options.duration,
@@ -4146,8 +4489,8 @@
             falloff: options.falloff || "linear",
             frameDuration: range.step
         };
-        var points = [];
-        var accumTotal = null;
+        var points: MidiActionSimulationPoint[] = [];
+        var accumTotal: MidiActionPropertyValue | null = null;
         var accumUpTo = -1;
         var duration = numeric(simOptions.duration, 0.2);
         var windowDuration = simOptions.falloff === "instant" ? simOptions.frameDuration || duration : duration;
@@ -4177,11 +4520,17 @@
             if (simOptions.preset === "accumulator") {
                 while (accumUpTo < triggerIndex) {
                     accumUpTo += 1;
-                    accumTotal = addDeltaValue(accumTotal, triggers[accumUpTo].amount);
+                    accumTotal = addDeltaValue(
+                        accumTotal === null ? (0 as MidiActionPropertyValue) : accumTotal,
+                        triggers[accumUpTo].amount
+                    );
                 }
                 n = triggerIndex;
                 if (n >= 0 && evalTime <= triggers[n].time + windowDuration) {
-                    from = addDeltaValue(accumTotal, -triggers[n].amount);
+                    from = addDeltaValue(
+                        accumTotal === null ? (0 as MidiActionPropertyValue) : accumTotal,
+                        -triggers[n].amount
+                    );
                     f =
                         1 -
                         falloffValue(
@@ -4193,7 +4542,7 @@
                         );
                     value = addDeltaValue(from, triggers[n].amount * f);
                 } else {
-                    value = accumTotal;
+                    value = accumTotal === null ? cloneValue(base) : accumTotal;
                 }
                 pushMidiActionSimulationPoint(points, t, value);
             } else if (simOptions.preset === "interpolate") {
@@ -4221,7 +4570,10 @@
         return points;
     }
 
-    function midiActionPreviewBounds(points, range) {
+    function midiActionPreviewBounds(
+        points: MidiActionSimulationPoint[],
+        range: MidiActionPreviewRange
+    ): MidiActionPreviewBounds {
         var minValue = Infinity;
         var maxValue = -Infinity;
         var i;
@@ -4245,7 +4597,7 @@
         };
     }
 
-    function midiActionPresetLabel(preset) {
+    function midiActionPresetLabel(preset: MidiActionPreset | string): string {
         if (preset === "toggle") {
             return "Toggle / Flip";
         }
@@ -4258,10 +4610,13 @@
         return "Pump / Decay";
     }
 
-    function midiActionPreviewDescription(options, triggerCount) {
+    function midiActionPreviewDescription(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        triggerCount: number
+    ): string {
         var parts = [];
         parts.push(triggerCount + " trigger" + (triggerCount === 1 ? "" : "s") + " in preview.");
-        parts.push("Curve shows the " + midiActionPresetLabel(options.preset) + " preset over time.");
+        parts.push("Curve shows the " + midiActionPresetLabel(options.preset || "pump") + " preset over time.");
         if (options.pitchSliderName && options.triggerMode !== "drums") {
             parts.push("Pitch slider: " + options.pitchSliderName + ".");
         }
@@ -4271,7 +4626,11 @@
         return parts.join(" ");
     }
 
-    api.simulateMidiActionFromLayer = function (sourceLayer, comp, options) {
+    api.simulateMidiActionFromLayer = function (
+        sourceLayer: Layer,
+        comp: CompItem | null | undefined,
+        options?: MidiActionOptionsInput
+    ): MidiActionSimulation {
         var triggers;
         options = api.resolveMidiActionOptions(comp, options || {}, sourceLayer);
         triggers = api.collectMidiActionTriggersFromLayer(sourceLayer, options);
@@ -4281,7 +4640,11 @@
         };
     };
 
-    api.buildMidiActionPreviewLayout = function (sourceLayer, comp, options) {
+    api.buildMidiActionPreviewLayout = function (
+        sourceLayer: Layer,
+        comp: CompItem | null | undefined,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionPreviewLayout {
         var triggers;
         var points;
         var range;
@@ -4303,7 +4666,11 @@
         };
     };
 
-    api.computeMidiActionPreviewLayout = function (comp, sourceLayer, options) {
+    api.computeMidiActionPreviewLayout = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): MidiActionPreviewLayout {
         var layout;
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before previewing MIDI Actions.");
@@ -4332,7 +4699,11 @@
         return layout;
     };
 
-    api.previewMidiAction = function (comp, sourceLayer, options) {
+    api.previewMidiAction = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): MidiActionPreviewLayout {
         var layout;
         options = options || {};
         try {
@@ -4348,7 +4719,7 @@
         return layout;
     };
 
-    api.simulateMidiAction = function (midi, options) {
+    api.simulateMidiAction = function (midi: MidiFileData, options?: MidiActionOptionsInput): MidiActionSimulation {
         var triggers;
         options = options || {};
         options.midiDuration = midi.durationSeconds || 1;
@@ -4362,7 +4733,7 @@
         };
     };
 
-    function midiActionPresetShortName(preset) {
+    function midiActionPresetShortName(preset: MidiActionPreset | string): string {
         if (preset === "toggle") {
             return "Toggle";
         }
@@ -4375,14 +4746,21 @@
         return "Pump";
     }
 
-    function midiActionOutputLayerName(sourceLayer, options) {
+    function midiActionOutputLayerName(
+        sourceLayer: Layer | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): string {
         var sourceName = sourceLayer && sourceLayer.name ? sourceLayer.name : "MIDI";
         return api.limitEffectName(
             "MIDI Action " + midiActionPresetShortName(options.preset || "pump") + " " + sourceName
         );
     }
 
-    function createMidiActionOutputNull(comp, sourceLayer, options) {
+    function createMidiActionOutputNull(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options: MidiActionOutputNullOptions | Partial<MidiActionOutputNullOptions>
+    ): MidiActionOutputNull {
         var layer;
         var sliderProp;
         var base;
@@ -4415,7 +4793,7 @@
             throw new Error("Could not access the MIDI Action slider property.");
         }
         base = parseValueLiteral(options.baseValue, 0);
-        if (base && base.length !== undefined && typeof base !== "string") {
+        if (valueIsArray(base)) {
             base = base.length ? base[0] : 0;
         }
         if (typeof sliderProp.setValue === "function") {
@@ -4430,7 +4808,11 @@
         };
     }
 
-    api.prepareMidiActionExpression = function (comp, sourceLayer, options) {
+    api.prepareMidiActionExpression = function (
+        comp: CompItem | null | undefined,
+        sourceLayer: Layer | null | undefined,
+        options?: MidiActionOptionsInput
+    ): PrepareMidiActionExpressionResult {
         var resolved;
         var expression;
         if (!sourceLayer) {
@@ -4439,7 +4821,7 @@
         rememberMidiActionSourceLayer(sourceLayer);
         resolved = api.resolveMidiActionOptions(comp, options || {}, sourceLayer);
         resolved.sourceLayerName = sourceLayer.name;
-        if (options.useOutputSliders !== false) {
+        if (resolved.useOutputSliders !== false) {
             resolved.useOutputSliders = true;
         }
         expression = api.buildMidiActionExpression(resolved);
@@ -4449,11 +4831,19 @@
         };
     };
 
-    api.buildMidiActionExpressionFromLayer = function (comp, sourceLayer, options) {
+    api.buildMidiActionExpressionFromLayer = function (
+        comp: CompItem | null | undefined,
+        sourceLayer: Layer | null | undefined,
+        options?: MidiActionOptionsInput
+    ): string {
         return api.prepareMidiActionExpression(comp, sourceLayer, options).expression;
     };
 
-    api.createMidiActionNullWithExpression = function (comp, sourceLayer, options) {
+    api.createMidiActionNullWithExpression = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): CreateMidiActionNullResult {
         var prepared;
         var resolved;
         var output;
@@ -4488,7 +4878,11 @@
         };
     };
 
-    api.createMidiActionNullWithBake = function (comp, sourceLayer, options) {
+    api.createMidiActionNullWithBake = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): CreateMidiActionNullBakeResult {
         var resolved;
         var output;
         var triggers;
@@ -4517,7 +4911,10 @@
         };
     };
 
-    api.applyExpressionToSelectedProperties = function (comp, options) {
+    api.applyExpressionToSelectedProperties = function (
+        comp: CompItem,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): ApplyExpressionResult {
         var properties;
         var expression;
         var applied = 0;
@@ -4535,7 +4932,7 @@
 
         expression = api.buildMidiActionExpression(options || {});
         for (i = 0; i < properties.length; i += 1) {
-            prop = properties[i];
+            prop = properties[i] as Property;
             if (prop && prop.canSetExpression) {
                 prop.expression = expression;
                 prop.expressionEnabled = true;
@@ -4547,24 +4944,29 @@
         return { applied: applied, skipped: skipped };
     };
 
-    function scalarMagnitude(value) {
-        var magnitude = Math.abs(value);
+    function scalarMagnitude(value: number | number[]): number {
+        var magnitude;
+        if (valueIsArray(value)) {
+            magnitude = Math.abs(value.length ? value[0] : 0);
+        } else {
+            magnitude = Math.abs(value);
+        }
         return magnitude || 100;
     }
 
-    function formatScreenFlipToggleLiteral(values) {
-        if (values && values.length !== undefined && typeof values !== "string") {
+    function formatScreenFlipToggleLiteral(values: MidiActionPropertyValue): string {
+        if (valueIsArray(values)) {
             return "[" + values.join(", ") + "]";
         }
         return String(values);
     }
 
-    function resolveScreenFlipToggleValues(property, axis) {
+    function resolveScreenFlipToggleValues(property: Property, axis: string): ScreenFlipToggleValues {
         var axisIndex = axis === "vertical" ? 1 : 0;
         var dims = propertyDimensions(property);
         var value;
-        var base;
-        var active;
+        var baseArr: number[];
+        var activeArr: number[];
         var magnitude;
 
         try {
@@ -4573,24 +4975,24 @@
             value = dims > 1 ? [100, 100] : 100;
         }
         if (dims <= 1) {
-            magnitude = scalarMagnitude(value);
+            magnitude = scalarMagnitude(value as number | number[]);
             return {
                 baseValue: String(magnitude),
                 activeValue: String(-magnitude)
             };
         }
-        base = cloneValue(value);
-        active = cloneValue(value);
-        magnitude = scalarMagnitude(base[axisIndex]);
-        base[axisIndex] = magnitude;
-        active[axisIndex] = -magnitude;
+        baseArr = cloneValue(value) as number[];
+        activeArr = cloneValue(value) as number[];
+        magnitude = scalarMagnitude(baseArr[axisIndex]);
+        baseArr[axisIndex] = magnitude;
+        activeArr[axisIndex] = -magnitude;
         return {
-            baseValue: formatScreenFlipToggleLiteral(base),
-            activeValue: formatScreenFlipToggleLiteral(active)
+            baseValue: formatScreenFlipToggleLiteral(baseArr),
+            activeValue: formatScreenFlipToggleLiteral(activeArr)
         };
     }
 
-    api.buildScreenFlipExpression = function (options) {
+    api.buildScreenFlipExpression = function (options?: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var axisIndex;
         var body;
         options = options || {};
@@ -4625,7 +5027,13 @@
         return commonHeader(options) + joinExpressionLines(body);
     };
 
-    api.resolveScreenFlipActionOptions = function (comp, property, axis, options, sourceLayer) {
+    api.resolveScreenFlipActionOptions = function (
+        comp: CompItem,
+        property: Property,
+        axis: string,
+        options: MidiActionOptionsInput | null | undefined,
+        sourceLayer: Layer
+    ): MidiActionOptionsResolved {
         var resolved;
         var toggleValues;
         resolved = api.resolveMidiActionOptions(comp, options || {}, sourceLayer);
@@ -4642,7 +5050,7 @@
         return resolved;
     };
 
-    api.applyMidiActionExpressionToProperty = function (property, expression) {
+    api.applyMidiActionExpressionToProperty = function (property: Property, expression: string): boolean {
         if (!property || !property.canSetExpression) {
             throw new Error("The target property cannot receive an expression.");
         }
@@ -4651,7 +5059,12 @@
         return true;
     };
 
-    api.bakeMidiActionToProperty = function (property, comp, sourceLayer, options) {
+    api.bakeMidiActionToProperty = function (
+        property: Property,
+        comp: CompItem,
+        sourceLayer: Layer,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): BakePropertyResult {
         var triggers;
         var plan;
         if (!property) {
