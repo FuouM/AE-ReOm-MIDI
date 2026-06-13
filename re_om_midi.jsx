@@ -3829,7 +3829,6 @@
     function pianoRollCanAddMore(notes, maxNotes) {
         return maxNotes < 0 || notes.length < maxNotes;
     }
-    // @ts-nocheck — piano roll collectors/builders deferred to Phase 3b
     function pianoRollHasTimeFilter(options) {
         return !!(options &&
             (options.useWorkArea || typeof options.timeStart !== "undefined" || typeof options.timeEnd !== "undefined"));
@@ -3953,8 +3952,8 @@
         appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
     }
     function collectDrumNotesForPrefix(layer, notes, maxNotes, prefix, options, sliderIndex) {
-        var channel = parseChannelPrefix(prefix);
         var drumChannels = {};
+        var channel = parseChannelPrefix(prefix);
         var parsed;
         var midiChannel;
         var i;
@@ -4878,10 +4877,10 @@
             rects: rects,
             noteCount: rects.length,
             bounds: {
-                left: mapOptions.xMin,
-                right: mapOptions.xMax,
-                top: mapOptions.yMax,
-                bottom: mapOptions.yMin
+                left: numeric(mapOptions.xMin, 70),
+                right: numeric(mapOptions.xMax, svgWidth - 40),
+                top: numeric(mapOptions.yMax, 40),
+                bottom: numeric(mapOptions.yMin, svgHeight - 50)
             },
             sourceLabel: sourceLabel,
             description: pianoRollPreviewDescription(options, rects.length)
@@ -4891,7 +4890,7 @@
         var svgWidth;
         var svgHeight;
         var layout;
-        var bars;
+        var bars = [];
         var i;
         var rect;
         var x;
@@ -5092,15 +5091,16 @@
     function addPianoRollControllerSlider(layer, name, value) {
         var fx;
         var sliderProp;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+        var effectsLayer = layer;
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
         try {
-            fx = layer.Effects.addProperty("Slider Control");
+            fx = effectsLayer.Effects.addProperty("Slider Control");
         }
         catch (addSliderErr) {
             try {
-                fx = layer.Effects.addProperty("ADBE Slider Control");
+                fx = effectsLayer.Effects.addProperty("ADBE Slider Control");
             }
             catch (legacySliderErr) {
                 return null;
@@ -5119,10 +5119,11 @@
     function addPianoRollControllerColor(layer, name, rgb) {
         var fx;
         var colorProp;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+        var effectsLayer = layer;
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
-        fx = layer.Effects.addProperty("ADBE Color Control");
+        fx = effectsLayer.Effects.addProperty("ADBE Color Control");
         fx.name = api.limitEffectName(name);
         try {
             colorProp = fx.property("Color");
@@ -5180,7 +5181,7 @@
         return info;
     }
     function shapeContentMatches(prop, matchName) {
-        return prop && (prop.matchName === matchName || prop.name === matchName);
+        return !!(prop && (prop.matchName === matchName || prop.name === matchName));
     }
     function visitShapeContentProps(layer, visitor) {
         var contents;

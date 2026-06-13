@@ -1,3 +1,109 @@
+/** Axis-aligned bounds for a piano-roll preview chart. */
+interface PianoRollPreviewBounds {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+}
+
+/** Layout payload for piano-roll preview UI. */
+interface PianoRollPreviewLayout {
+    rects: PianoRollRect[];
+    noteCount: number;
+    bounds: PianoRollPreviewBounds;
+    sourceLabel: string;
+    description: string;
+}
+
+/** HTML export payload for piano-roll preview. */
+interface PianoRollPreviewHtml extends PianoRollPreviewLayout {
+    html: string;
+}
+
+/** Result of previewPianoRollMap. */
+interface PianoRollMapPreviewResult {
+    notes: number;
+    rects: PianoRollRect[];
+    layout: PianoRollPreviewLayout;
+}
+
+/** Result of createPianoRollMapLayers. */
+interface PianoRollMapResult {
+    created: number;
+    rects: PianoRollRect[];
+    notes: number;
+    controller: string;
+}
+
+/** Effect names wired on a piano-roll controller null. */
+interface PianoRollControllerEffects {
+    fillColor?: string;
+    fillOpacity?: string;
+    strokeColor: string;
+    strokeOpacity: string;
+    strokeWidth: string;
+    masterOpacity: string;
+}
+
+/** Null layer + slider effects created for piano-roll map styling. */
+interface PianoRollControllerNullResult {
+    layer: Layer;
+    name: string;
+    effects: PianoRollControllerEffects;
+}
+
+/** Time span resolved for piano-roll rect mapping. */
+interface PianoRollTimeRange {
+    timeStart: number;
+    timeEnd: number;
+}
+
+/** Inclusive MIDI pitch span for piano-roll lane layout. */
+interface PianoRollPitchRange {
+    min: number;
+    max: number;
+}
+
+/** Lane metrics derived from pitch range and roll height. */
+interface PianoRollLaneMetrics {
+    pitchRange: PianoRollPitchRange;
+    laneHeight: number;
+    rollBottom: number;
+}
+
+/** Partial note pushed by piano-roll collectors. */
+interface PianoRollNoteDraft {
+    time?: number;
+    duration?: number;
+    pitch: number;
+    velocity?: number;
+    label?: string;
+    isDrum?: boolean;
+    midiChannel?: number;
+    trackIndex?: number;
+}
+
+/** Single drum-pad hit collected from a named slider effect. */
+interface NamedDrumPadHit {
+    time: number;
+    duration: number;
+    velocity: number;
+}
+
+/** Named drum slider plus its keyed hits for drum-machine builders. */
+interface NamedDrumPadGroup {
+    pitch: number;
+    label: string;
+    effectName: string;
+    hits: NamedDrumPadHit[];
+}
+
+/** Shape layer created for one piano-roll note bar. */
+interface ShapeRectLayerResult {
+    layer: Layer | null;
+    rect: PianoRollRect;
+}
+
 /** Normalized note used by piano-roll collectors and rect builders. */
 interface PianoRollNote {
     index?: number;
@@ -30,6 +136,7 @@ interface PianoRollRect {
     pitchRangeMin?: number;
     pitchRangeMax?: number;
     laneHeight?: number;
+    color?: number[];
 }
 
 /** Single MIDI trigger point consumed by action expressions / bakes. */

@@ -1035,7 +1035,7 @@
         return fallback;
     }
 
-    function durationFromKeyCache(cache, keyIndex) {
+    function durationFromKeyCache(cache: SliderKeyCache | null, keyIndex: number): number {
         var startTime;
         var i;
         if (!cache || keyIndex < 0 || keyIndex >= cache.times.length) {
@@ -2195,7 +2195,7 @@
         return velocity > 0;
     }
 
-    function channelPrefixFromLayer(layer) {
+    function channelPrefixFromLayer(layer: Layer | null | undefined): string | null {
         var match;
         var prefix = null;
         if (!layer) {
@@ -2219,7 +2219,7 @@
         return prefix;
     }
 
-    function parseChannelPrefix(prefix) {
+    function parseChannelPrefix(prefix: string | null | undefined): ParsedChannelPrefix | null {
         var match = String(prefix || "").match(/T(\d{2})\s+Ch(\d{2})/i);
         if (!match) {
             return null;
@@ -2242,22 +2242,24 @@
         return maxNotes < 0 || notes.length < maxNotes;
     }
 
-    // @ts-nocheck — piano roll collectors/builders deferred to Phase 3b
-    function pianoRollHasTimeFilter(options) {
+    function pianoRollHasTimeFilter(options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined): boolean {
         return !!(
             options &&
             (options.useWorkArea || typeof options.timeStart !== "undefined" || typeof options.timeEnd !== "undefined")
         );
     }
 
-    function pianoRollTimeStart(options) {
+    function pianoRollTimeStart(options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined): number {
         if (!options) {
             return 0;
         }
         return numeric(options.timeStart, 0);
     }
 
-    function pianoRollTimeEnd(options, fallback) {
+    function pianoRollTimeEnd(
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined,
+        fallback: number
+    ): number {
         if (!options) {
             return fallback;
         }
@@ -2267,7 +2269,10 @@
         return fallback;
     }
 
-    function pianoRollNoteInTimeRange(note, options) {
+    function pianoRollNoteInTimeRange(
+        note: PianoRollNoteDraft | PianoRollNote,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined
+    ): boolean {
         var start;
         var end;
         var noteStart;
@@ -2309,7 +2314,15 @@
         return resolved;
     };
 
-    function appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options) {
+    function appendPitchSliderNotes(
+        pitchSlider: Property | null,
+        velSlider: Property | null,
+        durSlider: Property | null,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        midiChannel: number,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined
+    ): void {
         var pitchCache = buildSliderKeyCache(pitchSlider);
         var velCache = buildSliderKeyCache(velSlider);
         var durCache = buildSliderKeyCache(durSlider);
@@ -2369,7 +2382,15 @@
         }
     }
 
-    function collectStandardNotesForPrefix(layer, notes, maxNotes, drumChannels, prefix, options, sliderIndex) {
+    function collectStandardNotesForPrefix(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        drumChannels: { [channel: number]: boolean },
+        prefix: string,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions,
+        sliderIndex: LayerEffectSliderIndex
+    ): void {
         var channel = parseChannelPrefix(prefix);
         var midiChannel = channel ? channel.midiChannel : parseMidiChannelFromName(prefix);
         var pitchSlider;
@@ -2385,9 +2406,16 @@
         appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
     }
 
-    function collectDrumNotesForPrefix(layer, notes, maxNotes, prefix, options, sliderIndex) {
+    function collectDrumNotesForPrefix(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        prefix: string,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions,
+        sliderIndex: LayerEffectSliderIndex
+    ): { [channel: number]: boolean } {
+        var drumChannels: { [channel: number]: boolean } = {};
         var channel = parseChannelPrefix(prefix);
-        var drumChannels = {};
         var parsed;
         var midiChannel;
         var i;
@@ -2447,7 +2475,12 @@
 
     api.channelPrefixFromLayer = channelPrefixFromLayer;
 
-    function pushPianoRollNote(notes, note, maxNotes, options) {
+    function pushPianoRollNote(
+        notes: PianoRollNote[],
+        note: PianoRollNoteDraft,
+        maxNotes: number,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined
+    ): boolean {
         if (options && !pianoRollNoteInTimeRange(note, options)) {
             return true;
         }
@@ -2468,8 +2501,13 @@
         return true;
     }
 
-    function collectDrumSliderNotes(layer, notes, maxNotes, options) {
-        var drumChannels = {};
+    function collectDrumSliderNotes(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions
+    ): { [channel: number]: boolean } {
+        var drumChannels: { [channel: number]: boolean } = {};
         var parsed;
         var slider;
         var cache;
@@ -2518,8 +2556,14 @@
         return drumChannels;
     }
 
-    function collectStandardSliderNotes(layer, notes, maxNotes, drumChannels, options) {
-        var groups = {};
+    function collectStandardSliderNotes(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        drumChannels: { [channel: number]: boolean },
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions
+    ): void {
+        var groups: { [prefix: string]: { pitch?: Property; velocity?: Property; duration?: Property } } = {};
         var prefix;
         var group;
         var midiChannel;
@@ -2565,7 +2609,7 @@
         }
     }
 
-    function looksLikePitchSlider(slider) {
+    function looksLikePitchSlider(slider: Property | null): boolean {
         var i;
         var key;
         var total = 0;
@@ -2587,7 +2631,7 @@
         return total > 0 && noteLike >= total * 0.8;
     }
 
-    function defaultPitchSliderName(layer) {
+    function defaultPitchSliderName(layer: Layer): string {
         var prefix = channelPrefixFromLayer(layer);
         if (prefix) {
             return prefix + " pitch";
@@ -2595,7 +2639,7 @@
         return "T01 Ch01 pitch";
     }
 
-    function detectPitchSliderName(layer) {
+    function detectPitchSliderName(layer: Layer | null | undefined): string | null {
         var resolved;
         if (!layer) {
             return null;
@@ -2609,7 +2653,7 @@
 
     api.detectPitchSliderName = detectPitchSliderName;
 
-    api.resolvePitchSliderName = function (layer, options) {
+    api.resolvePitchSliderName = function (layer: Layer, options?: MidiActionOptionsInput): string {
         var cache;
         var cacheKey;
         var prefix;
@@ -2642,7 +2686,7 @@
         return candidate;
     };
 
-    api.resolveDurationSliderName = function (layer, options) {
+    api.resolveDurationSliderName = function (layer: Layer, options?: MidiActionOptionsInput): string {
         var resolved;
         options = options || {};
         if (options.durationSliderName) {
@@ -2655,12 +2699,12 @@
         return defaultDurationSliderName(layer);
     };
 
-    function looksLikeVelocitySlider(slider) {
+    function looksLikeVelocitySlider(slider: Property | null): boolean {
         var first = readSliderKey(slider, 1);
         return !!(first && first.time === 0 && first.value === 0);
     }
 
-    function looksLikeDurationSlider(slider) {
+    function looksLikeDurationSlider(slider: Property | null): boolean {
         var i;
         var key;
         var total = 0;
@@ -2679,7 +2723,7 @@
         return total > 0 && durLike >= total * 0.8 && !looksLikePitchSlider(slider);
     }
 
-    function looksLikeDrumHitSlider(slider) {
+    function looksLikeDrumHitSlider(slider: Property | null): boolean {
         var i;
         var key;
         var keyCount = sliderKeyCount(slider);
@@ -2693,14 +2737,19 @@
         return hits > 0 && !looksLikePitchSlider(slider) && !looksLikeVelocitySlider(slider);
     }
 
-    function collectNotesByHeuristicScan(layer, notes, maxNotes, options) {
+    function collectNotesByHeuristicScan(
+        layer: Layer,
+        notes: PianoRollNote[],
+        maxNotes: number,
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions
+    ): void {
         var prefix = channelPrefixFromLayer(layer);
         var channel = parseChannelPrefix(prefix || "");
         var midiChannel = channel ? channel.midiChannel : parseMidiChannelFromName(prefix || "");
-        var pitchSlider = null;
-        var velSlider = null;
-        var durSlider = null;
-        var unknown = [];
+        var pitchSlider: Property | null = null;
+        var velSlider: Property | null = null;
+        var durSlider: Property | null = null;
+        var unknown: Property[] = [];
         var i;
         var j;
         var cache;
@@ -2830,11 +2879,14 @@
         }
     }
 
-    api.collectPianoRollNotesFromLayer = function (layer, options) {
+    api.collectPianoRollNotesFromLayer = function (
+        layer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollNote[] {
         options = options || {};
         var maxNotes = parsePianoRollMaxNotes(options.maxNotes, 10);
-        var notes = [];
-        var drumChannels = {};
+        var notes: PianoRollNote[] = [];
+        var drumChannels: { [channel: number]: boolean } = {};
         var prefix;
         var sliderIndex;
 
@@ -2865,7 +2917,7 @@
         return notes;
     };
 
-    function layerHasNamedDrumSliderEffects(layer, prefix) {
+    function layerHasNamedDrumSliderEffects(layer: Layer | null | undefined, prefix: string | null): boolean {
         var found = false;
         if (!layer) {
             return false;
@@ -2894,7 +2946,7 @@
         return found;
     }
 
-    api.layerHasNamedDrumSliders = function (layer) {
+    api.layerHasNamedDrumSliders = function (layer: Layer): boolean {
         var prefix = channelPrefixFromLayer(layer);
         if (layerHasNamedDrumSliderEffects(layer, prefix)) {
             return true;
@@ -2902,10 +2954,13 @@
         return layerHasNamedDrumSliderEffects(layer, null);
     };
 
-    api.collectNamedDrumPadGroupsFromLayer = function (layer, options) {
-        var groups = {};
-        var order = [];
-        var result = [];
+    api.collectNamedDrumPadGroupsFromLayer = function (
+        layer: Layer,
+        options?: PianoRollMapOptions
+    ): NamedDrumPadGroup[] {
+        var groups: { [name: string]: NamedDrumPadGroup } = {};
+        var order: string[] = [];
+        var result: NamedDrumPadGroup[] = [];
         var prefix;
         var pitchFilter;
         var i;
@@ -2989,7 +3044,7 @@
         return result;
     };
 
-    function pitchMatchesFilter(pitch, filter) {
+    function pitchMatchesFilter(pitch: number, filter: number[]): boolean {
         var i;
         if (!filter || !filter.length) {
             return true;
@@ -3003,14 +3058,17 @@
         return false;
     }
 
-    api.collectDrumHitNotesFromLayer = function (layer, options) {
-        var maxNotes;
-        var notes = [];
-        var drumChannels = {};
+    api.collectDrumHitNotesFromLayer = function (
+        layer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollNote[] {
+        var maxNotes: number;
+        var notes: PianoRollNote[] = [];
+        var drumChannels: { [channel: number]: boolean } = {};
         var prefix;
         var sliderIndex;
         var channel;
-        var filtered = [];
+        var filtered: PianoRollNote[] = [];
         var hasNamedDrumEffects = false;
         var i;
         var note;
@@ -3053,7 +3111,7 @@
         return filtered;
     };
 
-    function inferPianoRollDuration(notes, compLike) {
+    function inferPianoRollDuration(notes: PianoRollNote[], compLike: CompItem | PianoRollCompLike): number {
         var maxTime = 0;
         var i;
         for (i = 0; i < notes.length; i += 1) {
@@ -3065,11 +3123,11 @@
         return compLike && compLike.duration ? compLike.duration : 1;
     }
 
-    function pianoRollNoteEndTime(note) {
+    function pianoRollNoteEndTime(note: PianoRollNote | PianoRollNoteDraft): number {
         return (note.time || 0) + (typeof note.duration !== "undefined" ? note.duration : 0.05);
     }
 
-    function computePianoRollContentTimeBounds(notes) {
+    function computePianoRollContentTimeBounds(notes: PianoRollNote[] | null | undefined): PianoRollTimeRange | null {
         var i;
         var note;
         var noteStart;
@@ -3093,7 +3151,11 @@
         return { timeStart: start, timeEnd: end };
     }
 
-    function resolvePianoRollTimeRange(notes, options, fallbackEnd) {
+    function resolvePianoRollTimeRange(
+        notes: PianoRollNote[],
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions,
+        fallbackEnd: number
+    ): PianoRollTimeRange {
         var bounds;
         var timeStart;
         var timeEnd;
@@ -3117,10 +3179,10 @@
         return { timeStart: timeStart, timeEnd: timeEnd };
     }
 
-    api.collectPianoRollNotes = function (midi, options) {
+    api.collectPianoRollNotes = function (midi: MidiFileData, options?: PianoRollMapOptions): PianoRollNote[] {
         options = options || {};
         var maxNotes = parsePianoRollMaxNotes(options.maxNotes, 10);
-        var notes = [];
+        var notes: PianoRollNote[] = [];
         var i;
         var note;
         var entry;
@@ -3157,7 +3219,7 @@
         return notes;
     };
 
-    function uniqueLabels(notes) {
+    function uniqueLabels(notes: PianoRollNote[]): string[] {
         var labels = [];
         var seen = {};
         var i;
@@ -3171,7 +3233,7 @@
         return labels;
     }
 
-    function labelIndex(labels, label) {
+    function labelIndex(labels: string[], label: string): number {
         var i;
         for (i = 0; i < labels.length; i += 1) {
             if (labels[i] === label) {
@@ -3181,7 +3243,10 @@
         return -1;
     }
 
-    function computePianoRollPitchRange(notes, options) {
+    function computePianoRollPitchRange(
+        notes: PianoRollNote[],
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions
+    ): PianoRollPitchRange {
         var min = numeric(options.pitchRangeMin, -1);
         var max = numeric(options.pitchRangeMax, -1);
         var padding = numeric(options.pitchRangePadding, 1);
@@ -3222,11 +3287,22 @@
         return { min: min, max: max };
     }
 
-    api.pianoRollYForPitch = function (pitch, rangeMin, rollBottom, laneHeight) {
+    api.pianoRollYForPitch = function (
+        pitch: number,
+        rangeMin: number,
+        rollBottom: number,
+        laneHeight: number
+    ): number {
         return rollBottom - (pitch - rangeMin + 0.5) * laneHeight;
     };
 
-    function pianoRollLaneMetrics(notes, options, yMin, yMax, noteHeight) {
+    function pianoRollLaneMetrics(
+        notes: PianoRollNote[],
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions,
+        yMin: number,
+        yMax: number,
+        noteHeight: number
+    ): PianoRollLaneMetrics {
         var pitchRange = computePianoRollPitchRange(notes, options);
         var numLanes = pitchRange.max - pitchRange.min + 1;
         var rollBottom = yMin;
@@ -3287,7 +3363,7 @@
         var laneHeight = laneMetrics.laneHeight;
         var rollBottom = laneMetrics.rollBottom;
         var barHeight = laneHeight * 0.85;
-        var rects = [];
+        var rects: PianoRollRect[] = [];
         var i;
         var note;
         var y;
@@ -3335,7 +3411,7 @@
         return rects;
     };
 
-    function escapePreviewHtml(value) {
+    function escapePreviewHtml(value: string | number | null | undefined): string {
         return String(value || "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
@@ -3343,14 +3419,17 @@
             .replace(/"/g, "&quot;");
     }
 
-    function pianoRollPreviewColor(rect) {
+    function pianoRollPreviewColor(rect: PianoRollRect): string {
         if (rect.isDrum) {
             return "#f59e0b";
         }
         return "#38bdf8";
     }
 
-    function pianoRollPreviewDescription(options, noteCount) {
+    function pianoRollPreviewDescription(
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined,
+        noteCount: number
+    ): string {
         var parts = ["Showing " + noteCount + " mapped note bars."];
         if (options && options.useWorkArea) {
             parts.push("Limited to the current work area.");
@@ -3362,13 +3441,13 @@
         source: Layer | MidiFileData,
         compLike: CompItem | PianoRollCompLike,
         options?: PianoRollMapOptions
-    ): unknown {
+    ): PianoRollPreviewLayout {
         var layerSource = source as Layer;
-        var svgWidth;
-        var svgHeight;
-        var mapOptions;
-        var rects;
-        var sourceLabel;
+        var svgWidth: number;
+        var svgHeight: number;
+        var mapOptions: PianoRollMapOptions;
+        var rects: PianoRollRect[];
+        var sourceLabel: string;
         options = options || {};
         compLike = compLike || {};
         svgWidth = numeric(options.previewWidth, 1400);
@@ -3398,21 +3477,25 @@
             rects: rects,
             noteCount: rects.length,
             bounds: {
-                left: mapOptions.xMin,
-                right: mapOptions.xMax,
-                top: mapOptions.yMax,
-                bottom: mapOptions.yMin
+                left: numeric(mapOptions.xMin, 70),
+                right: numeric(mapOptions.xMax, svgWidth - 40),
+                top: numeric(mapOptions.yMax, 40),
+                bottom: numeric(mapOptions.yMin, svgHeight - 50)
             },
             sourceLabel: sourceLabel,
             description: pianoRollPreviewDescription(options, rects.length)
         };
     };
 
-    api.buildPianoRollPreviewHtml = function (source, compLike, options) {
-        var svgWidth;
-        var svgHeight;
-        var layout;
-        var bars;
+    api.buildPianoRollPreviewHtml = function (
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): PianoRollPreviewHtml {
+        var svgWidth: number;
+        var svgHeight: number;
+        var layout: PianoRollPreviewLayout;
+        var bars: string[] = [];
         var i;
         var rect;
         var x;
@@ -3510,8 +3593,12 @@
         };
     };
 
-    api.previewPianoRollMap = function (comp, sourceLayer, options) {
-        var preview;
+    api.previewPianoRollMap = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollMapPreviewResult {
+        var preview: PianoRollPreviewLayout;
         options = options || {};
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before previewing a piano-roll map.");
@@ -3552,20 +3639,23 @@
         };
     };
 
-    function safeProperty(group, nameOrIndex) {
-        var prop;
+    function safeProperty(
+        group: PropContainerLike | null | undefined,
+        nameOrIndex: string | number
+    ): PropContainerLike | null {
+        var prop: unknown;
         if (!group || !group.property) {
             return null;
         }
         try {
             prop = group.property(nameOrIndex);
-            return prop || null;
+            return (prop as PropContainerLike) || null;
         } catch (e) {
             return null;
         }
     }
 
-    function setPropValue(group, name, value) {
+    function setPropValue(group: PropContainerLike | null | undefined, name: string, value: unknown): boolean {
         var prop = safeProperty(group, name);
         if (prop && prop.setValue) {
             try {
@@ -3576,29 +3666,29 @@
         return false;
     }
 
-    function setPropExpression(prop, expression) {
+    function setPropExpression(prop: PropContainerLike | null | undefined, expression: string): boolean {
         if (!prop) {
             return false;
         }
         try {
-            if (prop.canSetExpression === false) {
+            if ((prop as Property).canSetExpression === false) {
                 return false;
             }
-            prop.expression = expression;
-            if (typeof prop.expressionEnabled !== "undefined") {
-                prop.expressionEnabled = true;
+            (prop as Property).expression = expression;
+            if (typeof (prop as Property).expressionEnabled !== "undefined") {
+                (prop as Property).expressionEnabled = true;
             }
             return true;
         } catch (e) {}
         return false;
     }
 
-    function pianoRollControllerLayerName(sourceLayer) {
+    function pianoRollControllerLayerName(sourceLayer: Layer | null | undefined): string {
         var suffix = sourceLayer && sourceLayer.name ? " " + sourceLayer.name : "";
         return api.limitEffectName("MIDI Piano Roll" + suffix);
     }
 
-    function pianoRollControlExpression(effectName, propertyName) {
+    function pianoRollControlExpression(effectName: string, propertyName: string): string {
         return (
             "try { thisLayer.parent.effect(" +
             quote(effectName) +
@@ -3608,7 +3698,7 @@
         );
     }
 
-    function pianoRollMasterOpacityExpression(controllerEffects) {
+    function pianoRollMasterOpacityExpression(controllerEffects: PianoRollControllerEffects): string {
         if (controllerEffects && controllerEffects.fillOpacity) {
             return (
                 "try { var c = thisLayer.parent; c.effect(" +
@@ -3626,17 +3716,18 @@
         );
     }
 
-    function addPianoRollControllerSlider(layer, name, value) {
-        var fx;
-        var sliderProp;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+    function addPianoRollControllerSlider(layer: Layer, name: string, value: number): PropertyGroup | null {
+        var fx: PropertyGroup | null;
+        var sliderProp: PropContainerLike | null;
+        var effectsLayer = layer as LayerWithEffects;
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
         try {
-            fx = layer.Effects.addProperty("Slider Control");
+            fx = effectsLayer.Effects.addProperty("Slider Control") as PropertyGroup;
         } catch (addSliderErr) {
             try {
-                fx = layer.Effects.addProperty("ADBE Slider Control");
+                fx = effectsLayer.Effects.addProperty("ADBE Slider Control") as PropertyGroup;
             } catch (legacySliderErr) {
                 return null;
             }
@@ -3651,13 +3742,14 @@
         return fx;
     }
 
-    function addPianoRollControllerColor(layer, name, rgb) {
-        var fx;
-        var colorProp;
-        if (!layer || !layer.Effects || !layer.Effects.addProperty) {
+    function addPianoRollControllerColor(layer: Layer, name: string, rgb: number[]): PropertyGroup | null {
+        var fx: PropertyGroup | null;
+        var colorProp: PropContainerLike | null;
+        var effectsLayer = layer as LayerWithEffects;
+        if (!effectsLayer || !effectsLayer.Effects || !effectsLayer.Effects.addProperty) {
             return null;
         }
-        fx = layer.Effects.addProperty("ADBE Color Control");
+        fx = effectsLayer.Effects.addProperty("ADBE Color Control") as PropertyGroup;
         fx.name = api.limitEffectName(name);
         try {
             colorProp = fx.property("Color");
@@ -3679,10 +3771,14 @@
         return fx;
     }
 
-    function createPianoRollControllerNull(comp, sourceLayer, options) {
-        var layer;
-        var fx;
-        var info;
+    function createPianoRollControllerNull(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollControllerNullResult | null {
+        var layer: Layer;
+        var fx: PropertyGroup | null;
+        var info: PianoRollControllerNullResult;
         options = options || {};
         if (!comp || !comp.layers || !comp.layers.addNull) {
             return null;
@@ -3694,7 +3790,7 @@
         info = {
             layer: layer,
             name: layer.name,
-            effects: {}
+            effects: {} as PianoRollControllerEffects
         };
         if (options.includeFillControls !== false) {
             fx = addPianoRollControllerColor(layer, "Fill Color", options.fillColor || [0.22, 0.74, 0.97]);
@@ -3729,18 +3825,21 @@
         return info;
     }
 
-    function shapeContentMatches(prop, matchName) {
-        return prop && (prop.matchName === matchName || prop.name === matchName);
+    function shapeContentMatches(prop: PropContainerLike | null | undefined, matchName: string): boolean {
+        return !!(prop && ((prop as Property).matchName === matchName || prop.name === matchName));
     }
 
-    function visitShapeContentProps(layer, visitor) {
+    function visitShapeContentProps(
+        layer: Layer,
+        visitor: (prop: PropContainerLike) => boolean
+    ): PropContainerLike | null {
         var contents;
         var i;
         var prop;
         var sub;
         var j;
         var subProp;
-        contents = safeProperty(layer, "ADBE Root Vectors Group");
+        contents = safeProperty(layer as PropContainerLike, "ADBE Root Vectors Group");
         if (!contents || !contents.numProperties) {
             return null;
         }
@@ -3767,34 +3866,34 @@
         return null;
     }
 
-    function findShapeFill(layer) {
+    function findShapeFill(layer: Layer): PropContainerLike | null {
         return visitShapeContentProps(layer, function (prop) {
             return shapeContentMatches(prop, "ADBE Vector Graphic - Fill");
         });
     }
 
-    function findShapeStroke(layer) {
+    function findShapeStroke(layer: Layer): PropContainerLike | null {
         return visitShapeContentProps(layer, function (prop) {
             return shapeContentMatches(prop, "ADBE Vector Graphic - Stroke");
         });
     }
 
-    function findLayerOpacity(layer) {
+    function findLayerOpacity(layer: Layer): PropContainerLike | null {
         var transform = safeProperty(layer, "ADBE Transform Group");
         return safeProperty(transform, "ADBE Opacity");
     }
 
-    function shapeFillColorProp(fill) {
+    function shapeFillColorProp(fill: PropContainerLike | null): PropContainerLike | null {
         return safeProperty(fill, "ADBE Vector Fill Color") || safeProperty(fill, "Color") || safeProperty(fill, 4);
     }
 
-    function shapeStrokeColorProp(stroke) {
+    function shapeStrokeColorProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
             safeProperty(stroke, "ADBE Vector Stroke Color") || safeProperty(stroke, "Color") || safeProperty(stroke, 4)
         );
     }
 
-    function shapeStrokeOpacityProp(stroke) {
+    function shapeStrokeOpacityProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
             safeProperty(stroke, "ADBE Vector Stroke Opacity") ||
             safeProperty(stroke, "Opacity") ||
@@ -3802,7 +3901,7 @@
         );
     }
 
-    function shapeStrokeWidthProp(stroke) {
+    function shapeStrokeWidthProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
             safeProperty(stroke, "ADBE Vector Stroke Width") ||
             safeProperty(stroke, "Stroke Width") ||
@@ -3810,7 +3909,7 @@
         );
     }
 
-    function wireShapeStrokeFromController(layer, controllerEffects) {
+    function wireShapeStrokeFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void {
         var stroke;
         if (!layer || !controllerEffects) {
             return;
@@ -3833,7 +3932,7 @@
         );
     }
 
-    function wireShapeMasterOpacityFromController(layer, controllerEffects) {
+    function wireShapeMasterOpacityFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void {
         var opacityProp;
         if (!layer || !controllerEffects) {
             return;
@@ -3844,7 +3943,7 @@
         }
     }
 
-    function wirePianoRollShapeStyles(layer, controllerEffects) {
+    function wirePianoRollShapeStyles(layer: Layer, controllerEffects: PianoRollControllerEffects): void {
         var fill;
         if (!layer || !controllerEffects) {
             return;
@@ -3863,12 +3962,15 @@
     api.wireShapeStrokeFromController = wireShapeStrokeFromController;
     api.wireShapeMasterOpacityFromController = wireShapeMasterOpacityFromController;
 
-    function buildShapeRectContents(contents, rect) {
-        var rectShape = null;
-        var fill = null;
-        var stroke = null;
-        var group;
-        var vectors;
+    function buildShapeRectContents(
+        contents: PropContainerLike | null,
+        rect: PianoRollRect
+    ): { rectShape: PropContainerLike | null; fill: PropContainerLike | null; stroke: PropContainerLike | null } {
+        var rectShape: PropContainerLike | null = null;
+        var fill: PropContainerLike | null = null;
+        var stroke: PropContainerLike | null = null;
+        var group: PropContainerLike | null;
+        var vectors: PropContainerLike | null;
         var width = Math.max(1, rect.width);
         var height = Math.max(1, rect.height);
 
@@ -3877,13 +3979,13 @@
         }
 
         try {
-            rectShape = contents.addProperty("ADBE Vector Shape - Rect");
+            rectShape = contents.addProperty("ADBE Vector Shape - Rect") as PropContainerLike;
             setPropValue(rectShape, "ADBE Vector Rect Size", [width, height]);
-            fill = contents.addProperty("ADBE Vector Graphic - Fill");
+            fill = contents.addProperty("ADBE Vector Graphic - Fill") as PropContainerLike;
             setPropValue(fill, "ADBE Vector Fill Color", rect.color || [0.22, 0.74, 0.97]);
             setPropValue(fill, "ADBE Vector Fill Opacity", 100);
             try {
-                stroke = contents.addProperty("ADBE Vector Graphic - Stroke");
+                stroke = contents.addProperty("ADBE Vector Graphic - Stroke") as PropContainerLike;
                 setPropValue(stroke, "ADBE Vector Stroke Color", [1, 1, 1]);
                 setPropValue(stroke, "ADBE Vector Stroke Opacity", 100);
                 setPropValue(stroke, "ADBE Vector Stroke Width", 0);
@@ -3894,18 +3996,18 @@
         } catch (flatErr) {}
 
         try {
-            group = contents.addProperty("ADBE Vector Group");
+            group = contents.addProperty("ADBE Vector Group") as PropContainerLike;
             vectors = safeProperty(group, "ADBE Vectors Group") || safeProperty(group, 2);
             if (!vectors || !vectors.addProperty) {
                 return { rectShape: null, fill: null, stroke: null };
             }
-            rectShape = vectors.addProperty("ADBE Vector Shape - Rect");
+            rectShape = vectors.addProperty("ADBE Vector Shape - Rect") as PropContainerLike;
             setPropValue(rectShape, "ADBE Vector Rect Size", [width, height]);
-            fill = vectors.addProperty("ADBE Vector Graphic - Fill");
+            fill = vectors.addProperty("ADBE Vector Graphic - Fill") as PropContainerLike;
             setPropValue(fill, "ADBE Vector Fill Color", rect.color || [0.22, 0.74, 0.97]);
             setPropValue(fill, "ADBE Vector Fill Opacity", 100);
             try {
-                stroke = vectors.addProperty("ADBE Vector Graphic - Stroke");
+                stroke = vectors.addProperty("ADBE Vector Graphic - Stroke") as PropContainerLike;
                 setPropValue(stroke, "ADBE Vector Stroke Color", [1, 1, 1]);
                 setPropValue(stroke, "ADBE Vector Stroke Opacity", 100);
                 setPropValue(stroke, "ADBE Vector Stroke Width", 0);
@@ -3918,7 +4020,12 @@
         return { rectShape: null, fill: null, stroke: null };
     }
 
-    function parentLayerToController(comp, layer, controllerName, controllerLayer) {
+    function parentLayerToController(
+        comp: CompItem,
+        layer: Layer | null,
+        controllerName: string | null,
+        controllerLayer: Layer | null
+    ): boolean {
         var parentLayer;
         if (!layer || (!controllerName && !controllerLayer)) {
             return false;
@@ -3938,11 +4045,11 @@
         return false;
     }
 
-    function createShapeRectLayer(comp, rect) {
-        var layer = null;
-        var contents;
-        var transform;
-        var result = {
+    function createShapeRectLayer(comp: CompItem, rect: PianoRollRect): ShapeRectLayerResult {
+        var layer: Layer | null = null;
+        var contents: PropContainerLike | null;
+        var transform: PropContainerLike | null;
+        var result: ShapeRectLayerResult = {
             layer: null,
             rect: rect
         };
@@ -3965,9 +4072,9 @@
                 rect.velocity +
                 "\nlabel: " +
                 rect.label;
-            contents = safeProperty(layer, "ADBE Root Vectors Group");
+            contents = safeProperty(layer as PropContainerLike, "ADBE Root Vectors Group");
             buildShapeRectContents(contents, rect);
-            transform = safeProperty(layer, "ADBE Transform Group");
+            transform = safeProperty(layer as PropContainerLike, "ADBE Transform Group");
             if (transform) {
                 setPropValue(transform, "ADBE Anchor Point", [0, 0]);
                 setPropValue(transform, "ADBE Position", [rect.x, rect.y]);
@@ -3981,16 +4088,20 @@
 
     api.createShapeRectLayer = createShapeRectLayer;
 
-    api.createPianoRollMapLayers = function (comp, sourceLayer, options) {
-        var rects;
+    api.createPianoRollMapLayers = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollMapResult {
+        var rects: PianoRollRect[];
         var created = 0;
-        var notes;
-        var controllerName;
-        var i;
-        var noteStyles;
-        var noteStyle;
-        var controllerInfo;
-        var opacityProp;
+        var notes: PianoRollNote[];
+        var controllerName: string;
+        var i: number;
+        var noteStyles: ShapeRectLayerResult[];
+        var noteStyle: ShapeRectLayerResult;
+        var controllerInfo: PianoRollControllerNullResult | null;
+        var opacityProp: PropContainerLike | null;
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before creating a piano-roll map.");
         }

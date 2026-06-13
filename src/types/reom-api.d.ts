@@ -168,7 +168,7 @@ interface ReOmMIDIApi {
     getActivePreviewProgressHook?(): PreviewProgressHook | null;
     endPreviewProgress?(hook: PreviewProgressHook): void;
     showMidiActionPreviewInPanel?(layout: MidiActionPreviewLayout): void;
-    showPianoRollPreviewInPanel?(layout: unknown): void;
+    showPianoRollPreviewInPanel?(layout: PianoRollPreviewLayout): void;
     showPianoRollPreviewLoadingInPanel?(sourceLabel: string): void;
 
     resolvePianoRollMapOptions(
@@ -177,6 +177,8 @@ interface ReOmMIDIApi {
     ): ResolvedPianoRollMapOptions;
     collectPianoRollNotesFromLayer(layer: Layer, options?: PianoRollMapOptions): PianoRollNote[];
     collectPianoRollNotes(midi: MidiFileData, options?: PianoRollMapOptions): PianoRollNote[];
+    collectDrumHitNotesFromLayer(layer: Layer, options?: PianoRollMapOptions): PianoRollNote[];
+    collectNamedDrumPadGroupsFromLayer(layer: Layer, options?: PianoRollMapOptions): NamedDrumPadGroup[];
     buildPianoRollRects(
         source: Layer | MidiFileData,
         compLike: CompItem | PianoRollCompLike,
@@ -186,23 +188,27 @@ interface ReOmMIDIApi {
         source: Layer | MidiFileData,
         compLike: CompItem | PianoRollCompLike,
         options?: PianoRollMapOptions
-    ): unknown;
+    ): PianoRollPreviewLayout;
     buildPianoRollPreviewHtml(
         source: Layer | MidiFileData,
         compLike: CompItem | PianoRollCompLike,
         options?: PianoRollMapOptions
-    ): unknown;
-    previewPianoRollMap(comp: CompItem, sourceLayer: Layer, options?: PianoRollMapOptions): unknown;
+    ): PianoRollPreviewHtml;
+    previewPianoRollMap(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): PianoRollMapPreviewResult;
     createPianoRollControllerNull(
         comp: CompItem,
         sourceLayer: Layer,
         options?: PianoRollMapOptions
-    ): unknown;
+    ): PianoRollControllerNullResult | null;
     createPianoRollMapLayers(
         comp: CompItem,
         sourceLayer: Layer,
         options?: PianoRollMapOptions
-    ): unknown;
+    ): PianoRollMapResult;
     channelPrefixFromLayer(layer: Layer | null | undefined): string | null;
     layerHasNamedDrumSliders(layer: Layer): boolean;
     pianoRollYForPitch(pitch: number, rangeMin: number, rollBottom: number, laneHeight: number): number;

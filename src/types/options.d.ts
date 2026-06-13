@@ -88,6 +88,21 @@ interface MidiActionOptionsResolved extends MidiActionOptionsInput {
     timeEnd?: number;
 }
 
+/** Layer with an effect parade used by piano-roll controller builders. */
+interface LayerWithEffects extends Layer {
+    Effects?: PropertyGroup & {
+        addProperty(matchName: string): PropertyGroup;
+    };
+}
+
+/** Minimal property container accepted by piano-roll shape helpers. */
+interface PropContainerLike {
+    property?(nameOrIndex: string | number): unknown;
+    setValue?(value: unknown): void;
+    addProperty?(matchName: string): unknown;
+    numProperties?: number;
+    name?: string;
+}
 /** Minimal comp-like object accepted by piano-roll layout helpers. */
 interface PianoRollCompLike {
     width?: number;
@@ -106,9 +121,13 @@ interface PianoRollMapOptions extends WorkAreaOptions {
     xMax?: number | string;
     yMin?: number | string;
     yMax?: number | string;
+    pitchRangeMin?: number | string;
+    pitchRangeMax?: number | string;
+    pitchRangePadding?: number | string;
     useDrumLanes?: boolean;
     limitTriggers?: boolean;
     color?: string;
+    pitchFilter?: string | number[];
     previewWidth?: number;
     previewHeight?: number;
     sourceLabel?: string;
