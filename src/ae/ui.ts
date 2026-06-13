@@ -1,6 +1,10 @@
 (function (api: ReOmMIDIApi) {
-    function globalState() {
-        return api.getGlobalState();
+    function globalState(): ReOmGlobalState {
+        var state = api.getGlobalState();
+        if (!state) {
+            throw new Error("ReOm MIDI global state is unavailable.");
+        }
+        return state;
     }
 
     function makeProgress(title: string) {
@@ -26,7 +30,9 @@
             update: function (text: string, ratio: number) {
                 label.text = text;
                 bar.value = Math.max(0, Math.min(100, Math.round(ratio * 100)));
-                win.update();
+                if (win.update) {
+                    win.update();
+                }
                 return running;
             },
             close: function () {
@@ -51,7 +57,7 @@
         if (!control || !control.parent) {
             return;
         }
-        label = control.parent.children[0];
+        label = control.parent.children && control.parent.children[0];
         if (label) {
             label.text = labelText;
         }
@@ -65,8 +71,8 @@
         if (visible) {
             group.maximumSize = [10000, 10000];
             if (group._reomSavedGroupSize) {
-                group.minimumSize = group._reomSavedGroupSize.minimumSize;
-                group.preferredSize = group._reomSavedGroupSize.preferredSize;
+                group.minimumSize = group._reomSavedGroupSize.minimumSize as Dimension;
+                group.preferredSize = group._reomSavedGroupSize.preferredSize as Dimension;
                 group.margins = group._reomSavedGroupSize.margins;
                 group.spacing = group._reomSavedGroupSize.spacing;
             }
@@ -199,7 +205,7 @@
                 top = pad + ((rect.y - rect.height / 2 - bounds.top) / dataH) * plotH;
                 barW = Math.max(right - left, 1);
                 barH = Math.max((rect.height / dataH) * plotH, 1);
-                color = pianoRollPreviewNoteColor(rect.isDrum, (rect.opacity / 100) * graphOpacity);
+                color = pianoRollPreviewNoteColor(!!rect.isDrum, ((rect.opacity || 100) / 100) * graphOpacity);
                 g.newPath();
                 g.rectPath(left, top, barW, barH);
                 g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR as never, color));
@@ -267,7 +273,7 @@
         state.lockedWindowHeight = PANEL_LOCKED_HEIGHT;
         state.win.minimumSize = [PANEL_MIN_WIDTH, PANEL_LOCKED_HEIGHT];
         state.win.maximumSize = [10000, PANEL_LOCKED_HEIGHT];
-        if (!state.isPanel && state.win.size[1] !== PANEL_LOCKED_HEIGHT) {
+        if (!state.isPanel && state.win.size && state.win.size[1] !== PANEL_LOCKED_HEIGHT) {
             state.win.size = [state.win.size[0], PANEL_LOCKED_HEIGHT];
         }
         refreshScriptUiHost(state.win);
@@ -280,6 +286,7 @@
                 win.resizeable &&
                 panelState &&
                 panelState.lockedWindowHeight &&
+                win.size &&
                 win.size[1] !== panelState.lockedWindowHeight
             ) {
                 win.size = [win.size[0], panelState.lockedWindowHeight];
@@ -387,7 +394,7 @@
         if (!state || !state.win) {
             return;
         }
-        flushName = globalState().previewUiFlushName;
+        flushName = globalState().previewUiFlushName || "";
         previewState = previewStateForFlush(flushName, state);
         if (previewState && previewState.expanded && previewState.canvas) {
             canvas = previewState.canvas;
@@ -589,14 +596,14 @@
             return;
         }
         now = new Date().getTime();
-        if (hook.percent < 100 && hook.lastUiMs && now - hook.lastUiMs < PREVIEW_PROGRESS_UI_MS) {
+        if (typeof hook.percent !== "number" || (hook.percent < 100 && hook.lastUiMs && now - hook.lastUiMs < PREVIEW_PROGRESS_UI_MS)) {
             return;
         }
         hook.lastUiMs = now;
-        summary = previewProgressSummaryControl(hook.kind);
-        root = previewProgressRootWin(hook.kind);
+        summary = previewProgressSummaryControl(hook.kind || "");
+        root = previewProgressRootWin(hook.kind || "");
         if (summary) {
-            summary.text = formatPreviewProgressSummary(hook.sourceLabel, hook.percent, hook.stageLabel);
+            summary.text = formatPreviewProgressSummary(hook.sourceLabel || "", hook.percent, hook.stageLabel || "");
         }
         repaintScriptUiHost((root as Window | Panel | null | undefined) || null);
     }
@@ -661,7 +668,7 @@
     };
 
     api.beginPreviewProgress = function (kind, sourceLabel) {
-        var hook = buildPreviewProgressHook(kind, sourceLabel);
+        var hook = buildPreviewProgressHook(kind, sourceLabel || "");
         if (typeof $ !== "undefined" && $.global) {
             globalState().previewProgressHook = hook;
         }
@@ -679,7 +686,9 @@
         if (hook && hook.finish) {
             hook.finish();
         }
-        api.clearPreviewProgress();
+        if (api.clearPreviewProgress) {
+            api.clearPreviewProgress();
+        }
     };
 
     function colorWithOpacity(color: number[], opacity: number): number[] {
@@ -727,10 +736,14 @@
             host.selectTab();
         }
         targets = host.ensure();
-        bindPianoRollPreviewCanvas(targets.canvas, pianoRollPreviewLoadingLayout(targets.canvas, sourceLabel));
+        if (targets.canvas) {
+            bindPianoRollPreviewCanvas(targets.canvas, pianoRollPreviewLoadingLayout(targets.canvas, sourceLabel || ""));
+        }
         globalState().previewCanvas = targets.canvas as unknown as _Control;
-        globalState().previewCanvasRoot = host.win;
-        armPreviewLoadingDisplay(host, targets, sourceLabel, startPianoRollPreviewLoadingAnimation);
+        globalState().previewCanvasRoot = host.win || null;
+        if (targets.canvas && targets.summary) {
+            armPreviewLoadingDisplay(host, targets, sourceLabel || "", startPianoRollPreviewLoadingAnimation);
+        }
     };
 
     api.showPianoRollPreviewInPanel = function (layout) {
@@ -749,10 +762,14 @@
             host.selectTab();
         }
         targets = host.ensure();
-        targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
-        bindPianoRollPreviewCanvas(targets.canvas, layout);
+        if (targets.summary) {
+            targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
+        }
+        if (targets.canvas) {
+            bindPianoRollPreviewCanvas(targets.canvas, layout);
+        }
         globalState().previewCanvas = targets.canvas as unknown as _Control;
-        globalState().previewCanvasRoot = host.win;
+        globalState().previewCanvasRoot = host.win || null;
         finishPreviewPanelDisplay(host, targets);
     };
 
@@ -791,7 +808,7 @@
     }
 
     function previewCanvasSize(canvasPanel: Group): number[] {
-        var size = canvasPanel.size;
+        var size = canvasPanel.size || [0, 0];
         var w = size[0];
         var h = size[1];
         var node;
@@ -841,7 +858,9 @@
         if (host && host.win) {
             repaintScriptUiHost(host.win);
         }
-        startAnimationFn(targets.canvas, host.win, targets.summary, sourceLabel);
+        if (host && host.win && targets.canvas && targets.summary) {
+            startAnimationFn(targets.canvas, host.win, targets.summary, sourceLabel);
+        }
     }
 
     function addWrappedHintText(parent: Window | Panel | Tab | Group, text: string): _Control {
@@ -896,7 +915,7 @@
         if (expanded) {
             container.visible = true;
             container.margins = state.containerMargins as Margins;
-            container.spacing = state.containerSpacing;
+            container.spacing = typeof state.containerSpacing === "number" ? state.containerSpacing : 0;
             container.alignment = ["fill", "fill"];
             container.preferredSize = [-1, PREVIEW_CANVAS_MAX_HEIGHT + 72];
             container.minimumSize = [0, 180];
@@ -943,7 +962,9 @@
         globalState().actionPreviewLoading = false;
         globalState().actionPreviewLoadingSummary = null;
         globalState().actionPreviewLoadingLabel = null;
-        api.clearPreviewProgress();
+        if (api.clearPreviewProgress) {
+            api.clearPreviewProgress();
+        }
     }
 
     function startMidiActionPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel, summaryControl: _Control, sourceLabel: string): void {
@@ -961,7 +982,9 @@
         globalState().pianoRollPreviewLoading = false;
         globalState().pianoRollPreviewLoadingSummary = null;
         globalState().pianoRollPreviewLoadingLabel = null;
-        api.clearPreviewProgress();
+        if (api.clearPreviewProgress) {
+            api.clearPreviewProgress();
+        }
     }
 
     function startPianoRollPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel, summaryControl: _Control, sourceLabel: string): void {
@@ -1077,10 +1100,14 @@
             host.selectTab();
         }
         targets = host.ensure();
-        bindMidiActionPreviewCanvas(targets.canvas, midiActionPreviewLoadingLayout(targets.canvas, sourceLabel));
+        if (targets.canvas) {
+            bindMidiActionPreviewCanvas(targets.canvas, midiActionPreviewLoadingLayout(targets.canvas, sourceLabel || ""));
+        }
         globalState().actionPreviewCanvas = targets.canvas as unknown as _Control;
-        globalState().actionPreviewCanvasRoot = host.win;
-        armPreviewLoadingDisplay(host, targets, sourceLabel, startMidiActionPreviewLoadingAnimation);
+        globalState().actionPreviewCanvasRoot = host.win || null;
+        if (targets.canvas && targets.summary) {
+            armPreviewLoadingDisplay(host, targets, sourceLabel || "", startMidiActionPreviewLoadingAnimation);
+        }
     };
 
     api.showMidiActionPreviewInPanel = function (layout) {
@@ -1099,10 +1126,14 @@
             host.selectTab();
         }
         targets = host.ensure();
-        targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
-        bindMidiActionPreviewCanvas(targets.canvas, layout);
+        if (targets.summary) {
+            targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
+        }
+        if (targets.canvas) {
+            bindMidiActionPreviewCanvas(targets.canvas, layout);
+        }
         globalState().actionPreviewCanvas = targets.canvas as unknown as _Control;
-        globalState().actionPreviewCanvasRoot = host.win;
+        globalState().actionPreviewCanvasRoot = host.win || null;
         finishPreviewPanelDisplay(host, targets);
     };
 
@@ -2605,7 +2636,15 @@
     function buildUI(thisObj?: Panel | Window): Window | Panel {
         api.resetGlobalState();
         var isPanel = thisObj instanceof Panel;
-        var win = isPanel ? thisObj : new Window("palette", "ReOm MIDI", undefined, { resizeable: true });
+        var win: Window | Panel;
+        if (isPanel) {
+            if (!thisObj) {
+                throw new Error("Panel host required.");
+            }
+            win = thisObj;
+        } else {
+            win = new Window("palette", "ReOm MIDI", undefined, { resizeable: true });
+        }
         var panelWidth = PANEL_WIDTH_DEFAULT;
         var panelHeight = PANEL_HEIGHT_DEFAULT;
         var featureTabs: TabbedPanel;
@@ -2657,7 +2696,7 @@
         githubLink.addEventListener("click", function () {
             var url = githubRepoUrl;
             try {
-                if ($.os.indexOf("Windows") !== -1) {
+                if (($.os || "").indexOf("Windows") !== -1) {
                     system.callSystem("cmd.exe /c start " + url);
                 } else {
                     system.callSystem("open " + url);
@@ -2777,7 +2816,9 @@
                 state.featureTabs.selection = state.importTab;
             }
             resizeScriptUiHost(state.win);
-            api.refreshPreviewPanels(false);
+            if (api.refreshPreviewPanels) {
+                api.refreshPreviewPanels(false);
+            }
         };
 
         closeButton.onClick = function () {
@@ -2786,7 +2827,9 @@
             }
         };
 
-        win.layout.layout(true);
+        if (win.layout && win.layout.layout) {
+            win.layout.layout(true);
+        }
         featureTabs.selection = importUi.tab;
         refreshScriptUiHost(win);
         applyLockedWindowHeightFromState(api.__panelUiState);
@@ -2875,7 +2918,9 @@
     api.completeMidiActionExpressionCopyDialog = function (expression, sourceLabel) {
         var expressionText = String(expression || "");
         if (!copyDialogState.win || !copyDialogState.text) {
-            api.openMidiActionExpressionCopyDialog(sourceLabel || "MIDI");
+            if (api.openMidiActionExpressionCopyDialog) {
+                api.openMidiActionExpressionCopyDialog(sourceLabel || "MIDI");
+            }
         }
         if (copyDialogState.hint) {
             copyDialogState.hint.text =
@@ -2891,7 +2936,9 @@
                 if (copyDialogState.win.layout && copyDialogState.win.layout.layout) {
                     copyDialogState.win.layout.layout(true);
                 }
-                copyDialogState.win.update();
+                if (copyDialogState.win.update) {
+                    copyDialogState.win.update();
+                }
             } catch (updateErr) {}
         }
         try {
@@ -2904,8 +2951,12 @@
     api.closeMidiActionExpressionCopyDialog = closeMidiActionExpressionCopyDialog;
 
     api.showMidiActionExpressionCopyDialog = function (expression: string, sourceLabel?: string) {
-        api.openMidiActionExpressionCopyDialog(sourceLabel);
-        api.completeMidiActionExpressionCopyDialog(expression, sourceLabel);
+        if (api.openMidiActionExpressionCopyDialog) {
+            api.openMidiActionExpressionCopyDialog(sourceLabel || "MIDI");
+        }
+        if (api.completeMidiActionExpressionCopyDialog) {
+            api.completeMidiActionExpressionCopyDialog(expression, sourceLabel);
+        }
     };
 
     var midiInfoDialogState: {

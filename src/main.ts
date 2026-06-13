@@ -69,13 +69,14 @@
         var midi;
         var comp;
         var result;
+        var runnerOptions = options || {};
 
         try {
             comp = requireActiveComp();
-            midi = loadMidiFromOptions(options);
+            midi = loadMidiFromOptions(runnerOptions);
             app.beginUndoGroup("ReOm MIDI Metronome Layer");
             result = api.createMetronomeLayer(comp, midi, {
-                quantizeToFrames: !!options.quantizeToFrames
+                quantizeToFrames: !!runnerOptions.quantizeToFrames
             });
             app.endUndoGroup();
             alert(
@@ -96,13 +97,14 @@
         var midi;
         var comp;
         var result;
+        var runnerOptions = options || {};
 
         try {
             comp = requireActiveComp();
-            midi = loadMidiFromOptions(options);
+            midi = loadMidiFromOptions(runnerOptions);
             app.beginUndoGroup("ReOm MIDI BPM Layer");
             result = api.createBpmLayer(comp, midi, {
-                quantizeToFrames: !!options.quantizeToFrames
+                quantizeToFrames: !!runnerOptions.quantizeToFrames
             });
             app.endUndoGroup();
             alert(
@@ -155,6 +157,9 @@
 
             app.beginUndoGroup("ReOm MIDI Import");
             importedChannels = api.importMidiToComp(comp, midi, options, function (text, ratio) {
+                if (!progress) {
+                    return true;
+                }
                 return progress.update(text, ratio);
             });
             app.endUndoGroup();
@@ -216,6 +221,14 @@
         }
     };
 
+    function requireGlobalState(): ReOmGlobalState {
+        var state = api.getGlobalState();
+        if (!state) {
+            throw new Error("ReOm MIDI global state is unavailable.");
+        }
+        return state;
+    }
+
     api.runCopyMidiActionExpression = function (options) {
         var comp;
         var sourceLayer;
@@ -226,7 +239,7 @@
             if (api.openMidiActionExpressionCopyDialog) {
                 api.openMidiActionExpressionCopyDialog(sourceLayer.name);
             }
-            api.getGlobalState().copyExpressionPayload = {
+            requireGlobalState().copyExpressionPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {}
@@ -242,13 +255,13 @@
     };
 
     api.__runDeferredCopyExpression = function () {
-        var payload = api.getGlobalState().copyExpressionPayload;
+        var payload = requireGlobalState().copyExpressionPayload;
         var prepared;
 
         if (!payload) {
             return;
         }
-        api.getGlobalState().copyExpressionPayload = null;
+        requireGlobalState().copyExpressionPayload = null;
         try {
             prepared = api.prepareMidiActionExpression(payload.comp, payload.sourceLayer, payload.options);
             if (api.completeMidiActionExpressionCopyDialog) {
@@ -301,7 +314,7 @@
             if (api.scheduleDeferredPreviewUi && uiGeneration) {
                 api.scheduleDeferredPreviewUi(uiGeneration, 1);
             }
-            api.getGlobalState().actionPreviewPayload = {
+            requireGlobalState().actionPreviewPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {},
@@ -309,7 +322,7 @@
             };
             app.scheduleTask(
                 "try { if (ReOmMIDI.__runDeferredActionPreview) { ReOmMIDI.__runDeferredActionPreview(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }",
-                api.DEFERRED_PREVIEW_TASK_MS,
+                api.DEFERRED_PREVIEW_TASK_MS || 1,
                 false
             );
         } catch (err) {
@@ -321,7 +334,7 @@
     };
 
     api.__runDeferredActionPreview = function () {
-        var payload = api.getGlobalState().actionPreviewPayload;
+        var payload = requireGlobalState().actionPreviewPayload;
         var comp;
         var sourceLayer;
         var options;
@@ -334,7 +347,7 @@
         sourceLayer = payload.sourceLayer;
         options = payload.options;
         uiGeneration = payload.uiGeneration;
-        api.getGlobalState().actionPreviewPayload = null;
+        requireGlobalState().actionPreviewPayload = null;
 
         try {
             if (!comp || !sourceLayer) {
@@ -401,7 +414,7 @@
             if (api.scheduleDeferredPreviewUi && uiGeneration) {
                 api.scheduleDeferredPreviewUi(uiGeneration, 1);
             }
-            api.getGlobalState().pianoRollPreviewPayload = {
+            requireGlobalState().pianoRollPreviewPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {},
@@ -409,7 +422,7 @@
             };
             app.scheduleTask(
                 "try { if (ReOmMIDI.__runDeferredPianoRollPreview) { ReOmMIDI.__runDeferredPianoRollPreview(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }",
-                api.DEFERRED_PREVIEW_TASK_MS,
+                api.DEFERRED_PREVIEW_TASK_MS || 1,
                 false
             );
         } catch (err) {
@@ -421,7 +434,7 @@
     };
 
     api.__runDeferredPianoRollPreview = function () {
-        var payload = api.getGlobalState().pianoRollPreviewPayload;
+        var payload = requireGlobalState().pianoRollPreviewPayload;
         var comp;
         var sourceLayer;
         var options;
@@ -434,7 +447,7 @@
         sourceLayer = payload.sourceLayer;
         options = payload.options;
         uiGeneration = payload.uiGeneration;
-        api.getGlobalState().pianoRollPreviewPayload = null;
+        requireGlobalState().pianoRollPreviewPayload = null;
 
         try {
             if (!comp || !sourceLayer) {
@@ -494,7 +507,7 @@
             comp = requireActiveComp();
             sourceLayer = api.resolveMidiSourceLayer(comp, options || {});
             prepared = api.prepareMidiMapExpression(comp, sourceLayer, options || {});
-            api.getGlobalState().mapState = prepared.state;
+            requireGlobalState().mapState = prepared.state;
             if (api.__midiMapHost) {
                 if (api.__midiMapHost.selectTab) {
                     api.__midiMapHost.selectTab();
@@ -508,7 +521,7 @@
     };
 
     api.runSwitchMidiMapLabels = function (labelMode) {
-        var state = api.getGlobalState().mapState;
+        var state = requireGlobalState().mapState;
         var expression;
 
         try {
@@ -517,7 +530,7 @@
             }
             state.labelMode = (labelMode || "notes") as MidiMapLabelMode;
             expression = api.regenerateMidiMapExpression(state, state.labelMode);
-            api.getGlobalState().mapState = state;
+            requireGlobalState().mapState = state;
             if (api.__midiMapHost) {
                 api.__midiMapHost.setExpression(expression);
                 api.__midiMapHost.setState(state);
@@ -574,14 +587,14 @@
             options = options || {};
             prevState =
                 (api.__drumSequencerHost && api.__drumSequencerHost.getState && api.__drumSequencerHost.getState()) ||
-                api.getGlobalState().drumSequencerState;
+                requireGlobalState().drumSequencerState;
             if (prevState && typeof prevState.totalFrames !== "undefined") {
                 options.previousTotalFrames = prevState.totalFrames;
             }
             comp = requireActiveComp();
             sourceLayer = api.resolveDrumSourceLayer(comp, options);
             prepared = api.prepareDrumSequencerExpression(comp, sourceLayer, options);
-            api.getGlobalState().drumSequencerState = prepared.state;
+            requireGlobalState().drumSequencerState = prepared.state;
             if (api.__drumSequencerHost) {
                 if (api.__drumSequencerHost.selectTab) {
                     api.__drumSequencerHost.selectTab();
@@ -629,7 +642,7 @@
             }
             state =
                 (api.__drumSequencerHost && api.__drumSequencerHost.getState && api.__drumSequencerHost.getState()) ||
-                api.getGlobalState().drumSequencerState;
+                requireGlobalState().drumSequencerState;
             sourceLabel = state && state.sourceLayerName ? state.sourceLayerName : "Drum MIDI";
             if (api.showMidiActionExpressionCopyDialog) {
                 api.showMidiActionExpressionCopyDialog(expressionText, sourceLabel);

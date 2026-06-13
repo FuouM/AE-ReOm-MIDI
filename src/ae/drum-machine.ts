@@ -330,7 +330,7 @@
         var i;
         var note;
 
-        options = drumMachineCollectOptions(sourceLayer, options, false);
+        options = drumMachineCollectOptions(sourceLayer, options || {}, false);
         notes = collectDrumMachinePitchModeNotes(sourceLayer, options);
         maxNotes = options.limitNotes === false ? -1 : parseMaxNotes(options.maxNotes, -1);
 
@@ -339,7 +339,7 @@
             if (!pitchMatchesFilter(note.pitch, drumMachinePitchFilter(options))) {
                 continue;
             }
-            if (options.useWorkArea && typeof options.timeStart !== "undefined") {
+            if (options.useWorkArea && typeof options.timeStart !== "undefined" && typeof options.timeEnd !== "undefined") {
                 if (note.time < options.timeStart || note.time >= options.timeEnd) {
                     continue;
                 }
@@ -387,6 +387,7 @@
                 options &&
                 options.useWorkArea &&
                 typeof options.timeStart !== "undefined" &&
+                typeof options.timeEnd !== "undefined" &&
                 (note.time < options.timeStart || note.time >= options.timeEnd)
             ) {
                 continue;
@@ -443,6 +444,7 @@
                 if (
                     options.useWorkArea &&
                     typeof options.timeStart !== "undefined" &&
+                    typeof options.timeEnd !== "undefined" &&
                     (note.time < options.timeStart || note.time >= options.timeEnd)
                 ) {
                     continue;
@@ -489,7 +491,7 @@
             return api.collectDrumMachinePitchGroups(layers[0], options);
         }
 
-        return collectDrumMachineLayerInstrumentGroups(layers, options);
+        return collectDrumMachineLayerInstrumentGroups(layers, options || {});
     };
 
     api.buildDrumMachineGridRects = function (
@@ -509,6 +511,7 @@
         var cell;
 
         pitchGroups = pitchGroups || [];
+        options = options || {};
         if (!pitchGroups.length) {
             return rects;
         }
@@ -761,6 +764,7 @@
     };
 
     api.buildDrumMachineMultiSourcePumpExpression = function (options?: DrumMachinePadExpressionOptions): string {
+        options = options || {};
         var sourceRefs = options.sourceRefs || [];
         var pitchFilter = options.pitchFilter || [];
         var targetPitch = pitchFilter.length ? Math.round(pitchFilter[0]) : 0;
@@ -1175,7 +1179,7 @@
                 created += 1;
                 noteStyle.layer.name =
                     "Drum " +
-                    api.pad2(rects[i].index) +
+                    api.pad2(rects[i].index || i + 1) +
                     " " +
                     api.sanitizeName(rects[i].label) +
                     (rects[i].layerInstrument ? "" : " (" + rects[i].pitch + ")");

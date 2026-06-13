@@ -713,7 +713,7 @@ function asScriptUiPenHost(g) {
             return midi._timeSegments;
         }
         if (!tempoMap) {
-            tempoMap = midi._tempoMap;
+            tempoMap = midi._tempoMap || undefined;
         }
         if (!tempoMap || !tempoMap.length) {
             tempoMap = (midi.tempoEvents || []).slice().sort(function (a, b) {
@@ -869,6 +869,9 @@ function asScriptUiPenHost(g) {
         }
         else if (stack.length) {
             note = stack.shift();
+            if (!note) {
+                return;
+            }
             note.offTicks = ticks;
             note.durationTicks = ticks - note.ticks;
         }
@@ -1126,12 +1129,16 @@ function asScriptUiPenHost(g) {
             return "The selected file is not a Standard MIDI file.";
         }
         for (i = 0; i < midi.channels.length; i += 1) {
-            if (midi.channels[i]) {
-                activeChannels.push(midi.channels[i]);
+            var activeChannel = midi.channels[i];
+            if (activeChannel) {
+                activeChannels.push(activeChannel);
             }
         }
         for (i = 0; i < activeChannels.length; i += 1) {
             channel = activeChannels[i];
+            if (!channel) {
+                continue;
+            }
             controllerCount += countChannelControllers(channel);
             pitchBendCount += channel.pitchBends.length;
             if (channel.pitchBends.length) {
@@ -1142,19 +1149,23 @@ function asScriptUiPenHost(g) {
             }
         }
         for (i = 0; i < midi.notes.length; i += 1) {
-            if (api.isDrumChannel(midi.notes[i].midiChannel)) {
+            var reportNote = midi.notes[i];
+            if (!reportNote) {
+                continue;
+            }
+            if (api.isDrumChannel(reportNote.midiChannel)) {
                 drumNoteCount += 1;
-                if (midi.notes[i].drumName && !drumNameSeen[midi.notes[i].drumName]) {
-                    drumNameSeen[midi.notes[i].drumName] = true;
-                    drumNameList.push(midi.notes[i].drumName);
+                if (reportNote.drumName && !drumNameSeen[reportNote.drumName]) {
+                    drumNameSeen[reportNote.drumName] = true;
+                    drumNameList.push(reportNote.drumName);
                 }
             }
-            else if (typeof midi.notes[i].pitch === "number") {
-                if (midi.notes[i].pitch < pitchMin) {
-                    pitchMin = midi.notes[i].pitch;
+            else if (typeof reportNote.pitch === "number") {
+                if (reportNote.pitch < pitchMin) {
+                    pitchMin = reportNote.pitch;
                 }
-                if (midi.notes[i].pitch > pitchMax) {
-                    pitchMax = midi.notes[i].pitch;
+                if (reportNote.pitch > pitchMax) {
+                    pitchMax = reportNote.pitch;
                 }
             }
         }
@@ -1256,11 +1267,14 @@ function asScriptUiPenHost(g) {
             lines.push("Pitch bends");
             lines.push("-----------");
             activeChannels.sort(function (a, b) {
+                if (!a || !b) {
+                    return 0;
+                }
                 return a.trackIndex - b.trackIndex || a.midiChannel - b.midiChannel;
             });
             for (i = 0; i < activeChannels.length; i += 1) {
                 channel = activeChannels[i];
-                if (!channel.pitchBends.length) {
+                if (!channel || !channel.pitchBends.length) {
                     continue;
                 }
                 bendSummary = summarizePitchBends(channel.pitchBends);
@@ -1295,10 +1309,16 @@ function asScriptUiPenHost(g) {
             lines.push("Channels");
             lines.push("--------");
             activeChannels.sort(function (a, b) {
+                if (!a || !b) {
+                    return 0;
+                }
                 return a.trackIndex - b.trackIndex || a.midiChannel - b.midiChannel;
             });
             for (i = 0; i < activeChannels.length; i += 1) {
                 channel = activeChannels[i];
+                if (!channel) {
+                    continue;
+                }
                 channelLabel = formatChannelInfoLabel(channel);
                 lines.push(channelLabel +
                     ": " +
@@ -1454,9 +1474,10 @@ function asScriptUiPenHost(g) {
         var channels = [];
         var i;
         for (i = 0; i < midi.channels.length; i += 1) {
-            if (midi.channels[i] &&
-                channelHasEvents(midi.channels[i], options.includeControllers, options.includePitchBends)) {
-                channels.push(midi.channels[i]);
+            var channelEntry = midi.channels[i];
+            if (channelEntry &&
+                channelHasEvents(channelEntry, options.includeControllers, options.includePitchBends)) {
+                channels.push(channelEntry);
             }
         }
         return channels;
@@ -1473,6 +1494,9 @@ function asScriptUiPenHost(g) {
         }
         for (i = 0; i < channel.notes.length; i += 1) {
             note = channel.notes[i];
+            if (!note) {
+                continue;
+            }
             pitchKey = String(note.pitch);
             if (!byPitch[pitchKey]) {
                 byPitch[pitchKey] = {
@@ -1482,6 +1506,9 @@ function asScriptUiPenHost(g) {
                     values: []
                 };
                 pitchOrder.push(note.pitch);
+            }
+            if (typeof note.time === "undefined") {
+                continue;
             }
             series = byPitch[pitchKey];
             pushKey(series, note.time, note.velocity, options);
@@ -1508,7 +1535,7 @@ function asScriptUiPenHost(g) {
         var bend = { times: [], values: [] };
         for (i = 0; i < channel.noteEvents.length; i += 1) {
             note = channel.noteEvents[i];
-            if (note.velocity <= 0) {
+            if (!note || note.velocity <= 0 || typeof note.time === "undefined") {
                 continue;
             }
             pushKey(pitch, note.time, note.pitch, options);
@@ -1516,7 +1543,7 @@ function asScriptUiPenHost(g) {
         }
         for (i = 0; i < channel.notes.length; i += 1) {
             note = channel.notes[i];
-            if (typeof note.duration !== "undefined") {
+            if (note && typeof note.duration !== "undefined" && typeof note.time !== "undefined") {
                 pushKey(duration, note.time, note.duration, options);
             }
         }
@@ -1529,7 +1556,11 @@ function asScriptUiPenHost(g) {
                 if (channel.controllers.hasOwnProperty(controller)) {
                     cc = { times: [], values: [] };
                     for (i = 0; i < channel.controllers[controller].length; i += 1) {
-                        pushKey(cc, channel.controllers[controller][i].time, channel.controllers[controller][i].value, options);
+                        var controllerEvent = channel.controllers[controller][i];
+                        if (!controllerEvent || typeof controllerEvent.time === "undefined") {
+                            continue;
+                        }
+                        pushKey(cc, controllerEvent.time, controllerEvent.value, options);
                     }
                     applySeries(layer, api.formatStandardEffectName(channel, "CC " + controller), cc);
                 }
@@ -1537,7 +1568,11 @@ function asScriptUiPenHost(g) {
         }
         if (options.includePitchBends) {
             for (i = 0; i < channel.pitchBends.length; i += 1) {
-                pushKey(bend, channel.pitchBends[i].time, channel.pitchBends[i].value, options);
+                var bendEvent = channel.pitchBends[i];
+                if (!bendEvent || typeof bendEvent.time === "undefined") {
+                    continue;
+                }
+                pushKey(bend, bendEvent.time, bendEvent.value, options);
             }
             applySeries(layer, api.formatStandardEffectName(channel, "pitch bend"), bend);
         }
@@ -1977,7 +2012,7 @@ function asScriptUiPenHost(g) {
             hook.step(done, total, detail || hook.stageLabel);
         }
         else if (detail) {
-            hook.report(hook.percent, detail);
+            hook.report(typeof hook.percent === "number" ? hook.percent : 0, detail);
         }
     }
     function expressionValue(value, fallback) {
@@ -2314,12 +2349,15 @@ function asScriptUiPenHost(g) {
         var presetKey = preset;
         var roots = PRESET_FUNCTIONS[presetKey] || PRESET_FUNCTIONS["pump"];
         var required = {};
-        var queue = [].concat(roots);
+        var queue = roots.slice();
         var name;
         var deps;
         var i;
         while (queue.length > 0) {
             name = queue.shift();
+            if (typeof name === "undefined") {
+                continue;
+            }
             if (!required[name]) {
                 required[name] = true;
                 deps = FUNCTION_DEPS[name] || [];
@@ -2536,19 +2574,20 @@ function asScriptUiPenHost(g) {
         var note;
         for (i = 0; i < noteEvents.length; i += 1) {
             note = noteEvents[i];
-            if (note.velocity > 0 && midiActionPitchMatchesFilter(note.pitch, options)) {
-                triggers.push({
-                    time: note.time,
-                    label: String(note.pitch),
-                    amount: 1,
-                    source: "pitch",
-                    pitch: note.pitch
-                });
+            if (!note || note.velocity <= 0 || !midiActionPitchMatchesFilter(note.pitch, options) || typeof note.time === "undefined") {
+                continue;
             }
+            triggers.push({
+                time: note.time,
+                label: String(note.pitch),
+                amount: 1,
+                source: "pitch",
+                pitch: note.pitch
+            });
         }
         return filterMidiActionTriggers(triggers.sort(function (a, b) {
             return a.time - b.time;
-        }), options);
+        }), options || {});
     };
     function falloffValue(t, start, duration, falloff, step) {
         var x;
@@ -2820,7 +2859,7 @@ function asScriptUiPenHost(g) {
         forEachLayerEffect(layer, function (effect) {
             var name = String(effect.name || "");
             var slider = sliderFromEffectGroup(effect);
-            if (!name || !sliderHasKeys(slider)) {
+            if (!name || !slider || !sliderHasKeys(slider)) {
                 return;
             }
             byName[name] = slider;
@@ -2862,10 +2901,10 @@ function asScriptUiPenHost(g) {
     }
     function layerHasEffects(layer) {
         var parade = getLayerEffectParade(layer);
-        return parade && parade.numProperties > 0;
+        return !!(parade && parade.numProperties > 0);
     }
     function layersShareIndex(a, b) {
-        return a && b && a.index === b.index;
+        return !!(a && b && a.index === b.index);
     }
     function dedupeLayers(layers) {
         var out = [];
@@ -2966,6 +3005,9 @@ function asScriptUiPenHost(g) {
         return name.indexOf("MIDI Action") === 0;
     }
     function layerHasImportPitchSlider(layer) {
+        if (!layer) {
+            return false;
+        }
         var resolved = resolvePitchSlider(layer, {});
         return !!(resolved && resolved.slider && sliderHasKeys(resolved.slider));
     }
@@ -3018,6 +3060,9 @@ function asScriptUiPenHost(g) {
         }
         catch (effectsErr) { }
         try {
+            if (!layer) {
+                return null;
+            }
             parade = layer.property("ADBE Effect Parade");
             if (parade && parade.numProperties > 0) {
                 return parade;
@@ -3407,6 +3452,7 @@ function asScriptUiPenHost(g) {
         };
     }
     function collectPitchTriggersFromLayer(sourceLayer, options) {
+        options = options || {};
         var resolved = resolvePitchSlider(sourceLayer, options);
         var pitchSlider = resolved.slider;
         var velSlider = findVelocitySliderForLayer(sourceLayer, resolved.effectName);
@@ -3490,7 +3536,7 @@ function asScriptUiPenHost(g) {
         };
     };
     api.collectMidiActionTriggersFromLayer = function (sourceLayer, options) {
-        return filterMidiActionTriggers(sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)), options);
+        return filterMidiActionTriggers(sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)), options || {});
     };
     function parseValueLiteral(value, fallback) {
         var text;
@@ -3698,7 +3744,11 @@ function asScriptUiPenHost(g) {
             if (n >= triggers.length - 1) {
                 return targetForInterpolatedEvent(n, base, active);
             }
-            return mixValue(targetForInterpolatedEvent(n, base, active), targetForInterpolatedEvent(n + 1, base, active), interpolationProgress(time, triggers[n].time, triggers[n + 1].time, options.falloff));
+            var nextTrigger = triggers[n + 1];
+            if (!nextTrigger) {
+                return targetForInterpolatedEvent(n, base, active);
+            }
+            return mixValue(targetForInterpolatedEvent(n, base, active), targetForInterpolatedEvent(n + 1, base, active), interpolationProgress(time, triggers[n].time, nextTrigger.time, options.falloff || "linear"));
         }
         if (options.preset === "accumulator") {
             to = cloneValue(base);
@@ -3707,13 +3757,13 @@ function asScriptUiPenHost(g) {
             }
             if (n >= 0 && time <= triggers[n].time + windowDuration) {
                 from = addDeltaValue(to, -triggers[n].amount);
-                f = 1 - falloffValue(time, triggers[n].time, duration, options.falloff, options.frameDuration);
+                f = 1 - falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration);
                 return addDeltaValue(from, triggers[n].amount * f);
             }
             return to;
         }
         if (n >= 0 && time <= triggers[n].time + windowDuration) {
-            return addDeltaValue(base, amount * falloffValue(time, triggers[n].time, duration, options.falloff, options.frameDuration));
+            return addDeltaValue(base, amount * falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration));
         }
         return cloneValue(base);
     }
@@ -3812,7 +3862,7 @@ function asScriptUiPenHost(g) {
         }
         for (i = 0; i < properties.length; i += 1) {
             prop = properties[i];
-            if (prop && (prop.setValuesAtTimes || prop.setValueAtTime)) {
+            if (prop) {
                 plan = api.buildMidiActionBakePlan(triggers, prop, comp, options || {});
                 if (applyBakePlan(prop, plan)) {
                     applied += 1;
@@ -4036,7 +4086,7 @@ function asScriptUiPenHost(g) {
         pitchSlider = sliderFromEffectIndex(sliderIndex, prefix + " pitch");
         velSlider = sliderFromEffectIndex(sliderIndex, prefix + " velocity");
         durSlider = sliderFromEffectIndex(sliderIndex, prefix + " duration");
-        appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+        appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
     }
     function collectDrumNotesForPrefix(layer, notes, maxNotes, prefix, options, sliderIndex) {
         var drumChannels = {};
@@ -4159,21 +4209,33 @@ function asScriptUiPenHost(g) {
         var pitchSlider;
         var velSlider;
         var durSlider;
+        var pitchProp;
+        var velProp;
+        var durProp;
         forEachLayerEffect(layer, function (effect) {
             if (isPitchEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )pitch$/i, "").replace(/_pitch$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].pitch = sliderFromEffectGroup(effect);
+                pitchProp = sliderFromEffectGroup(effect);
+                if (pitchProp) {
+                    groups[prefix].pitch = pitchProp;
+                }
             }
             else if (isVelocityEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )velocity$/i, "").replace(/_vel$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].velocity = sliderFromEffectGroup(effect);
+                velProp = sliderFromEffectGroup(effect);
+                if (velProp) {
+                    groups[prefix].velocity = velProp;
+                }
             }
             else if (isDurationEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )duration$/i, "").replace(/_dur$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].duration = sliderFromEffectGroup(effect);
+                durProp = sliderFromEffectGroup(effect);
+                if (durProp) {
+                    groups[prefix].duration = durProp;
+                }
             }
         });
         for (prefix in groups) {
@@ -4191,7 +4253,7 @@ function asScriptUiPenHost(g) {
             }
             velSlider = group.velocity;
             durSlider = group.duration;
-            appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+            appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
             if (!pianoRollCanAddMore(notes, maxNotes)) {
                 return;
             }
@@ -4406,7 +4468,9 @@ function asScriptUiPenHost(g) {
                 }
                 return;
             }
-            unknown.push(slider);
+            if (slider) {
+                unknown.push(slider);
+            }
         });
         if (!pitchSlider) {
             for (i = 0; i < unknown.length; i += 1) {
@@ -4433,7 +4497,7 @@ function asScriptUiPenHost(g) {
             }
         }
         if (pitchSlider) {
-            appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+            appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
         }
     }
     api.collectPianoRollNotesFromLayer = function (layer, options) {
@@ -4563,6 +4627,7 @@ function asScriptUiPenHost(g) {
                 };
                 if (options.useWorkArea &&
                     typeof options.timeStart !== "undefined" &&
+                    typeof options.timeEnd !== "undefined" &&
                     (hit.time < options.timeStart || hit.time >= options.timeEnd)) {
                     continue;
                 }
@@ -4670,7 +4735,7 @@ function asScriptUiPenHost(g) {
                 end = noteEnd;
             }
         }
-        return { timeStart: start, timeEnd: end };
+        return { timeStart: start !== null ? start : 0, timeEnd: end };
     }
     function resolvePianoRollTimeRange(notes, options, fallbackEnd) {
         var bounds;
@@ -4741,9 +4806,10 @@ function asScriptUiPenHost(g) {
         var seen = {};
         var i;
         for (i = 0; i < notes.length; i += 1) {
-            if (notes[i].isDrum && !seen[notes[i].label]) {
-                labels.push(notes[i].label);
-                seen[notes[i].label] = true;
+            var drumLabelNote = notes[i];
+            if (drumLabelNote && drumLabelNote.isDrum && drumLabelNote.label && !seen[drumLabelNote.label]) {
+                labels.push(drumLabelNote.label);
+                seen[drumLabelNote.label] = true;
             }
         }
         labels.sort();
@@ -5354,7 +5420,7 @@ function asScriptUiPenHost(g) {
         }
         fill = findShapeFill(layer);
         if (fill) {
-            setPropExpression(shapeFillColorProp(fill), pianoRollControlExpression(controllerEffects.fillColor, "Color"));
+            setPropExpression(shapeFillColorProp(fill), pianoRollControlExpression(controllerEffects.fillColor || "Fill Color", "Color"));
         }
         wireShapeStrokeFromController(layer, controllerEffects);
     }
@@ -5449,7 +5515,7 @@ function asScriptUiPenHost(g) {
                 return result;
             }
             layer = comp.layers.addShape();
-            layer.name = "MIDI Note " + api.pad2(rect.index) + " " + api.sanitizeName(rect.label);
+            layer.name = "MIDI Note " + api.pad2(rect.index || 0) + " " + api.sanitizeName(rect.label);
             layer.comment =
                 "Piano roll note" +
                     "\ntime: " +
@@ -5523,8 +5589,12 @@ function asScriptUiPenHost(g) {
                 parentLayerToController(comp, noteStyles[i].layer, null, controllerInfo.layer);
             }
             for (i = 0; i < noteStyles.length; i += 1) {
-                wirePianoRollShapeStyles(noteStyles[i].layer, controllerInfo.effects);
-                opacityProp = findLayerOpacity(noteStyles[i].layer);
+                var styledLayer = noteStyles[i].layer;
+                if (!styledLayer) {
+                    continue;
+                }
+                wirePianoRollShapeStyles(styledLayer, controllerInfo.effects);
+                opacityProp = findLayerOpacity(styledLayer);
                 if (opacityProp) {
                     setPropExpression(opacityProp, pianoRollMasterOpacityExpression(controllerInfo.effects));
                 }
@@ -5723,18 +5793,18 @@ function asScriptUiPenHost(g) {
             if (simOptions.preset === "accumulator") {
                 while (accumUpTo < triggerIndex) {
                     accumUpTo += 1;
-                    accumTotal = addDeltaValue(accumTotal, triggers[accumUpTo].amount);
+                    accumTotal = addDeltaValue(accumTotal === null ? 0 : accumTotal, triggers[accumUpTo].amount);
                 }
                 n = triggerIndex;
                 if (n >= 0 && evalTime <= triggers[n].time + windowDuration) {
-                    from = addDeltaValue(accumTotal, -triggers[n].amount);
+                    from = addDeltaValue(accumTotal === null ? 0 : accumTotal, -triggers[n].amount);
                     f =
                         1 -
                             falloffValue(evalTime, triggers[n].time, duration, simOptions.falloff, simOptions.frameDuration);
                     value = addDeltaValue(from, triggers[n].amount * f);
                 }
                 else {
-                    value = accumTotal;
+                    value = accumTotal === null ? cloneValue(base) : accumTotal;
                 }
                 pushMidiActionSimulationPoint(points, t, value);
             }
@@ -5795,7 +5865,7 @@ function asScriptUiPenHost(g) {
     function midiActionPreviewDescription(options, triggerCount) {
         var parts = [];
         parts.push(triggerCount + " trigger" + (triggerCount === 1 ? "" : "s") + " in preview.");
-        parts.push("Curve shows the " + midiActionPresetLabel(options.preset) + " preset over time.");
+        parts.push("Curve shows the " + midiActionPresetLabel(options.preset || "pump") + " preset over time.");
         if (options.pitchSliderName && options.triggerMode !== "drums") {
             parts.push("Pitch slider: " + options.pitchSliderName + ".");
         }
@@ -5962,7 +6032,7 @@ function asScriptUiPenHost(g) {
         rememberMidiActionSourceLayer(sourceLayer);
         resolved = api.resolveMidiActionOptions(comp, options || {}, sourceLayer);
         resolved.sourceLayerName = sourceLayer.name;
-        if (options.useOutputSliders !== false) {
+        if (resolved.useOutputSliders !== false) {
             resolved.useOutputSliders = true;
         }
         expression = api.buildMidiActionExpression(resolved);
@@ -6866,7 +6936,7 @@ function asScriptUiPenHost(g) {
             sourceLayerName: sourceLayer.name,
             targetLayerName: targetLayer ? targetLayer.name : "(unknown)",
             propertyName: property.name,
-            axis: resolved.screenFlipAxis
+            axis: resolved.screenFlipAxis || (axis === "vertical" ? "vertical" : "horizontal")
         };
     };
     api.bakeScreenFlip = function (comp, axis, options) {
@@ -6884,7 +6954,7 @@ function asScriptUiPenHost(g) {
             sourceLayerName: sourceLayer.name,
             targetLayerName: targetLayer ? targetLayer.name : "(unknown)",
             propertyName: property.name,
-            axis: resolved.screenFlipAxis,
+            axis: resolved.screenFlipAxis || (axis === "vertical" ? "vertical" : "horizontal"),
             triggers: bakeResult.triggers
         };
     };
@@ -7181,7 +7251,7 @@ function asScriptUiPenHost(g) {
         var maxNotes;
         var i;
         var note;
-        options = drumMachineCollectOptions(sourceLayer, options, false);
+        options = drumMachineCollectOptions(sourceLayer, options || {}, false);
         notes = collectDrumMachinePitchModeNotes(sourceLayer, options);
         maxNotes = options.limitNotes === false ? -1 : parseMaxNotes(options.maxNotes, -1);
         for (i = 0; i < notes.length; i += 1) {
@@ -7189,7 +7259,7 @@ function asScriptUiPenHost(g) {
             if (!pitchMatchesFilter(note.pitch, drumMachinePitchFilter(options))) {
                 continue;
             }
-            if (options.useWorkArea && typeof options.timeStart !== "undefined") {
+            if (options.useWorkArea && typeof options.timeStart !== "undefined" && typeof options.timeEnd !== "undefined") {
                 if (note.time < options.timeStart || note.time >= options.timeEnd) {
                     continue;
                 }
@@ -7228,6 +7298,7 @@ function asScriptUiPenHost(g) {
             if (options &&
                 options.useWorkArea &&
                 typeof options.timeStart !== "undefined" &&
+                typeof options.timeEnd !== "undefined" &&
                 (note.time < options.timeStart || note.time >= options.timeEnd)) {
                 continue;
             }
@@ -7277,6 +7348,7 @@ function asScriptUiPenHost(g) {
                 note = notes[j];
                 if (options.useWorkArea &&
                     typeof options.timeStart !== "undefined" &&
+                    typeof options.timeEnd !== "undefined" &&
                     (note.time < options.timeStart || note.time >= options.timeEnd)) {
                     continue;
                 }
@@ -7316,7 +7388,7 @@ function asScriptUiPenHost(g) {
         if (layers.length === 1) {
             return api.collectDrumMachinePitchGroups(layers[0], options);
         }
-        return collectDrumMachineLayerInstrumentGroups(layers, options);
+        return collectDrumMachineLayerInstrumentGroups(layers, options || {});
     };
     api.buildDrumMachineGridRects = function (pitchGroups, comp, options) {
         var rects = [];
@@ -7330,6 +7402,7 @@ function asScriptUiPenHost(g) {
         var row;
         var cell;
         pitchGroups = pitchGroups || [];
+        options = options || {};
         if (!pitchGroups.length) {
             return rects;
         }
@@ -7563,6 +7636,7 @@ function asScriptUiPenHost(g) {
         return api.buildDrumMachineHitExpression(options || {});
     };
     api.buildDrumMachineMultiSourcePumpExpression = function (options) {
+        options = options || {};
         var sourceRefs = options.sourceRefs || [];
         var pitchFilter = options.pitchFilter || [];
         var targetPitch = pitchFilter.length ? Math.round(pitchFilter[0]) : 0;
@@ -7899,7 +7973,7 @@ function asScriptUiPenHost(g) {
                 created += 1;
                 noteStyle.layer.name =
                     "Drum " +
-                        api.pad2(rects[i].index) +
+                        api.pad2(rects[i].index || i + 1) +
                         " " +
                         api.sanitizeName(rects[i].label) +
                         (rects[i].layerInstrument ? "" : " (" + rects[i].pitch + ")");
@@ -8636,7 +8710,11 @@ function asScriptUiPenHost(g) {
 // ---- dist/compiled/ae/ui.jsx ----
 (function (api) {
     function globalState() {
-        return api.getGlobalState();
+        var state = api.getGlobalState();
+        if (!state) {
+            throw new Error("ReOm MIDI global state is unavailable.");
+        }
+        return state;
     }
     function makeProgress(title) {
         var win = new Window("palette", title);
@@ -8657,7 +8735,9 @@ function asScriptUiPenHost(g) {
             update: function (text, ratio) {
                 label.text = text;
                 bar.value = Math.max(0, Math.min(100, Math.round(ratio * 100)));
-                win.update();
+                if (win.update) {
+                    win.update();
+                }
                 return running;
             },
             close: function () {
@@ -8680,7 +8760,7 @@ function asScriptUiPenHost(g) {
         if (!control || !control.parent) {
             return;
         }
-        label = control.parent.children[0];
+        label = control.parent.children && control.parent.children[0];
         if (label) {
             label.text = labelText;
         }
@@ -8817,7 +8897,7 @@ function asScriptUiPenHost(g) {
                 top = pad + ((rect.y - rect.height / 2 - bounds.top) / dataH) * plotH;
                 barW = Math.max(right - left, 1);
                 barH = Math.max((rect.height / dataH) * plotH, 1);
-                color = pianoRollPreviewNoteColor(rect.isDrum, (rect.opacity / 100) * graphOpacity);
+                color = pianoRollPreviewNoteColor(!!rect.isDrum, ((rect.opacity || 100) / 100) * graphOpacity);
                 g.newPath();
                 g.rectPath(left, top, barW, barH);
                 g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR, color));
@@ -8881,7 +8961,7 @@ function asScriptUiPenHost(g) {
         state.lockedWindowHeight = PANEL_LOCKED_HEIGHT;
         state.win.minimumSize = [PANEL_MIN_WIDTH, PANEL_LOCKED_HEIGHT];
         state.win.maximumSize = [10000, PANEL_LOCKED_HEIGHT];
-        if (!state.isPanel && state.win.size[1] !== PANEL_LOCKED_HEIGHT) {
+        if (!state.isPanel && state.win.size && state.win.size[1] !== PANEL_LOCKED_HEIGHT) {
             state.win.size = [state.win.size[0], PANEL_LOCKED_HEIGHT];
         }
         refreshScriptUiHost(state.win);
@@ -8892,6 +8972,7 @@ function asScriptUiPenHost(g) {
                 win.resizeable &&
                 panelState &&
                 panelState.lockedWindowHeight &&
+                win.size &&
                 win.size[1] !== panelState.lockedWindowHeight) {
                 win.size = [win.size[0], panelState.lockedWindowHeight];
             }
@@ -8985,7 +9066,7 @@ function asScriptUiPenHost(g) {
         if (!state || !state.win) {
             return;
         }
-        flushName = globalState().previewUiFlushName;
+        flushName = globalState().previewUiFlushName || "";
         previewState = previewStateForFlush(flushName, state);
         if (previewState && previewState.expanded && previewState.canvas) {
             canvas = previewState.canvas;
@@ -9163,14 +9244,14 @@ function asScriptUiPenHost(g) {
             return;
         }
         now = new Date().getTime();
-        if (hook.percent < 100 && hook.lastUiMs && now - hook.lastUiMs < PREVIEW_PROGRESS_UI_MS) {
+        if (typeof hook.percent !== "number" || (hook.percent < 100 && hook.lastUiMs && now - hook.lastUiMs < PREVIEW_PROGRESS_UI_MS)) {
             return;
         }
         hook.lastUiMs = now;
-        summary = previewProgressSummaryControl(hook.kind);
-        root = previewProgressRootWin(hook.kind);
+        summary = previewProgressSummaryControl(hook.kind || "");
+        root = previewProgressRootWin(hook.kind || "");
         if (summary) {
-            summary.text = formatPreviewProgressSummary(hook.sourceLabel, hook.percent, hook.stageLabel);
+            summary.text = formatPreviewProgressSummary(hook.sourceLabel || "", hook.percent, hook.stageLabel || "");
         }
         repaintScriptUiHost(root || null);
     }
@@ -9227,7 +9308,7 @@ function asScriptUiPenHost(g) {
         return globalState().previewProgressHook || null;
     };
     api.beginPreviewProgress = function (kind, sourceLabel) {
-        var hook = buildPreviewProgressHook(kind, sourceLabel);
+        var hook = buildPreviewProgressHook(kind, sourceLabel || "");
         if (typeof $ !== "undefined" && $.global) {
             globalState().previewProgressHook = hook;
         }
@@ -9243,7 +9324,9 @@ function asScriptUiPenHost(g) {
         if (hook && hook.finish) {
             hook.finish();
         }
-        api.clearPreviewProgress();
+        if (api.clearPreviewProgress) {
+            api.clearPreviewProgress();
+        }
     };
     function colorWithOpacity(color, opacity) {
         if (!color || !color.length) {
@@ -9288,10 +9371,14 @@ function asScriptUiPenHost(g) {
             host.selectTab();
         }
         targets = host.ensure();
-        bindPianoRollPreviewCanvas(targets.canvas, pianoRollPreviewLoadingLayout(targets.canvas, sourceLabel));
+        if (targets.canvas) {
+            bindPianoRollPreviewCanvas(targets.canvas, pianoRollPreviewLoadingLayout(targets.canvas, sourceLabel || ""));
+        }
         globalState().previewCanvas = targets.canvas;
-        globalState().previewCanvasRoot = host.win;
-        armPreviewLoadingDisplay(host, targets, sourceLabel, startPianoRollPreviewLoadingAnimation);
+        globalState().previewCanvasRoot = host.win || null;
+        if (targets.canvas && targets.summary) {
+            armPreviewLoadingDisplay(host, targets, sourceLabel || "", startPianoRollPreviewLoadingAnimation);
+        }
     };
     api.showPianoRollPreviewInPanel = function (layout) {
         var host;
@@ -9309,10 +9396,14 @@ function asScriptUiPenHost(g) {
             host.selectTab();
         }
         targets = host.ensure();
-        targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
-        bindPianoRollPreviewCanvas(targets.canvas, layout);
+        if (targets.summary) {
+            targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
+        }
+        if (targets.canvas) {
+            bindPianoRollPreviewCanvas(targets.canvas, layout);
+        }
         globalState().previewCanvas = targets.canvas;
-        globalState().previewCanvasRoot = host.win;
+        globalState().previewCanvasRoot = host.win || null;
         finishPreviewPanelDisplay(host, targets);
     };
     api.refreshPianoRollPreviewPanel = flushPianoRollPreviewCanvasNow;
@@ -9347,7 +9438,7 @@ function asScriptUiPenHost(g) {
         return (canvasPanel && (canvasPanel._pianoRollPreviewLayout || canvasPanel._midiActionPreviewLayout)) || null;
     }
     function previewCanvasSize(canvasPanel) {
-        var size = canvasPanel.size;
+        var size = canvasPanel.size || [0, 0];
         var w = size[0];
         var h = size[1];
         var node;
@@ -9392,7 +9483,9 @@ function asScriptUiPenHost(g) {
         if (host && host.win) {
             repaintScriptUiHost(host.win);
         }
-        startAnimationFn(targets.canvas, host.win, targets.summary, sourceLabel);
+        if (host && host.win && targets.canvas && targets.summary) {
+            startAnimationFn(targets.canvas, host.win, targets.summary, sourceLabel);
+        }
     }
     function addWrappedHintText(parent, text) {
         var control = parent.add("statictext", undefined, text, { multiline: true });
@@ -9441,7 +9534,7 @@ function asScriptUiPenHost(g) {
         if (expanded) {
             container.visible = true;
             container.margins = state.containerMargins;
-            container.spacing = state.containerSpacing;
+            container.spacing = typeof state.containerSpacing === "number" ? state.containerSpacing : 0;
             container.alignment = ["fill", "fill"];
             container.preferredSize = [-1, PREVIEW_CANVAS_MAX_HEIGHT + 72];
             container.minimumSize = [0, 180];
@@ -9487,7 +9580,9 @@ function asScriptUiPenHost(g) {
         globalState().actionPreviewLoading = false;
         globalState().actionPreviewLoadingSummary = null;
         globalState().actionPreviewLoadingLabel = null;
-        api.clearPreviewProgress();
+        if (api.clearPreviewProgress) {
+            api.clearPreviewProgress();
+        }
     }
     function startMidiActionPreviewLoadingAnimation(canvasPanel, rootWin, summaryControl, sourceLabel) {
         stopMidiActionPreviewLoadingAnimation();
@@ -9502,7 +9597,9 @@ function asScriptUiPenHost(g) {
         globalState().pianoRollPreviewLoading = false;
         globalState().pianoRollPreviewLoadingSummary = null;
         globalState().pianoRollPreviewLoadingLabel = null;
-        api.clearPreviewProgress();
+        if (api.clearPreviewProgress) {
+            api.clearPreviewProgress();
+        }
     }
     function startPianoRollPreviewLoadingAnimation(canvasPanel, rootWin, summaryControl, sourceLabel) {
         stopPianoRollPreviewLoadingAnimation();
@@ -9605,10 +9702,14 @@ function asScriptUiPenHost(g) {
             host.selectTab();
         }
         targets = host.ensure();
-        bindMidiActionPreviewCanvas(targets.canvas, midiActionPreviewLoadingLayout(targets.canvas, sourceLabel));
+        if (targets.canvas) {
+            bindMidiActionPreviewCanvas(targets.canvas, midiActionPreviewLoadingLayout(targets.canvas, sourceLabel || ""));
+        }
         globalState().actionPreviewCanvas = targets.canvas;
-        globalState().actionPreviewCanvasRoot = host.win;
-        armPreviewLoadingDisplay(host, targets, sourceLabel, startMidiActionPreviewLoadingAnimation);
+        globalState().actionPreviewCanvasRoot = host.win || null;
+        if (targets.canvas && targets.summary) {
+            armPreviewLoadingDisplay(host, targets, sourceLabel || "", startMidiActionPreviewLoadingAnimation);
+        }
     };
     api.showMidiActionPreviewInPanel = function (layout) {
         var host;
@@ -9626,10 +9727,14 @@ function asScriptUiPenHost(g) {
             host.selectTab();
         }
         targets = host.ensure();
-        targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
-        bindMidiActionPreviewCanvas(targets.canvas, layout);
+        if (targets.summary) {
+            targets.summary.text = "Source: " + layout.sourceLabel + "\n" + layout.description;
+        }
+        if (targets.canvas) {
+            bindMidiActionPreviewCanvas(targets.canvas, layout);
+        }
         globalState().actionPreviewCanvas = targets.canvas;
-        globalState().actionPreviewCanvasRoot = host.win;
+        globalState().actionPreviewCanvasRoot = host.win || null;
         finishPreviewPanelDisplay(host, targets);
     };
     api.refreshActionPreviewPanel = flushActionPreviewCanvasNow;
@@ -10928,7 +11033,16 @@ function asScriptUiPenHost(g) {
     function buildUI(thisObj) {
         api.resetGlobalState();
         var isPanel = thisObj instanceof Panel;
-        var win = isPanel ? thisObj : new Window("palette", "ReOm MIDI", undefined, { resizeable: true });
+        var win;
+        if (isPanel) {
+            if (!thisObj) {
+                throw new Error("Panel host required.");
+            }
+            win = thisObj;
+        }
+        else {
+            win = new Window("palette", "ReOm MIDI", undefined, { resizeable: true });
+        }
         var panelWidth = PANEL_WIDTH_DEFAULT;
         var panelHeight = PANEL_HEIGHT_DEFAULT;
         var featureTabs;
@@ -10976,7 +11090,7 @@ function asScriptUiPenHost(g) {
         githubLink.addEventListener("click", function () {
             var url = githubRepoUrl;
             try {
-                if ($.os.indexOf("Windows") !== -1) {
+                if (($.os || "").indexOf("Windows") !== -1) {
                     system.callSystem("cmd.exe /c start " + url);
                 }
                 else {
@@ -11085,14 +11199,18 @@ function asScriptUiPenHost(g) {
                 state.featureTabs.selection = state.importTab;
             }
             resizeScriptUiHost(state.win);
-            api.refreshPreviewPanels(false);
+            if (api.refreshPreviewPanels) {
+                api.refreshPreviewPanels(false);
+            }
         };
         closeButton.onClick = function () {
             if (win instanceof Window) {
                 win.close();
             }
         };
-        win.layout.layout(true);
+        if (win.layout && win.layout.layout) {
+            win.layout.layout(true);
+        }
         featureTabs.selection = importUi.tab;
         refreshScriptUiHost(win);
         applyLockedWindowHeightFromState(api.__panelUiState);
@@ -11166,7 +11284,9 @@ function asScriptUiPenHost(g) {
     api.completeMidiActionExpressionCopyDialog = function (expression, sourceLabel) {
         var expressionText = String(expression || "");
         if (!copyDialogState.win || !copyDialogState.text) {
-            api.openMidiActionExpressionCopyDialog(sourceLabel || "MIDI");
+            if (api.openMidiActionExpressionCopyDialog) {
+                api.openMidiActionExpressionCopyDialog(sourceLabel || "MIDI");
+            }
         }
         if (copyDialogState.hint) {
             copyDialogState.hint.text =
@@ -11182,7 +11302,9 @@ function asScriptUiPenHost(g) {
                 if (copyDialogState.win.layout && copyDialogState.win.layout.layout) {
                     copyDialogState.win.layout.layout(true);
                 }
-                copyDialogState.win.update();
+                if (copyDialogState.win.update) {
+                    copyDialogState.win.update();
+                }
             }
             catch (updateErr) { }
         }
@@ -11195,8 +11317,12 @@ function asScriptUiPenHost(g) {
     };
     api.closeMidiActionExpressionCopyDialog = closeMidiActionExpressionCopyDialog;
     api.showMidiActionExpressionCopyDialog = function (expression, sourceLabel) {
-        api.openMidiActionExpressionCopyDialog(sourceLabel);
-        api.completeMidiActionExpressionCopyDialog(expression, sourceLabel);
+        if (api.openMidiActionExpressionCopyDialog) {
+            api.openMidiActionExpressionCopyDialog(sourceLabel || "MIDI");
+        }
+        if (api.completeMidiActionExpressionCopyDialog) {
+            api.completeMidiActionExpressionCopyDialog(expression, sourceLabel);
+        }
     };
     var midiInfoDialogState = {
         win: null,
@@ -11323,12 +11449,13 @@ function asScriptUiPenHost(g) {
         var midi;
         var comp;
         var result;
+        var runnerOptions = options || {};
         try {
             comp = requireActiveComp();
-            midi = loadMidiFromOptions(options);
+            midi = loadMidiFromOptions(runnerOptions);
             app.beginUndoGroup("ReOm MIDI Metronome Layer");
             result = api.createMetronomeLayer(comp, midi, {
-                quantizeToFrames: !!options.quantizeToFrames
+                quantizeToFrames: !!runnerOptions.quantizeToFrames
             });
             app.endUndoGroup();
             alert("ReOm MIDI Metronome\n\nCreated null: " +
@@ -11348,12 +11475,13 @@ function asScriptUiPenHost(g) {
         var midi;
         var comp;
         var result;
+        var runnerOptions = options || {};
         try {
             comp = requireActiveComp();
-            midi = loadMidiFromOptions(options);
+            midi = loadMidiFromOptions(runnerOptions);
             app.beginUndoGroup("ReOm MIDI BPM Layer");
             result = api.createBpmLayer(comp, midi, {
-                quantizeToFrames: !!options.quantizeToFrames
+                quantizeToFrames: !!runnerOptions.quantizeToFrames
             });
             app.endUndoGroup();
             alert("ReOm MIDI BPM\n\nCreated null: " +
@@ -11400,6 +11528,9 @@ function asScriptUiPenHost(g) {
             }
             app.beginUndoGroup("ReOm MIDI Import");
             importedChannels = api.importMidiToComp(comp, midi, options, function (text, ratio) {
+                if (!progress) {
+                    return true;
+                }
                 return progress.update(text, ratio);
             });
             app.endUndoGroup();
@@ -11460,6 +11591,13 @@ function asScriptUiPenHost(g) {
             api.alertError(err.message || String(err));
         }
     };
+    function requireGlobalState() {
+        var state = api.getGlobalState();
+        if (!state) {
+            throw new Error("ReOm MIDI global state is unavailable.");
+        }
+        return state;
+    }
     api.runCopyMidiActionExpression = function (options) {
         var comp;
         var sourceLayer;
@@ -11469,7 +11607,7 @@ function asScriptUiPenHost(g) {
             if (api.openMidiActionExpressionCopyDialog) {
                 api.openMidiActionExpressionCopyDialog(sourceLayer.name);
             }
-            api.getGlobalState().copyExpressionPayload = {
+            requireGlobalState().copyExpressionPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {}
@@ -11481,12 +11619,12 @@ function asScriptUiPenHost(g) {
         }
     };
     api.__runDeferredCopyExpression = function () {
-        var payload = api.getGlobalState().copyExpressionPayload;
+        var payload = requireGlobalState().copyExpressionPayload;
         var prepared;
         if (!payload) {
             return;
         }
-        api.getGlobalState().copyExpressionPayload = null;
+        requireGlobalState().copyExpressionPayload = null;
         try {
             prepared = api.prepareMidiActionExpression(payload.comp, payload.sourceLayer, payload.options);
             if (api.completeMidiActionExpressionCopyDialog) {
@@ -11540,13 +11678,13 @@ function asScriptUiPenHost(g) {
             if (api.scheduleDeferredPreviewUi && uiGeneration) {
                 api.scheduleDeferredPreviewUi(uiGeneration, 1);
             }
-            api.getGlobalState().actionPreviewPayload = {
+            requireGlobalState().actionPreviewPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {},
                 uiGeneration: uiGeneration
             };
-            app.scheduleTask("try { if (ReOmMIDI.__runDeferredActionPreview) { ReOmMIDI.__runDeferredActionPreview(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }", api.DEFERRED_PREVIEW_TASK_MS, false);
+            app.scheduleTask("try { if (ReOmMIDI.__runDeferredActionPreview) { ReOmMIDI.__runDeferredActionPreview(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }", api.DEFERRED_PREVIEW_TASK_MS || 1, false);
         }
         catch (err) {
             if (api.stopMidiActionPreviewLoadingAnimation) {
@@ -11556,7 +11694,7 @@ function asScriptUiPenHost(g) {
         }
     };
     api.__runDeferredActionPreview = function () {
-        var payload = api.getGlobalState().actionPreviewPayload;
+        var payload = requireGlobalState().actionPreviewPayload;
         var comp;
         var sourceLayer;
         var options;
@@ -11568,7 +11706,7 @@ function asScriptUiPenHost(g) {
         sourceLayer = payload.sourceLayer;
         options = payload.options;
         uiGeneration = payload.uiGeneration;
-        api.getGlobalState().actionPreviewPayload = null;
+        requireGlobalState().actionPreviewPayload = null;
         try {
             if (!comp || !sourceLayer) {
                 throw new Error("Preview context was lost. Click Preview again.");
@@ -11631,13 +11769,13 @@ function asScriptUiPenHost(g) {
             if (api.scheduleDeferredPreviewUi && uiGeneration) {
                 api.scheduleDeferredPreviewUi(uiGeneration, 1);
             }
-            api.getGlobalState().pianoRollPreviewPayload = {
+            requireGlobalState().pianoRollPreviewPayload = {
                 comp: comp,
                 sourceLayer: sourceLayer,
                 options: options || {},
                 uiGeneration: uiGeneration
             };
-            app.scheduleTask("try { if (ReOmMIDI.__runDeferredPianoRollPreview) { ReOmMIDI.__runDeferredPianoRollPreview(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }", api.DEFERRED_PREVIEW_TASK_MS, false);
+            app.scheduleTask("try { if (ReOmMIDI.__runDeferredPianoRollPreview) { ReOmMIDI.__runDeferredPianoRollPreview(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }", api.DEFERRED_PREVIEW_TASK_MS || 1, false);
         }
         catch (err) {
             if (api.stopPianoRollPreviewLoadingAnimation) {
@@ -11647,7 +11785,7 @@ function asScriptUiPenHost(g) {
         }
     };
     api.__runDeferredPianoRollPreview = function () {
-        var payload = api.getGlobalState().pianoRollPreviewPayload;
+        var payload = requireGlobalState().pianoRollPreviewPayload;
         var comp;
         var sourceLayer;
         var options;
@@ -11659,7 +11797,7 @@ function asScriptUiPenHost(g) {
         sourceLayer = payload.sourceLayer;
         options = payload.options;
         uiGeneration = payload.uiGeneration;
-        api.getGlobalState().pianoRollPreviewPayload = null;
+        requireGlobalState().pianoRollPreviewPayload = null;
         try {
             if (!comp || !sourceLayer) {
                 throw new Error("Preview context was lost. Click Preview Map again.");
@@ -11715,7 +11853,7 @@ function asScriptUiPenHost(g) {
             comp = requireActiveComp();
             sourceLayer = api.resolveMidiSourceLayer(comp, options || {});
             prepared = api.prepareMidiMapExpression(comp, sourceLayer, options || {});
-            api.getGlobalState().mapState = prepared.state;
+            requireGlobalState().mapState = prepared.state;
             if (api.__midiMapHost) {
                 if (api.__midiMapHost.selectTab) {
                     api.__midiMapHost.selectTab();
@@ -11729,7 +11867,7 @@ function asScriptUiPenHost(g) {
         }
     };
     api.runSwitchMidiMapLabels = function (labelMode) {
-        var state = api.getGlobalState().mapState;
+        var state = requireGlobalState().mapState;
         var expression;
         try {
             if (!state || !state.pitches || !state.pitches.length) {
@@ -11737,7 +11875,7 @@ function asScriptUiPenHost(g) {
             }
             state.labelMode = (labelMode || "notes");
             expression = api.regenerateMidiMapExpression(state, state.labelMode);
-            api.getGlobalState().mapState = state;
+            requireGlobalState().mapState = state;
             if (api.__midiMapHost) {
                 api.__midiMapHost.setExpression(expression);
                 api.__midiMapHost.setState(state);
@@ -11791,14 +11929,14 @@ function asScriptUiPenHost(g) {
             options = options || {};
             prevState =
                 (api.__drumSequencerHost && api.__drumSequencerHost.getState && api.__drumSequencerHost.getState()) ||
-                    api.getGlobalState().drumSequencerState;
+                    requireGlobalState().drumSequencerState;
             if (prevState && typeof prevState.totalFrames !== "undefined") {
                 options.previousTotalFrames = prevState.totalFrames;
             }
             comp = requireActiveComp();
             sourceLayer = api.resolveDrumSourceLayer(comp, options);
             prepared = api.prepareDrumSequencerExpression(comp, sourceLayer, options);
-            api.getGlobalState().drumSequencerState = prepared.state;
+            requireGlobalState().drumSequencerState = prepared.state;
             if (api.__drumSequencerHost) {
                 if (api.__drumSequencerHost.selectTab) {
                     api.__drumSequencerHost.selectTab();
@@ -11845,7 +11983,7 @@ function asScriptUiPenHost(g) {
             }
             state =
                 (api.__drumSequencerHost && api.__drumSequencerHost.getState && api.__drumSequencerHost.getState()) ||
-                    api.getGlobalState().drumSequencerState;
+                    requireGlobalState().drumSequencerState;
             sourceLabel = state && state.sourceLayerName ? state.sourceLayerName : "Drum MIDI";
             if (api.showMidiActionExpressionCopyDialog) {
                 api.showMidiActionExpressionCopyDialog(expressionText, sourceLabel);

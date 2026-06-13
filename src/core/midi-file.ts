@@ -243,7 +243,7 @@
         }
 
         if (!tempoMap) {
-            tempoMap = midi._tempoMap;
+            tempoMap = midi._tempoMap || undefined;
         }
         if (!tempoMap || !tempoMap.length) {
             tempoMap = (midi.tempoEvents || []).slice().sort(function (a, b) {
@@ -412,6 +412,9 @@
             this.noteEvents.push(event);
         } else if (stack.length) {
             note = stack.shift();
+            if (!note) {
+                return;
+            }
             note.offTicks = ticks;
             note.durationTicks = ticks - note.ticks;
         }
@@ -676,12 +679,12 @@
     }
 
     api.buildMidiFileInfoReport = function (midi: MidiFileData | null | undefined, filePath?: string): string {
-        var activeChannels = [];
+        var activeChannels: MidiChannel[] = [];
         var controllerCount = 0;
         var pitchBendCount = 0;
         var drumNoteCount = 0;
         var drumNameSeen: StringKeyedMap<boolean> = {};
-        var drumNameList = [];
+        var drumNameList: string[] = [];
         var pitchMin = 127;
         var pitchMax = 0;
         var lines = [];
@@ -711,13 +714,17 @@
         }
 
         for (i = 0; i < midi.channels.length; i += 1) {
-            if (midi.channels[i]) {
-                activeChannels.push(midi.channels[i]);
+            var activeChannel = midi.channels[i];
+            if (activeChannel) {
+                activeChannels.push(activeChannel);
             }
         }
 
         for (i = 0; i < activeChannels.length; i += 1) {
             channel = activeChannels[i];
+            if (!channel) {
+                continue;
+            }
             controllerCount += countChannelControllers(channel);
             pitchBendCount += channel.pitchBends.length;
             if (channel.pitchBends.length) {
@@ -729,18 +736,22 @@
         }
 
         for (i = 0; i < midi.notes.length; i += 1) {
-            if (api.isDrumChannel(midi.notes[i].midiChannel)) {
+            var reportNote = midi.notes[i];
+            if (!reportNote) {
+                continue;
+            }
+            if (api.isDrumChannel(reportNote.midiChannel)) {
                 drumNoteCount += 1;
-                if (midi.notes[i].drumName && !drumNameSeen[midi.notes[i].drumName]) {
-                    drumNameSeen[midi.notes[i].drumName] = true;
-                    drumNameList.push(midi.notes[i].drumName);
+                if (reportNote.drumName && !drumNameSeen[reportNote.drumName]) {
+                    drumNameSeen[reportNote.drumName] = true;
+                    drumNameList.push(reportNote.drumName);
                 }
-            } else if (typeof midi.notes[i].pitch === "number") {
-                if (midi.notes[i].pitch < pitchMin) {
-                    pitchMin = midi.notes[i].pitch;
+            } else if (typeof reportNote.pitch === "number") {
+                if (reportNote.pitch < pitchMin) {
+                    pitchMin = reportNote.pitch;
                 }
-                if (midi.notes[i].pitch > pitchMax) {
-                    pitchMax = midi.notes[i].pitch;
+                if (reportNote.pitch > pitchMax) {
+                    pitchMax = reportNote.pitch;
                 }
             }
         }
@@ -847,11 +858,14 @@
             lines.push("Pitch bends");
             lines.push("-----------");
             activeChannels.sort(function (a, b) {
+                if (!a || !b) {
+                    return 0;
+                }
                 return a.trackIndex - b.trackIndex || a.midiChannel - b.midiChannel;
             });
             for (i = 0; i < activeChannels.length; i += 1) {
                 channel = activeChannels[i];
-                if (!channel.pitchBends.length) {
+                if (!channel || !channel.pitchBends.length) {
                     continue;
                 }
                 bendSummary = summarizePitchBends(channel.pitchBends);
@@ -887,10 +901,16 @@
             lines.push("Channels");
             lines.push("--------");
             activeChannels.sort(function (a, b) {
+                if (!a || !b) {
+                    return 0;
+                }
                 return a.trackIndex - b.trackIndex || a.midiChannel - b.midiChannel;
             });
             for (i = 0; i < activeChannels.length; i += 1) {
                 channel = activeChannels[i];
+                if (!channel) {
+                    continue;
+                }
                 channelLabel = formatChannelInfoLabel(channel);
                 lines.push(
                     channelLabel +

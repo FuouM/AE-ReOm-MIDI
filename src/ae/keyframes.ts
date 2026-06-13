@@ -74,11 +74,12 @@
         var channels: MidiChannel[] = [];
         var i: number;
         for (i = 0; i < midi.channels.length; i += 1) {
+            var channelEntry = midi.channels[i];
             if (
-                midi.channels[i] &&
-                channelHasEvents(midi.channels[i], options.includeControllers, options.includePitchBends)
+                channelEntry &&
+                channelHasEvents(channelEntry, options.includeControllers, options.includePitchBends)
             ) {
-                channels.push(midi.channels[i]);
+                channels.push(channelEntry);
             }
         }
         return channels;
@@ -98,6 +99,9 @@
 
         for (i = 0; i < channel.notes.length; i += 1) {
             note = channel.notes[i];
+            if (!note) {
+                continue;
+            }
             pitchKey = String(note.pitch);
             if (!byPitch[pitchKey]) {
                 byPitch[pitchKey] = {
@@ -107,6 +111,9 @@
                     values: []
                 };
                 pitchOrder.push(note.pitch);
+            }
+            if (typeof note.time === "undefined") {
+                continue;
             }
             series = byPitch[pitchKey];
             pushKey(series, note.time, note.velocity, options);
@@ -137,7 +144,7 @@
 
         for (i = 0; i < channel.noteEvents.length; i += 1) {
             note = channel.noteEvents[i];
-            if (note.velocity <= 0) {
+            if (!note || note.velocity <= 0 || typeof note.time === "undefined") {
                 continue;
             }
             pushKey(pitch, note.time, note.pitch, options);
@@ -146,7 +153,7 @@
 
         for (i = 0; i < channel.notes.length; i += 1) {
             note = channel.notes[i];
-            if (typeof note.duration !== "undefined") {
+            if (note && typeof note.duration !== "undefined" && typeof note.time !== "undefined") {
                 pushKey(duration, note.time, note.duration, options);
             }
         }
@@ -161,10 +168,14 @@
                 if (channel.controllers.hasOwnProperty(controller)) {
                     cc = { times: [], values: [] };
                     for (i = 0; i < channel.controllers[controller].length; i += 1) {
+                        var controllerEvent = channel.controllers[controller][i];
+                        if (!controllerEvent || typeof controllerEvent.time === "undefined") {
+                            continue;
+                        }
                         pushKey(
                             cc,
-                            channel.controllers[controller][i].time,
-                            channel.controllers[controller][i].value,
+                            controllerEvent.time,
+                            controllerEvent.value,
                             options
                         );
                     }
@@ -175,7 +186,11 @@
 
         if (options.includePitchBends) {
             for (i = 0; i < channel.pitchBends.length; i += 1) {
-                pushKey(bend, channel.pitchBends[i].time, channel.pitchBends[i].value, options);
+                var bendEvent = channel.pitchBends[i];
+                if (!bendEvent || typeof bendEvent.time === "undefined") {
+                    continue;
+                }
+                pushKey(bend, bendEvent.time, bendEvent.value, options);
             }
             applySeries(layer, api.formatStandardEffectName(channel, "pitch bend"), bend);
         }

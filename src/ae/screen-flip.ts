@@ -1,7 +1,7 @@
 (function (api: ReOmMIDIApi) {
     function layerFromProperty(prop: PropContainerLike | Property | null): Layer | null {
         var depth: number;
-        var current: PropContainerLike | Property = prop;
+        var current: PropContainerLike | Property | null = prop;
         var effectsLayer: LayerWithEffects | null;
         if (!current) {
             return null;
@@ -196,7 +196,7 @@
             sourceLayerName: sourceLayer.name,
             targetLayerName: targetLayer ? targetLayer.name : "(unknown)",
             propertyName: property.name,
-            axis: resolved.screenFlipAxis
+            axis: resolved.screenFlipAxis || (axis === "vertical" ? "vertical" : "horizontal")
         };
     };
 
@@ -215,7 +215,7 @@
             sourceLayerName: sourceLayer.name,
             targetLayerName: targetLayer ? targetLayer.name : "(unknown)",
             propertyName: property.name,
-            axis: resolved.screenFlipAxis,
+            axis: resolved.screenFlipAxis || (axis === "vertical" ? "vertical" : "horizontal"),
             triggers: bakeResult.triggers
         };
     };

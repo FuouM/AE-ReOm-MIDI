@@ -116,7 +116,7 @@
         if (typeof done === "number" && typeof total === "number" && total > 0) {
             hook.step(done, total, detail || hook.stageLabel);
         } else if (detail) {
-            hook.report(hook.percent, detail);
+            hook.report(typeof hook.percent === "number" ? hook.percent : 0, detail);
         }
     }
 
@@ -483,13 +483,16 @@
         var presetKey = preset as keyof typeof PRESET_FUNCTIONS;
         var roots = PRESET_FUNCTIONS[presetKey] || PRESET_FUNCTIONS["pump"];
         var required: StringKeyedMap<boolean> = {};
-        var queue: string[] = [].concat(roots);
+        var queue: string[] = roots.slice();
         var name;
         var deps;
         var i;
 
         while (queue.length > 0) {
             name = queue.shift();
+            if (typeof name === "undefined") {
+                continue;
+            }
             if (!required[name]) {
                 required[name] = true;
                 deps = FUNCTION_DEPS[name] || [];
@@ -761,22 +764,23 @@
 
         for (i = 0; i < noteEvents.length; i += 1) {
             note = noteEvents[i];
-            if (note.velocity > 0 && midiActionPitchMatchesFilter(note.pitch, options)) {
-                triggers.push({
-                    time: note.time,
-                    label: String(note.pitch),
-                    amount: 1,
-                    source: "pitch",
-                    pitch: note.pitch
-                });
+            if (!note || note.velocity <= 0 || !midiActionPitchMatchesFilter(note.pitch, options) || typeof note.time === "undefined") {
+                continue;
             }
+            triggers.push({
+                time: note.time,
+                label: String(note.pitch),
+                amount: 1,
+                source: "pitch",
+                pitch: note.pitch
+            });
         }
 
         return filterMidiActionTriggers(
             triggers.sort(function (a, b) {
                 return a.time - b.time;
             }),
-            options
+            options || {}
         );
     };
 
@@ -1079,7 +1083,7 @@
         forEachLayerEffect(layer, function (effect) {
             var name = String(effect.name || "");
             var slider = sliderFromEffectGroup(effect);
-            if (!name || !sliderHasKeys(slider)) {
+            if (!name || !slider || !sliderHasKeys(slider)) {
                 return;
             }
             byName[name] = slider;
@@ -1122,11 +1126,11 @@
 
     function layerHasEffects(layer: Layer | null | undefined): boolean {
         var parade = getLayerEffectParade(layer);
-        return parade && parade.numProperties > 0;
+        return !!(parade && parade.numProperties > 0);
     }
 
     function layersShareIndex(a: Layer | null | undefined, b: Layer | null | undefined): boolean {
-        return a && b && a.index === b.index;
+        return !!(a && b && a.index === b.index);
     }
 
     function dedupeLayers(layers: Layer[]): Layer[] {
@@ -1235,6 +1239,9 @@
     }
 
     function layerHasImportPitchSlider(layer: Layer | null | undefined): boolean {
+        if (!layer) {
+            return false;
+        }
         var resolved = resolvePitchSlider(layer, {});
         return !!(resolved && resolved.slider && sliderHasKeys(resolved.slider));
     }
@@ -1294,6 +1301,9 @@
             }
         } catch (effectsErr) {}
         try {
+            if (!layer) {
+                return null;
+            }
             parade = layer.property("ADBE Effect Parade") as PropertyGroup;
             if (parade && parade.numProperties > 0) {
                 return parade;
@@ -1714,6 +1724,7 @@
         sourceLayer: Layer,
         options?: MidiActionOptionsInput | MidiActionOptionsResolved
     ): MidiActionTrigger[] {
+        options = options || {};
         var resolved = resolvePitchSlider(sourceLayer, options);
         var pitchSlider = resolved.slider;
         var velSlider = findVelocitySliderForLayer(sourceLayer, resolved.effectName);
@@ -1809,7 +1820,7 @@
         sourceLayer: Layer,
         options?: MidiActionOptionsInput | MidiActionOptionsResolved
     ): MidiActionTrigger[] {
-        return filterMidiActionTriggers(sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)), options);
+        return filterMidiActionTriggers(sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)), options || {});
     };
 
     function parseValueLiteral(
@@ -2065,10 +2076,14 @@
             if (n >= triggers.length - 1) {
                 return targetForInterpolatedEvent(n, base, active);
             }
+            var nextTrigger = triggers[n + 1];
+            if (!nextTrigger) {
+                return targetForInterpolatedEvent(n, base, active);
+            }
             return mixValue(
                 targetForInterpolatedEvent(n, base, active),
                 targetForInterpolatedEvent(n + 1, base, active),
-                interpolationProgress(time, triggers[n].time, triggers[n + 1].time, options.falloff)
+                interpolationProgress(time, triggers[n].time, nextTrigger.time, options.falloff || "linear")
             );
         }
         if (options.preset === "accumulator") {
@@ -2078,7 +2093,7 @@
             }
             if (n >= 0 && time <= triggers[n].time + windowDuration) {
                 from = addDeltaValue(to, -triggers[n].amount);
-                f = 1 - falloffValue(time, triggers[n].time, duration, options.falloff, options.frameDuration);
+                f = 1 - falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration);
                 return addDeltaValue(from, triggers[n].amount * f);
             }
             return to;
@@ -2086,7 +2101,7 @@
         if (n >= 0 && time <= triggers[n].time + windowDuration) {
             return addDeltaValue(
                 base,
-                amount * falloffValue(time, triggers[n].time, duration, options.falloff, options.frameDuration)
+                amount * falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration)
             );
         }
         return cloneValue(base);
@@ -2202,7 +2217,7 @@
 
         for (i = 0; i < properties.length; i += 1) {
             prop = properties[i] as Property;
-            if (prop && (prop.setValuesAtTimes || prop.setValueAtTime)) {
+            if (prop) {
                 plan = api.buildMidiActionBakePlan(triggers, prop, comp, options || {});
                 if (applyBakePlan(prop, plan)) {
                     applied += 1;
@@ -2482,7 +2497,7 @@
         pitchSlider = sliderFromEffectIndex(sliderIndex, prefix + " pitch");
         velSlider = sliderFromEffectIndex(sliderIndex, prefix + " velocity");
         durSlider = sliderFromEffectIndex(sliderIndex, prefix + " duration");
-        appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+        appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
     }
 
     function collectDrumNotesForPrefix(
@@ -2649,20 +2664,32 @@
         var pitchSlider;
         var velSlider;
         var durSlider;
+        var pitchProp;
+        var velProp;
+        var durProp;
 
         forEachLayerEffect(layer, function (effect) {
             if (isPitchEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )pitch$/i, "").replace(/_pitch$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].pitch = sliderFromEffectGroup(effect);
+                pitchProp = sliderFromEffectGroup(effect);
+                if (pitchProp) {
+                    groups[prefix].pitch = pitchProp;
+                }
             } else if (isVelocityEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )velocity$/i, "").replace(/_vel$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].velocity = sliderFromEffectGroup(effect);
+                velProp = sliderFromEffectGroup(effect);
+                if (velProp) {
+                    groups[prefix].velocity = velProp;
+                }
             } else if (isDurationEffectName(effect.name)) {
                 prefix = effect.name.replace(/(?:^| )duration$/i, "").replace(/_dur$/i, "");
                 groups[prefix] = groups[prefix] || {};
-                groups[prefix].duration = sliderFromEffectGroup(effect);
+                durProp = sliderFromEffectGroup(effect);
+                if (durProp) {
+                    groups[prefix].duration = durProp;
+                }
             }
         });
 
@@ -2681,7 +2708,7 @@
             }
             velSlider = group.velocity;
             durSlider = group.duration;
-            appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+            appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
             if (!pianoRollCanAddMore(notes, maxNotes)) {
                 return;
             }
@@ -2926,7 +2953,9 @@
                 }
                 return;
             }
-            unknown.push(slider);
+            if (slider) {
+                unknown.push(slider);
+            }
         });
 
         if (!pitchSlider) {
@@ -2954,7 +2983,7 @@
             }
         }
         if (pitchSlider) {
-            appendPitchSliderNotes(pitchSlider, velSlider, durSlider, notes, maxNotes, midiChannel, options);
+            appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
         }
     }
 
@@ -3100,6 +3129,7 @@
                 if (
                     options.useWorkArea &&
                     typeof options.timeStart !== "undefined" &&
+                    typeof options.timeEnd !== "undefined" &&
                     (hit.time < options.timeStart || hit.time >= options.timeEnd)
                 ) {
                     continue;
@@ -3221,7 +3251,7 @@
                 end = noteEnd;
             }
         }
-        return { timeStart: start, timeEnd: end };
+        return { timeStart: start !== null ? start : 0, timeEnd: end };
     }
 
     function resolvePianoRollTimeRange(
@@ -3297,9 +3327,10 @@
         var seen: StringKeyedMap<boolean> = {};
         var i;
         for (i = 0; i < notes.length; i += 1) {
-            if (notes[i].isDrum && !seen[notes[i].label]) {
-                labels.push(notes[i].label);
-                seen[notes[i].label] = true;
+            var drumLabelNote = notes[i];
+            if (drumLabelNote && drumLabelNote.isDrum && drumLabelNote.label && !seen[drumLabelNote.label]) {
+                labels.push(drumLabelNote.label);
+                seen[drumLabelNote.label] = true;
             }
         }
         labels.sort();
@@ -4019,7 +4050,7 @@
         if (fill) {
             setPropExpression(
                 shapeFillColorProp(fill),
-                pianoRollControlExpression(controllerEffects.fillColor, "Color")
+                pianoRollControlExpression(controllerEffects.fillColor || "Fill Color", "Color")
             );
         }
         wireShapeStrokeFromController(layer, controllerEffects);
@@ -4126,7 +4157,7 @@
                 return result;
             }
             layer = comp.layers.addShape();
-            layer.name = "MIDI Note " + api.pad2(rect.index) + " " + api.sanitizeName(rect.label);
+            layer.name = "MIDI Note " + api.pad2(rect.index || 0) + " " + api.sanitizeName(rect.label);
             layer.comment =
                 "Piano roll note" +
                 "\ntime: " +
@@ -4208,8 +4239,12 @@
                 parentLayerToController(comp, noteStyles[i].layer, null, controllerInfo.layer);
             }
             for (i = 0; i < noteStyles.length; i += 1) {
-                wirePianoRollShapeStyles(noteStyles[i].layer, controllerInfo.effects);
-                opacityProp = findLayerOpacity(noteStyles[i].layer);
+                var styledLayer = noteStyles[i].layer;
+                if (!styledLayer) {
+                    continue;
+                }
+                wirePianoRollShapeStyles(styledLayer, controllerInfo.effects);
+                opacityProp = findLayerOpacity(styledLayer);
                 if (opacityProp) {
                     setPropExpression(opacityProp, pianoRollMasterOpacityExpression(controllerInfo.effects));
                 }
@@ -4420,7 +4455,7 @@
             frameDuration: range.step
         };
         var points: MidiActionSimulationPoint[] = [];
-        var accumTotal = null;
+        var accumTotal: MidiActionPropertyValue | null = null;
         var accumUpTo = -1;
         var duration = numeric(simOptions.duration, 0.2);
         var windowDuration = simOptions.falloff === "instant" ? simOptions.frameDuration || duration : duration;
@@ -4450,11 +4485,14 @@
             if (simOptions.preset === "accumulator") {
                 while (accumUpTo < triggerIndex) {
                     accumUpTo += 1;
-                    accumTotal = addDeltaValue(accumTotal, triggers[accumUpTo].amount);
+                    accumTotal = addDeltaValue(
+                        accumTotal === null ? (0 as MidiActionPropertyValue) : accumTotal,
+                        triggers[accumUpTo].amount
+                    );
                 }
                 n = triggerIndex;
                 if (n >= 0 && evalTime <= triggers[n].time + windowDuration) {
-                    from = addDeltaValue(accumTotal, -triggers[n].amount);
+                    from = addDeltaValue(accumTotal === null ? (0 as MidiActionPropertyValue) : accumTotal, -triggers[n].amount);
                     f =
                         1 -
                         falloffValue(
@@ -4466,7 +4504,7 @@
                         );
                     value = addDeltaValue(from, triggers[n].amount * f);
                 } else {
-                    value = accumTotal;
+                    value = accumTotal === null ? cloneValue(base) : accumTotal;
                 }
                 pushMidiActionSimulationPoint(points, t, value);
             } else if (simOptions.preset === "interpolate") {
@@ -4540,7 +4578,7 @@
     ): string {
         var parts = [];
         parts.push(triggerCount + " trigger" + (triggerCount === 1 ? "" : "s") + " in preview.");
-        parts.push("Curve shows the " + midiActionPresetLabel(options.preset) + " preset over time.");
+        parts.push("Curve shows the " + midiActionPresetLabel(options.preset || "pump") + " preset over time.");
         if (options.pitchSliderName && options.triggerMode !== "drums") {
             parts.push("Pitch slider: " + options.pitchSliderName + ".");
         }
@@ -4745,7 +4783,7 @@
         rememberMidiActionSourceLayer(sourceLayer);
         resolved = api.resolveMidiActionOptions(comp, options || {}, sourceLayer);
         resolved.sourceLayerName = sourceLayer.name;
-        if (options.useOutputSliders !== false) {
+        if (resolved.useOutputSliders !== false) {
             resolved.useOutputSliders = true;
         }
         expression = api.buildMidiActionExpression(resolved);

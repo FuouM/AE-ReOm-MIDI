@@ -30,7 +30,7 @@ interface ReOmGlobalState {
     mapState?: MidiMapState;
     drumSequencerState?: DrumSequencerState;
     previewUiGeneration?: number;
-    previewUiFlushName?: string;
+    previewUiFlushName?: string | null;
     lastActionExpression?: string;
     previewCanvas?: _Control | null;
     previewCanvasRoot?: Window | Panel | _Control | null;
@@ -39,9 +39,9 @@ interface ReOmGlobalState {
     pianoRollPreviewLoadingSummary?: _Control | null;
     actionPreviewLoadingSummary?: _Control | null;
     actionPreviewLoading?: boolean;
-    actionPreviewLoadingLabel?: string;
+    actionPreviewLoadingLabel?: string | null;
     pianoRollPreviewLoading?: boolean;
-    pianoRollPreviewLoadingLabel?: string;
+    pianoRollPreviewLoadingLabel?: string | null;
 }
 
 interface ReOmExtendScriptGlobal {
