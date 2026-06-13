@@ -1,4 +1,14 @@
 (function (api: ReOmMIDIApi, thisObj: Panel | Window | undefined) {
+    function formatCatchError(err: unknown): string {
+        if (err && typeof err === "object" && "message" in err) {
+            var message = (err as { message: unknown }).message;
+            if (typeof message === "string" && message) {
+                return message;
+            }
+        }
+        return String(err);
+    }
+
     function requireActiveComp() {
         var item = app.project.activeItem;
         if (!item || !(item instanceof CompItem)) {
@@ -40,7 +50,7 @@
             }
             report = null;
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -89,7 +99,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -119,7 +129,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -188,7 +198,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -217,7 +227,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -250,7 +260,7 @@
                 false
             );
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -275,7 +285,7 @@
             if (api.closeMidiActionExpressionCopyDialog) {
                 api.closeMidiActionExpressionCopyDialog();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -295,7 +305,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -329,7 +339,7 @@
             if (api.stopMidiActionPreviewLoadingAnimation) {
                 api.stopMidiActionPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -367,7 +377,7 @@
             if (api.stopMidiActionPreviewLoadingAnimation) {
                 api.stopMidiActionPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -395,7 +405,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -429,7 +439,7 @@
             if (api.stopPianoRollPreviewLoadingAnimation) {
                 api.stopPianoRollPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -467,7 +477,7 @@
             if (api.stopPianoRollPreviewLoadingAnimation) {
                 api.stopPianoRollPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -494,7 +504,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -516,7 +526,7 @@
                 api.__midiMapHost.setState(prepared.state);
             }
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -536,7 +546,7 @@
                 api.__midiMapHost.setState(state);
             }
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -573,7 +583,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -603,7 +613,7 @@
                 api.__drumSequencerHost.setState(prepared.state);
             }
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -627,7 +637,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -650,7 +660,7 @@
                 alert("ReOm MIDI Drum Sequencer\n\nExpression ready.\nSource layer: " + sourceLabel);
             }
         } catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -689,7 +699,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -718,7 +728,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -746,7 +756,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -775,7 +785,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 
@@ -799,7 +809,7 @@
             try {
                 app.endUndoGroup();
             } catch (undoErr) {}
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
 

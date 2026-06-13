@@ -16,6 +16,7 @@
 */
 
 // ---- dist/compiled/core/namespace.jsx ----
+"use strict";
 (function (root) {
     if (!root.ReOmMIDI) {
         root.ReOmMIDI = {};
@@ -445,6 +446,7 @@
 
 
 // ---- dist/compiled/core/property-utils.jsx ----
+"use strict";
 function reomScriptThis(thisObj) {
     return thisObj;
 }
@@ -499,6 +501,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/core/midi-file.jsx ----
+"use strict";
 (function (api) {
     var MAX_TICK = 2147483647; // INT32_MAX — sentinel for "end of file"
     function readByte(data, offset) {
@@ -1389,6 +1392,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/layer-utils.jsx ----
+"use strict";
 (function (api) {
     api.addSliderControl = function (layer, sliderName) {
         var effects = layer.Effects;
@@ -1409,6 +1413,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/keyframes.jsx ----
+"use strict";
 (function (api) {
     api.quantizeTimeToFrame = function (time, frameDuration) {
         if (!frameDuration || frameDuration <= 0) {
@@ -1643,6 +1648,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/timing-layers.jsx ----
+"use strict";
 (function (api) {
     function resolveTimingLayerOptions(comp, options) {
         var input = options || {};
@@ -1912,6 +1918,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/expressions.jsx ----
+"use strict";
 (function (api) {
     function quote(value) {
         value = String(value || "");
@@ -6258,6 +6265,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/midi-map.jsx ----
+"use strict";
 (function (api) {
     var MAP_BEGIN = "// --- string map (edit labels below) ---";
     var MAP_END = "// --- end string map ---";
@@ -6474,6 +6482,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/tone-layer.jsx ----
+"use strict";
 (function (api) {
     api.TONE_WAVEFORM_OPTIONS = ["Sine", "Triangle", "Saw", "Square", "White Noise"];
     var TONE_FREQUENCY_PROPERTY_NAMES = ["Frequency 1", "Frequency 2", "Frequency 3", "Frequency 4", "Frequency 5"];
@@ -6744,6 +6753,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/screen-flip.jsx ----
+"use strict";
 (function (api) {
     function layerFromProperty(prop) {
         var depth;
@@ -6962,6 +6972,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/drum-machine.jsx ----
+"use strict";
 (function (api) {
     function numeric(value, fallback) {
         var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
@@ -8026,6 +8037,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/drum-sequencer.jsx ----
+"use strict";
 (function (api) {
     var MAP_BEGIN = "// --- frame map (edit below) ---";
     var MAP_END = "// --- end frame map ---";
@@ -8708,6 +8720,7 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/ae/ui.jsx ----
+"use strict";
 (function (api) {
     function globalState() {
         var state = api.getGlobalState();
@@ -8911,6 +8924,9 @@ function asScriptUiPenHost(g) {
         canvasPanel._pianoRollPreviewLayout = layout;
         canvasPanel._pianoRollPreviewRevision = (canvasPanel._pianoRollPreviewRevision || 0) + 1;
         canvasPanel.onDraw = function () {
+            if (!this._pianoRollPreviewLayout) {
+                return;
+            }
             drawPianoRollPreviewCanvas(this, this._pianoRollPreviewLayout);
         };
     }
@@ -11386,7 +11402,17 @@ function asScriptUiPenHost(g) {
 
 
 // ---- dist/compiled/main.jsx ----
+"use strict";
 (function (api, thisObj) {
+    function formatCatchError(err) {
+        if (err && typeof err === "object" && "message" in err) {
+            var message = err.message;
+            if (typeof message === "string" && message) {
+                return message;
+            }
+        }
+        return String(err);
+    }
     function requireActiveComp() {
         var item = app.project.activeItem;
         if (!item || !(item instanceof CompItem)) {
@@ -11426,7 +11452,7 @@ function asScriptUiPenHost(g) {
             report = null;
         }
         catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     function loadMidiFromOptions(options) {
@@ -11468,7 +11494,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCreateBpmLayer = function (options) {
@@ -11496,7 +11522,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runImport = function (options) {
@@ -11561,7 +11587,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runApplyMidiAction = function (options) {
@@ -11588,7 +11614,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     function requireGlobalState() {
@@ -11615,7 +11641,7 @@ function asScriptUiPenHost(g) {
             app.scheduleTask("try { if (ReOmMIDI.__runDeferredCopyExpression) { ReOmMIDI.__runDeferredCopyExpression(); } } catch (e) { try { ReOmMIDI.alertError(String(e)); } catch (e2) {} }", 1, false);
         }
         catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.__runDeferredCopyExpression = function () {
@@ -11641,7 +11667,7 @@ function asScriptUiPenHost(g) {
             if (api.closeMidiActionExpressionCopyDialog) {
                 api.closeMidiActionExpressionCopyDialog();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCreateMidiActionNullWithExpression = function (options) {
@@ -11661,7 +11687,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runPreviewMidiAction = function (options) {
@@ -11690,7 +11716,7 @@ function asScriptUiPenHost(g) {
             if (api.stopMidiActionPreviewLoadingAnimation) {
                 api.stopMidiActionPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.__runDeferredActionPreview = function () {
@@ -11726,7 +11752,7 @@ function asScriptUiPenHost(g) {
             if (api.stopMidiActionPreviewLoadingAnimation) {
                 api.stopMidiActionPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCreatePianoRollMap = function (options) {
@@ -11752,7 +11778,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runPreviewPianoRollMap = function (options) {
@@ -11781,7 +11807,7 @@ function asScriptUiPenHost(g) {
             if (api.stopPianoRollPreviewLoadingAnimation) {
                 api.stopPianoRollPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.__runDeferredPianoRollPreview = function () {
@@ -11817,7 +11843,7 @@ function asScriptUiPenHost(g) {
             if (api.stopPianoRollPreviewLoadingAnimation) {
                 api.stopPianoRollPreviewLoadingAnimation();
             }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCreateMidiActionNullWithBake = function (options) {
@@ -11842,7 +11868,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runGenerateMidiMap = function (options) {
@@ -11863,7 +11889,7 @@ function asScriptUiPenHost(g) {
             }
         }
         catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runSwitchMidiMapLabels = function (labelMode) {
@@ -11882,7 +11908,7 @@ function asScriptUiPenHost(g) {
             }
         }
         catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCreateDrumMachineExpression = function (options) {
@@ -11917,7 +11943,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runGenerateDrumSequencer = function (options) {
@@ -11946,7 +11972,7 @@ function asScriptUiPenHost(g) {
             }
         }
         catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runApplyDrumSequencer = function (expression) {
@@ -11970,7 +11996,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCopyDrumSequencerExpression = function (expression) {
@@ -11993,7 +12019,7 @@ function asScriptUiPenHost(g) {
             }
         }
         catch (err) {
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCreateDrumMachineBake = function (options) {
@@ -12030,7 +12056,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCreateToneLayer = function (options) {
@@ -12057,7 +12083,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runApplyScreenFlip = function (options) {
@@ -12083,7 +12109,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runBakeScreenFlip = function (options) {
@@ -12110,7 +12136,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runCreateMidiMapTextNull = function (expressionText) {
@@ -12134,7 +12160,7 @@ function asScriptUiPenHost(g) {
                 app.endUndoGroup();
             }
             catch (undoErr) { }
-            api.alertError(err.message || String(err));
+            api.alertError(formatCatchError(err));
         }
     };
     api.runBakeMidiAction = api.runCreateMidiActionNullWithBake;

@@ -219,6 +219,9 @@
         canvasPanel._pianoRollPreviewLayout = layout;
         canvasPanel._pianoRollPreviewRevision = (canvasPanel._pianoRollPreviewRevision || 0) + 1;
         canvasPanel.onDraw = function () {
+            if (!this._pianoRollPreviewLayout) {
+                return;
+            }
             drawPianoRollPreviewCanvas(this, this._pianoRollPreviewLayout);
         };
     }
@@ -967,7 +970,7 @@
         }
     }
 
-    function startMidiActionPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel, summaryControl: _Control, sourceLabel: string): void {
+    function startMidiActionPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel | undefined, summaryControl: _Control, sourceLabel: string): void {
         stopMidiActionPreviewLoadingAnimation();
         globalState().actionPreviewLoading = true;
         globalState().actionPreviewLoadingSummary = summaryControl;
@@ -987,7 +990,7 @@
         }
     }
 
-    function startPianoRollPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel, summaryControl: _Control, sourceLabel: string): void {
+    function startPianoRollPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel | undefined, summaryControl: _Control, sourceLabel: string): void {
         stopPianoRollPreviewLoadingAnimation();
         globalState().pianoRollPreviewLoading = true;
         globalState().pianoRollPreviewLoadingSummary = summaryControl;
