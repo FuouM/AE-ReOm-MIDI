@@ -1,45 +1,52 @@
-// @ts-nocheck
-(function (api) {
-    function safeProperty(group, nameOrIndex) {
-        var prop;
+(function (api: ReOmMIDIApi) {
+    function safeProperty(
+        group: PropContainerLike | null,
+        nameOrIndex: string | number
+    ): PropContainerLike | null {
+        var prop: unknown;
         if (!group || !group.property) {
             return null;
         }
         try {
             prop = group.property(nameOrIndex);
-            return prop || null;
+            return (prop as PropContainerLike) || null;
         } catch (e) {
             return null;
         }
     }
 
-    function layerFromProperty(prop) {
-        var depth;
-        if (!prop) {
+    function layerFromProperty(prop: PropContainerLike | Property | null): Layer | null {
+        var depth: number;
+        var current: PropContainerLike | Property = prop;
+        if (!current) {
             return null;
         }
         try {
-            depth = prop.propertyDepth;
+            depth = (current as Property).propertyDepth;
             while (depth > 0) {
-                prop = prop.propertyGroup(1);
+                current = (current as Property).propertyGroup(1) as PropContainerLike;
                 depth -= 1;
             }
-            if (prop && (prop.Effects || (prop.property && prop.property("ADBE Effect Parade")))) {
-                return prop;
+            if (
+                current &&
+                ((current as LayerWithEffects).Effects ||
+                    (current.property && current.property("ADBE Effect Parade")))
+            ) {
+                return current as Layer;
             }
         } catch (e) {}
         return null;
     }
 
-    function propertyAxisName(property, axis) {
-        var name;
-        var matchName;
+    function propertyAxisName(property: PropContainerLike | Property | null, axis: string): string {
+        var name: string;
+        var matchName: string;
         if (!property) {
             return "";
         }
         try {
-            name = String(property.name || "").toLowerCase();
-            matchName = String(property.matchName || "");
+            name = String((property as Property).name || "").toLowerCase();
+            matchName = String((property as Property).matchName || "");
             if (axis === "vertical") {
                 if (matchName === "ADBE Scale Y" || name === "y") {
                     return "vertical";
@@ -51,15 +58,15 @@
         return "";
     }
 
-    function isScaleProperty(property) {
-        var matchName;
-        var name;
+    function isScaleProperty(property: PropContainerLike | Property | null): boolean {
+        var matchName: string;
+        var name: string;
         if (!property) {
             return false;
         }
         try {
-            matchName = String(property.matchName || "");
-            name = String(property.name || "").toLowerCase();
+            matchName = String((property as Property).matchName || "");
+            name = String((property as Property).name || "").toLowerCase();
             if (matchName === "ADBE Scale") {
                 return true;
             }
@@ -71,8 +78,8 @@
         return false;
     }
 
-    function isNonMidiTargetLayer(layer) {
-        var name;
+    function isNonMidiTargetLayer(layer: Layer | null): boolean {
+        var name: string;
         if (!layer) {
             return false;
         }
@@ -83,13 +90,13 @@
         return !api.isMidiImportSourceLayer(layer);
     }
 
-    function scalePropertyForLayer(layer) {
-        var transform;
-        var scale;
-        transform = safeProperty(layer, "ADBE Transform Group");
+    function scalePropertyForLayer(layer: Layer): PropContainerLike | null {
+        var transform: PropContainerLike | null;
+        var scale: PropContainerLike | null;
+        transform = safeProperty(layer as PropContainerLike, "ADBE Transform Group");
         if (!transform) {
             try {
-                transform = layer.transform;
+                transform = layer.transform as PropContainerLike;
             } catch (transformErr) {}
         }
         scale = safeProperty(transform, "ADBE Scale");
@@ -99,11 +106,11 @@
         return scale;
     }
 
-    function scaleAxisProperty(layer, axis) {
-        var scale;
-        var names;
-        var i;
-        var prop;
+    function scaleAxisProperty(layer: Layer, axis: string): Property | null {
+        var scale: PropContainerLike | null;
+        var names: (string | number)[];
+        var i: number;
+        var prop: PropContainerLike | null;
         scale = scalePropertyForLayer(layer);
         if (!scale) {
             return null;
@@ -112,18 +119,18 @@
         for (i = 0; i < names.length; i += 1) {
             prop = safeProperty(scale, names[i]);
             if (prop) {
-                return prop;
+                return prop as Property;
             }
         }
-        return scale;
+        return scale as Property;
     }
 
-    function selectedScaleProperty(comp, axis) {
-        var properties;
-        var i;
-        var prop;
-        var layer;
-        var propAxis;
+    function selectedScaleProperty(comp: CompItem, axis: string): Property | null {
+        var properties: _PropertyClasses[];
+        var i: number;
+        var prop: _PropertyClasses;
+        var layer: Layer | null;
+        var propAxis: string;
         if (!comp || !comp.selectedProperties || !comp.selectedProperties.length) {
             return null;
         }
@@ -133,7 +140,7 @@
             if (!isScaleProperty(prop)) {
                 continue;
             }
-            layer = layerFromProperty(prop);
+            layer = layerFromProperty(prop as Property);
             if (!isNonMidiTargetLayer(layer)) {
                 continue;
             }
@@ -141,15 +148,15 @@
             if (propAxis && propAxis !== axis) {
                 continue;
             }
-            return prop;
+            return prop as Property;
         }
         return null;
     }
 
-    function selectedNonMidiLayers(comp) {
+    function selectedNonMidiLayers(comp: CompItem): Layer[] {
         var layers = api.getCompSelectedLayers(comp);
-        var out = [];
-        var i;
+        var out: Layer[] = [];
+        var i: number;
         for (i = 0; i < layers.length; i += 1) {
             if (isNonMidiTargetLayer(layers[i])) {
                 out.push(layers[i]);
@@ -158,11 +165,11 @@
         return out;
     }
 
-    api.resolveScreenFlipTargetProperty = function (comp, axis) {
-        var fromSelection;
-        var layers;
-        var layer;
-        var property;
+    api.resolveScreenFlipTargetProperty = function (comp: CompItem, axis: string): Property {
+        var fromSelection: Property | null;
+        var layers: Layer[];
+        var layer: Layer;
+        var property: Property | null;
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before applying Screen Flip.");
         }
@@ -186,12 +193,16 @@
         return property;
     };
 
-    api.applyScreenFlip = function (comp, axis, options) {
-        var sourceLayer;
-        var property;
-        var resolved;
-        var expression;
-        var targetLayer;
+    api.applyScreenFlip = function (
+        comp: CompItem,
+        axis: string,
+        options?: MidiActionOptionsInput
+    ): ScreenFlipResult {
+        var sourceLayer: Layer;
+        var property: Property;
+        var resolved: MidiActionOptionsResolved;
+        var expression: string;
+        var targetLayer: Layer | null;
         sourceLayer = api.resolveMidiSourceLayer(comp, options || {});
         property = api.resolveScreenFlipTargetProperty(comp, axis);
         resolved = api.resolveScreenFlipActionOptions(comp, property, axis, options, sourceLayer);
@@ -206,12 +217,16 @@
         };
     };
 
-    api.bakeScreenFlip = function (comp, axis, options) {
-        var sourceLayer;
-        var property;
-        var resolved;
-        var bakeResult;
-        var targetLayer;
+    api.bakeScreenFlip = function (
+        comp: CompItem,
+        axis: string,
+        options?: MidiActionOptionsInput
+    ): ScreenFlipResult {
+        var sourceLayer: Layer;
+        var property: Property;
+        var resolved: MidiActionOptionsResolved;
+        var bakeResult: BakePropertyResult;
+        var targetLayer: Layer | null;
         sourceLayer = api.resolveMidiSourceLayer(comp, options || {});
         property = api.resolveScreenFlipTargetProperty(comp, axis);
         resolved = api.resolveScreenFlipActionOptions(comp, property, axis, options, sourceLayer);

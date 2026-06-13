@@ -6131,7 +6131,6 @@
 
 
 // ---- dist/compiled/ae/midi-map.jsx ----
-// @ts-nocheck
 (function (api) {
     var MAP_BEGIN = "// --- string map (edit labels below) ---";
     var MAP_END = "// --- end string map ---";
@@ -6348,12 +6347,11 @@
 
 
 // ---- dist/compiled/ae/tone-layer.jsx ----
-// @ts-nocheck
 (function (api) {
     api.TONE_WAVEFORM_OPTIONS = ["Sine", "Triangle", "Saw", "Square", "White Noise"];
     var TONE_FREQUENCY_PROPERTY_NAMES = ["Frequency 1", "Frequency 2", "Frequency 3", "Frequency 4", "Frequency 5"];
     function numeric(value, fallback) {
-        var parsed = parseFloat(value);
+        var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
         return isNaN(parsed) ? fallback : parsed;
     }
     function clamp(value, min, max) {
@@ -6375,14 +6373,18 @@
     function toneEffectProperty(effect, names) {
         var i;
         var prop;
+        var nameList;
         if (!effect) {
             return null;
         }
         if (typeof names === "string") {
-            names = [names];
+            nameList = [names];
         }
-        for (i = 0; i < names.length; i += 1) {
-            prop = safeProperty(effect, names[i]);
+        else {
+            nameList = names;
+        }
+        for (i = 0; i < nameList.length; i += 1) {
+            prop = safeProperty(effect, nameList[i]);
             if (prop) {
                 return prop;
             }
@@ -6399,23 +6401,25 @@
         return 1;
     }
     api.resolveToneLayerOptions = function (comp, options) {
-        var resolved = {};
-        options = options || {};
-        resolved.waveform = options.waveform || "Sine";
-        resolved.level = clamp(numeric(options.level, 20), 0, 100);
-        resolved.quantizeToFrames = !!options.quantizeToFrames;
-        resolved.useWorkArea = !!options.useWorkArea;
-        resolved.useDrumLanes = typeof options.useDrumLanes === "undefined" ? true : !!options.useDrumLanes;
-        resolved.frameDuration = comp && comp.frameDuration ? comp.frameDuration : options.frameDuration;
+        var resolved;
+        var input = options || {};
+        resolved = {
+            waveform: input.waveform || "Sine",
+            level: clamp(numeric(input.level, 20), 0, 100),
+            quantizeToFrames: !!input.quantizeToFrames,
+            useWorkArea: !!input.useWorkArea,
+            useDrumLanes: typeof input.useDrumLanes === "undefined" ? true : !!input.useDrumLanes,
+            frameDuration: comp && comp.frameDuration ? comp.frameDuration : input.frameDuration
+        };
         if (resolved.useWorkArea && comp && typeof comp.workAreaStart !== "undefined") {
             resolved.timeStart = comp.workAreaStart;
             resolved.timeEnd = comp.workAreaStart + comp.workAreaDuration;
         }
-        else if (typeof options.timeStart !== "undefined") {
-            resolved.timeStart = options.timeStart;
+        else if (typeof input.timeStart !== "undefined") {
+            resolved.timeStart = input.timeStart;
         }
-        if (!resolved.useWorkArea && typeof options.timeEnd !== "undefined") {
-            resolved.timeEnd = options.timeEnd;
+        if (!resolved.useWorkArea && typeof input.timeEnd !== "undefined") {
+            resolved.timeEnd = input.timeEnd;
         }
         return resolved;
     };
@@ -6471,8 +6475,8 @@
         var active;
         var freqValue;
         var levelValue;
+        var resolved = options || {};
         notes = notes || [];
-        options = options || {};
         for (i = 0; i < notes.length; i += 1) {
             note = notes[i];
             if (!note || note.velocity <= 0) {
@@ -6507,8 +6511,8 @@
                 freqValue = frequency.values[frequency.values.length - 1] || 0;
                 levelValue = 0;
             }
-            pushToneSeriesPoint(frequency, event.time, freqValue, options);
-            pushToneSeriesPoint(level, event.time, levelValue, options);
+            pushToneSeriesPoint(frequency, event.time, freqValue, resolved);
+            pushToneSeriesPoint(level, event.time, levelValue, resolved);
         }
         return {
             frequency: frequency,
@@ -6516,11 +6520,12 @@
         };
     };
     function applyToneSeries(property, series) {
-        if (!property || !series || !series.times.length) {
+        var prop = property;
+        if (!prop || !series || !series.times.length) {
             return false;
         }
-        property.setValuesAtTimes(series.times, series.values);
-        api.setHoldInterpolation(property);
+        prop.setValuesAtTimes(series.times, series.values);
+        api.setHoldInterpolation(prop);
         return true;
     }
     function addToneEffect(layer) {
@@ -6617,7 +6622,6 @@
 
 
 // ---- dist/compiled/ae/screen-flip.jsx ----
-// @ts-nocheck
 (function (api) {
     function safeProperty(group, nameOrIndex) {
         var prop;
@@ -6634,17 +6638,20 @@
     }
     function layerFromProperty(prop) {
         var depth;
-        if (!prop) {
+        var current = prop;
+        if (!current) {
             return null;
         }
         try {
-            depth = prop.propertyDepth;
+            depth = current.propertyDepth;
             while (depth > 0) {
-                prop = prop.propertyGroup(1);
+                current = current.propertyGroup(1);
                 depth -= 1;
             }
-            if (prop && (prop.Effects || (prop.property && prop.property("ADBE Effect Parade")))) {
-                return prop;
+            if (current &&
+                (current.Effects ||
+                    (current.property && current.property("ADBE Effect Parade")))) {
+                return current;
             }
         }
         catch (e) { }
@@ -6843,10 +6850,9 @@
 
 
 // ---- dist/compiled/ae/drum-machine.jsx ----
-// @ts-nocheck
 (function (api) {
     function numeric(value, fallback) {
-        var parsed = parseFloat(value);
+        var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
         return isNaN(parsed) ? fallback : parsed;
     }
     function quote(text) {
@@ -6872,7 +6878,7 @@
         }
         if (typeof value === "object" && value.length !== undefined) {
             for (i = 0; i < value.length; i += 1) {
-                n = parseInt(value[i], 10);
+                n = parseInt(String(value[i]), 10);
                 if (!isNaN(n)) {
                     result.push(n);
                 }
@@ -7054,26 +7060,28 @@
         return map;
     };
     api.resolveDrumMachineOptions = function (comp, options, sourceLayer) {
-        var resolved = {};
-        options = options || {};
-        resolved.maxNotes = options.maxNotes;
-        resolved.squareSize = options.squareSize || options.noteHeight || 20;
-        resolved.useWorkArea = !!options.useWorkArea;
-        resolved.limitNotes = options.limitNotes !== false;
-        resolved.pitchFilter = parsePitchFilter(options.pitchFilter);
-        resolved.animateScale = options.animateScale !== false;
-        resolved.animateOpacity = options.animateOpacity !== false;
-        resolved.animateRotation = !!options.animateRotation;
-        resolved.falloff = options.falloff || "linear";
-        resolved.duration = options.duration || "0.2";
-        resolved.amountScale = typeof options.amountScale !== "undefined" ? options.amountScale : "100";
-        resolved.amountOpacity = typeof options.amountOpacity !== "undefined" ? options.amountOpacity : "100";
-        resolved.amountRotation = typeof options.amountRotation !== "undefined" ? options.amountRotation : "90";
-        resolved.baseScale = typeof options.baseScale !== "undefined" ? options.baseScale : "0";
-        resolved.baseOpacity = typeof options.baseOpacity !== "undefined" ? options.baseOpacity : "0";
-        resolved.baseRotation = typeof options.baseRotation !== "undefined" ? options.baseRotation : "0";
-        resolved.useExpression = options.useExpression !== false;
-        resolved.sourceLayerName = sourceLayer ? sourceLayer.name : options.sourceLayerName;
+        var resolved;
+        var input = options || {};
+        resolved = {
+            maxNotes: input.maxNotes,
+            squareSize: input.squareSize || input.noteHeight || 20,
+            useWorkArea: !!input.useWorkArea,
+            limitNotes: input.limitNotes !== false,
+            pitchFilter: parsePitchFilter(input.pitchFilter),
+            animateScale: input.animateScale !== false,
+            animateOpacity: input.animateOpacity !== false,
+            animateRotation: !!input.animateRotation,
+            falloff: input.falloff || "linear",
+            duration: input.duration || "0.2",
+            amountScale: typeof input.amountScale !== "undefined" ? input.amountScale : "100",
+            amountOpacity: typeof input.amountOpacity !== "undefined" ? input.amountOpacity : "100",
+            amountRotation: typeof input.amountRotation !== "undefined" ? input.amountRotation : "90",
+            baseScale: typeof input.baseScale !== "undefined" ? input.baseScale : "0",
+            baseOpacity: typeof input.baseOpacity !== "undefined" ? input.baseOpacity : "0",
+            baseRotation: typeof input.baseRotation !== "undefined" ? input.baseRotation : "0",
+            useExpression: input.useExpression !== false,
+            sourceLayerName: sourceLayer ? sourceLayer.name : input.sourceLayerName
+        };
         if (resolved.useWorkArea && comp && typeof comp.workAreaStart !== "undefined") {
             resolved.timeStart = comp.workAreaStart;
             resolved.timeEnd = comp.workAreaStart + comp.workAreaDuration;
@@ -7098,6 +7106,15 @@
             collectOptions.maxNotes = options.limitNotes === false ? -1 : parseMaxNotes(options.maxNotes, -1);
         }
         return collectOptions;
+    }
+    function drumMachinePitchFilter(options) {
+        if (!options || !options.pitchFilter) {
+            return [];
+        }
+        if (typeof options.pitchFilter === "object" && options.pitchFilter.length !== undefined) {
+            return options.pitchFilter;
+        }
+        return parsePitchFilter(options.pitchFilter);
     }
     function collectDrumMachinePitchModeNotes(sourceLayer, options) {
         var notes;
@@ -7127,7 +7144,7 @@
         maxNotes = options.limitNotes === false ? -1 : parseMaxNotes(options.maxNotes, -1);
         for (i = 0; i < notes.length; i += 1) {
             note = notes[i];
-            if (!pitchMatchesFilter(note.pitch, options.pitchFilter)) {
+            if (!pitchMatchesFilter(note.pitch, drumMachinePitchFilter(options))) {
                 continue;
             }
             if (options.useWorkArea && typeof options.timeStart !== "undefined") {
@@ -7163,7 +7180,7 @@
         notes = collectDrumMachinePitchModeNotes(sourceLayer, collectOptions);
         for (i = 0; i < notes.length; i += 1) {
             note = notes[i];
-            if (!pitchMatchesFilter(note.pitch, options && options.pitchFilter)) {
+            if (!pitchMatchesFilter(note.pitch, drumMachinePitchFilter(options))) {
                 continue;
             }
             if (options &&
@@ -7293,8 +7310,11 @@
                 sourceRefs: group.sourceRefs || [],
                 x: margin + col * cell + squareSize / 2,
                 y: margin + row * cell + squareSize / 2,
+                left: margin + col * cell,
+                right: margin + col * cell + squareSize,
                 width: squareSize,
                 height: squareSize,
+                opacity: 100,
                 color: api.drumMachineColorForPitch(typeof group.layerIndex !== "undefined" ? group.layerIndex : group.pitch),
                 layerInstrument: !!group.layerInstrument,
                 time: 0,
@@ -7576,11 +7596,13 @@
         return api.sanitizeName("MIDI Drum Machine " + layers.length + " layers");
     }
     function safeProperty(group, nameOrIndex) {
+        var prop;
         if (!group || !group.property) {
             return null;
         }
         try {
-            return group.property(nameOrIndex);
+            prop = group.property(nameOrIndex);
+            return prop || null;
         }
         catch (e) {
             return null;
@@ -7591,31 +7613,33 @@
         return safeProperty(transform, matchName);
     }
     function setLayerExpression(prop, expression) {
-        if (!prop || !prop.canSetExpression) {
+        var property = prop;
+        if (!property || !property.canSetExpression) {
             return false;
         }
-        prop.expression = expression;
-        prop.expressionEnabled = true;
+        property.expression = expression;
+        property.expressionEnabled = true;
         return true;
     }
     function applyBakePlan(property, plan) {
+        var prop = property;
         var i;
-        if (!property) {
+        if (!prop) {
             return false;
         }
-        if (property.setValuesAtTimes) {
-            property.setValuesAtTimes(plan.times, plan.values);
+        if (prop.setValuesAtTimes) {
+            prop.setValuesAtTimes(plan.times, plan.values);
         }
-        else if (property.setValueAtTime) {
+        else if (prop.setValueAtTime) {
             for (i = 0; i < plan.times.length; i += 1) {
-                property.setValueAtTime(plan.times[i], plan.values[i]);
+                prop.setValueAtTime(plan.times[i], plan.values[i]);
             }
         }
         else {
             return false;
         }
-        if (property.canSetExpression) {
-            property.expressionEnabled = false;
+        if (prop.canSetExpression) {
+            prop.expressionEnabled = false;
         }
         return true;
     }
@@ -7626,7 +7650,9 @@
         for (i = 0; i < hits.length; i += 1) {
             triggers.push({
                 time: hits[i].time,
-                amount: 1
+                label: "",
+                amount: 1,
+                source: ""
             });
         }
         return triggers;
@@ -7779,7 +7805,6 @@
             return null;
         }
         controllerOptions = { includeFillControls: false };
-        options = options || {};
         for (key in options) {
             if (options.hasOwnProperty(key)) {
                 controllerOptions[key] = options[key];
@@ -7818,7 +7843,7 @@
         }
         resolved = api.resolveDrumMachineOptions(comp, options || {}, primaryLayer);
         if (sourceLayers.length === 1 && !api.layerHasNamedDrumSliders(primaryLayer)) {
-            resolved.pitchSliderName = api.resolvePitchSliderName(primaryLayer, options || {});
+            resolved.pitchSliderName = api.resolvePitchSliderName(primaryLayer, options);
         }
         rects = api.buildDrumMachineRects(sourceLayers, comp, resolved);
         sourceLabel =
@@ -7898,7 +7923,6 @@
 
 
 // ---- dist/compiled/ae/drum-sequencer.jsx ----
-// @ts-nocheck
 (function (api) {
     var MAP_BEGIN = "// --- frame map (edit below) ---";
     var MAP_END = "// --- end frame map ---";
@@ -7916,8 +7940,6 @@
     var DEFAULT_FRAME_BLOCK_START = 11;
     var DEFAULT_FRAME_BLOCK_SIZE = 20;
     var DEFAULT_FRAME_BLOCK_GAP = 2;
-    // Inclusive frame bounds for linear(progress, 0, 1, startFrame, endFrame).
-    // Stride = block size + gap so pad i+1 starts at endFrame(i) + 1 + gap.
     function defaultFrameRangeForIndex(index) {
         var startFrame = DEFAULT_FRAME_BLOCK_START + index * (DEFAULT_FRAME_BLOCK_SIZE + DEFAULT_FRAME_BLOCK_GAP);
         return {
@@ -7954,7 +7976,6 @@
         if (size < 1) {
             size = 1;
         }
-        // Partition [0, totalFrames) into contiguous slices: next start = prev end + 1.
         return {
             startFrame: start,
             endFrame: start + size - 1
@@ -7994,7 +8015,7 @@
                 });
             }
             else {
-                frameRange = frameRangeForPadIndex(i, pitches.length, frameOptions.totalFrames);
+                frameRange = frameRangeForPadIndex(i, pitches.length, frameOptions.totalFrames || 0);
                 entries.push({
                     pitch: pitch,
                     effectName: "",
@@ -8064,7 +8085,7 @@
                 });
             }
             else {
-                frameRange = frameRangeForPadIndex(ordered.length, padGroups.length, frameOptions.totalFrames);
+                frameRange = frameRangeForPadIndex(ordered.length, padGroups.length, frameOptions.totalFrames || 0);
                 ordered.push({
                     pitch: group.pitch,
                     effectName: group.effectName,
@@ -8251,19 +8272,19 @@
         ];
     }
     api.buildDrumSequencerExpression = function (options) {
-        options = options || {};
-        var frameEntries = options.frameEntries || [];
+        var input = options || {};
+        var frameEntries = input.frameEntries || [];
         var header;
         var mapBlock;
         var runtime;
-        if (options.useNamedDrumSliders) {
+        if (input.useNamedDrumSliders) {
             mapBlock = formatDrumFrameListBlock(frameEntries);
             header = [
                 "// Generated by ReOm MIDI Drum Sequencer",
                 "// Map each named drum slider to a frame range in your footage precomp.",
                 "// List order sets hit priority when multiple drums overlap (most recent active hit wins).",
                 "// Zone reference: Kick ~11-30, Snare ~33-52, Hats ~86-128 (edit startFrame/endFrame below).",
-                "var midiLayer = thisComp.layer(" + quote(options.sourceLayerName || "MIDI") + ");",
+                "var midiLayer = thisComp.layer(" + quote(input.sourceLayerName || "MIDI") + ");",
                 ""
             ];
             runtime = namedDrumSequencerRuntime();
@@ -8274,9 +8295,9 @@
                 "// Generated by ReOm MIDI Drum Sequencer",
                 "// Map each drum pitch to a frame range in your footage precomp.",
                 "// Zone reference: Kick ~11-30, Snare ~33-52, Hats ~86-128 (edit startFrame/endFrame below).",
-                "var midiLayer = thisComp.layer(" + quote(options.sourceLayerName || "MIDI") + ");",
-                "var pitchSliderName = " + quote(options.pitchSliderName || "T01 Ch10 pitch") + ";",
-                "var durSliderName = " + quote(options.durationSliderName || "T01 Ch10 duration") + ";",
+                "var midiLayer = thisComp.layer(" + quote(input.sourceLayerName || "MIDI") + ");",
+                "var pitchSliderName = " + quote(input.pitchSliderName || "T01 Ch10 pitch") + ";",
+                "var durSliderName = " + quote(input.durationSliderName || "T01 Ch10 duration") + ";",
                 ""
             ];
             runtime = legacyDrumSequencerRuntime();
@@ -8389,7 +8410,7 @@
             throw new Error("Select an imported drum MIDI layer before generating a Drum Sequencer expression.");
         }
         labelMode = options.labelMode || "drums";
-        existingEntries = existingEntriesFromExpression(options.existingExpression);
+        existingEntries = existingEntriesFromExpression(options.existingExpression || "");
         useNamedDrumSliders = api.layerHasNamedDrumSliders(sourceLayer);
         options.totalFrames = parseTotalFramesOption(options.totalFrames);
         if (useNamedDrumSliders) {
@@ -8444,7 +8465,7 @@
         pitchSliderName = range.pitchSliderName || api.resolvePitchSliderName(sourceLayer, options);
         durationSliderName = api.resolveDurationSliderName(sourceLayer, options);
         frameEntries = buildDefaultFrameEntries(range.pitches, labelMode, shouldPreserveDrumSequencerFrames(options)
-            ? options.preserveFrameMap || existingMapFromExpression(options.existingExpression)
+            ? options.preserveFrameMap || existingMapFromExpression(options.existingExpression || "")
             : {}, { totalFrames: options.totalFrames });
         expression = api.buildDrumSequencerExpression({
             sourceLayerName: sourceLayer.name,

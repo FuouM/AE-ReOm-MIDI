@@ -148,11 +148,132 @@ interface ResolvedPianoRollMapOptions extends PianoRollMapOptions {
     useWorkArea: boolean;
 }
 
+/** Label mode for MIDI map and drum sequencer pitch labels. */
+type MidiMapLabelMode = "notes" | "drums";
+
+/** Options for MIDI map expression generation. */
+interface MidiMapOptions extends MidiActionOptionsInput {
+    labelMode?: MidiMapLabelMode;
+    defaultLabel?: string;
+    existingExpression?: string;
+}
+
+/** Options passed to buildMidiMapExpression. */
+interface MidiMapExpressionOptions {
+    sourceLayerName?: string;
+    pitchSliderName?: string;
+    noteLabels?: NoteLabelPair[];
+    defaultLabel?: string;
+}
+
 /** Tone layer generation options. */
 interface ToneLayerOptionsInput extends QuantizeOptions, WorkAreaOptions {
     waveform?: ToneWaveform | string;
     level?: number | string;
     useDrumLanes?: boolean;
+}
+
+/** Tone layer generation options after resolveToneLayerOptions. */
+interface ToneLayerOptionsResolved extends QuantizeOptions, WorkAreaOptions {
+    waveform: ToneWaveform | string;
+    level: number;
+    quantizeToFrames: boolean;
+    useWorkArea: boolean;
+    useDrumLanes: boolean;
+    frameDuration?: number;
+    timeStart?: number;
+    timeEnd?: number;
+}
+
+/** Drum machine shape / grid generation options. */
+interface DrumMachineOptionsInput extends WorkAreaOptions {
+    maxNotes?: number | string;
+    squareSize?: number | string;
+    noteHeight?: number | string;
+    gridGap?: number | string;
+    gridMargin?: number | string;
+    limitNotes?: boolean;
+    pitchFilter?: string | number[];
+    animateScale?: boolean;
+    animateOpacity?: boolean;
+    animateRotation?: boolean;
+    falloff?: FalloffMode | string;
+    duration?: number | string;
+    amountScale?: number | string;
+    amountOpacity?: number | string;
+    amountRotation?: number | string;
+    baseScale?: number | string;
+    baseOpacity?: number | string;
+    baseRotation?: number | string;
+    useExpression?: boolean;
+    sourceLayerName?: string;
+    pitchSliderName?: string;
+    controllerName?: string;
+    baseValue?: number | string;
+    base?: number | string;
+    amount?: number | string;
+    amountValue?: number | string;
+}
+
+/** Drum machine options after resolveDrumMachineOptions. */
+interface DrumMachineOptionsResolved extends DrumMachineOptionsInput {
+    squareSize: number | string;
+    useWorkArea: boolean;
+    limitNotes: boolean;
+    pitchFilter: number[];
+    animateScale: boolean;
+    animateOpacity: boolean;
+    animateRotation: boolean;
+    falloff: FalloffMode | string;
+    duration: number | string;
+    amountScale: number | string;
+    amountOpacity: number | string;
+    amountRotation: number | string;
+    baseScale: number | string;
+    baseOpacity: number | string;
+    baseRotation: number | string;
+    useExpression: boolean;
+    timeStart?: number;
+    timeEnd?: number;
+}
+
+/** Drum sequencer expression generation options. */
+interface DrumSequencerOptions extends MidiActionOptionsInput {
+    labelMode?: MidiMapLabelMode;
+    existingExpression?: string;
+    totalFrames?: number | string;
+    previousTotalFrames?: number | string;
+    preserveFrameMap?: StringKeyedMap<{ startFrame: number; endFrame: number }>;
+}
+
+/** Options passed to buildDrumSequencerExpression. */
+interface DrumSequencerExpressionOptions {
+    sourceLayerName?: string;
+    pitchSliderName?: string;
+    durationSliderName?: string;
+    frameEntries?: DrumSequencerFrameEntry[];
+    useNamedDrumSliders?: boolean;
+}
+
+/** Options for drum machine pad / hit expression builders. */
+interface DrumMachinePadExpressionOptions {
+    sourceLayerName?: string;
+    drumEffectName?: string;
+    baseValue?: number | string;
+    base?: number | string;
+    amount?: number | string;
+    amountValue?: number | string;
+    duration?: number | string;
+    falloff?: FalloffMode | string;
+    label?: string;
+    hitTime?: number | string;
+    pitchFilter?: number[];
+    sourceRefs?: DrumMachineSourceRef[];
+}
+
+/** Drum machine pad action options including multi-source pump wiring. */
+interface DrumMachineActionOptions extends DrumMachinePadExpressionOptions, MidiActionOptionsInput {
+    multiSource?: boolean;
 }
 
 /** Options accepted by createMidiActionOutputNull. */

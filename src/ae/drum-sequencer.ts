@@ -1,18 +1,17 @@
-// @ts-nocheck
-(function (api) {
+(function (api: ReOmMIDIApi) {
     var MAP_BEGIN = "// --- frame map (edit below) ---";
     var MAP_END = "// --- end frame map ---";
     var LIST_BEGIN = "// --- drum frame list (edit order below) ---";
     var LIST_END = "// --- end drum frame list ---";
 
-    function quote(value) {
+    function quote(value: string | number | null | undefined): string {
         value = String(value || "");
         value = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         value = value.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
         return '"' + value + '"';
     }
 
-    function joinLines(lines) {
+    function joinLines(lines: string[]): string {
         return lines.join("\n");
     }
 
@@ -20,9 +19,7 @@
     var DEFAULT_FRAME_BLOCK_SIZE = 20;
     var DEFAULT_FRAME_BLOCK_GAP = 2;
 
-    // Inclusive frame bounds for linear(progress, 0, 1, startFrame, endFrame).
-    // Stride = block size + gap so pad i+1 starts at endFrame(i) + 1 + gap.
-    function defaultFrameRangeForIndex(index) {
+    function defaultFrameRangeForIndex(index: number): DrumSequencerFrameRange {
         var startFrame = DEFAULT_FRAME_BLOCK_START + index * (DEFAULT_FRAME_BLOCK_SIZE + DEFAULT_FRAME_BLOCK_GAP);
         return {
             startFrame: startFrame,
@@ -30,7 +27,7 @@
         };
     }
 
-    function parseTotalFramesOption(value) {
+    function parseTotalFramesOption(value: number | string | null | undefined): number {
         var parsed = parseInt(String(value || "0"), 10);
         if (isNaN(parsed) || parsed < 0) {
             return 0;
@@ -38,12 +35,16 @@
         return parsed;
     }
 
-    function frameRangeForPadIndex(index, padCount, totalFrames) {
-        var baseSize;
-        var remainder;
-        var start;
-        var size;
-        var j;
+    function frameRangeForPadIndex(
+        index: number,
+        padCount: number,
+        totalFrames: number | string
+    ): DrumSequencerFrameRange {
+        var baseSize: number;
+        var remainder: number;
+        var start: number;
+        var size: number;
+        var j: number;
 
         totalFrames = parseTotalFramesOption(totalFrames);
         if (totalFrames <= 0) {
@@ -61,7 +62,6 @@
         if (size < 1) {
             size = 1;
         }
-        // Partition [0, totalFrames) into contiguous slices: next start = prev end + 1.
         return {
             startFrame: start,
             endFrame: start + size - 1
@@ -71,7 +71,7 @@
     api.frameRangeForPadIndex = frameRangeForPadIndex;
     api.parseDrumSequencerTotalFrames = parseTotalFramesOption;
 
-    function defaultFrameLabel(pitch, labelMode) {
+    function defaultFrameLabel(pitch: number, labelMode: MidiMapLabelMode | string): string {
         if (labelMode === "drums" && api.GM_DRUM_NAMES && api.GM_DRUM_NAMES[pitch]) {
             return api.GM_DRUM_NAMES[pitch];
         }
@@ -81,13 +81,22 @@
         return String(pitch);
     }
 
-    function buildDefaultFrameEntries(pitches, labelMode, existingByPitch, frameOptions) {
-        var entries = [];
-        var i;
-        var pitch;
-        var existing;
-        var label;
-        var frameRange;
+    interface DrumSequencerFrameOptions {
+        totalFrames?: number | string;
+    }
+
+    function buildDefaultFrameEntries(
+        pitches: number[],
+        labelMode: MidiMapLabelMode | string,
+        existingByPitch: StringKeyedMap<{ startFrame: number; endFrame: number }>,
+        frameOptions?: DrumSequencerFrameOptions
+    ): DrumSequencerFrameEntry[] {
+        var entries: DrumSequencerFrameEntry[] = [];
+        var i: number;
+        var pitch: number;
+        var existing: { startFrame: number; endFrame: number } | undefined;
+        var label: string;
+        var frameRange: DrumSequencerFrameRange;
         frameOptions = frameOptions || {};
         existingByPitch = existingByPitch || {};
         for (i = 0; i < pitches.length; i += 1) {
@@ -103,7 +112,7 @@
                     label: label
                 });
             } else {
-                frameRange = frameRangeForPadIndex(i, pitches.length, frameOptions.totalFrames);
+                frameRange = frameRangeForPadIndex(i, pitches.length, frameOptions.totalFrames || 0);
                 entries.push({
                     pitch: pitch,
                     effectName: "",
@@ -116,18 +125,23 @@
         return entries;
     }
 
-    function buildNamedFrameEntries(padGroups, labelMode, existingEntries, frameOptions) {
-        var entries = [];
-        var used = {};
-        var byEffect = {};
-        var byPitch = {};
-        var i;
-        var j;
-        var group;
-        var existing;
-        var label;
-        var ordered = [];
-        var frameRange;
+    function buildNamedFrameEntries(
+        padGroups: NamedDrumPadGroup[],
+        labelMode: MidiMapLabelMode | string,
+        existingEntries: DrumSequencerFrameEntry[],
+        frameOptions?: DrumSequencerFrameOptions
+    ): DrumSequencerFrameEntry[] {
+        var entries: DrumSequencerFrameEntry[] = [];
+        var used: StringKeyedMap<boolean> = {};
+        var byEffect: StringKeyedMap<DrumSequencerFrameEntry> = {};
+        var byPitch: StringKeyedMap<DrumSequencerFrameEntry> = {};
+        var i: number;
+        var j: number;
+        var group: NamedDrumPadGroup;
+        var existing: DrumSequencerFrameEntry;
+        var label: string;
+        var ordered: DrumSequencerFrameEntry[] = [];
+        var frameRange: DrumSequencerFrameRange;
 
         frameOptions = frameOptions || {};
         existingEntries = existingEntries || [];
@@ -176,7 +190,7 @@
                     endFrame: existing.endFrame
                 });
             } else {
-                frameRange = frameRangeForPadIndex(ordered.length, padGroups.length, frameOptions.totalFrames);
+                frameRange = frameRangeForPadIndex(ordered.length, padGroups.length, frameOptions.totalFrames || 0);
                 ordered.push({
                     pitch: group.pitch,
                     effectName: group.effectName,
@@ -190,7 +204,7 @@
         return ordered;
     }
 
-    function shouldPreserveDrumSequencerFrames(options) {
+    function shouldPreserveDrumSequencerFrames(options: DrumSequencerOptions): boolean {
         var totalFrames = parseTotalFramesOption(options.totalFrames);
         var previousTotalFrames = parseTotalFramesOption(options.previousTotalFrames);
         if (totalFrames <= 0) {
@@ -199,9 +213,9 @@
         return totalFrames === previousTotalFrames;
     }
 
-    function frameEntriesToMapObject(entries) {
-        var map = {};
-        var i;
+    function frameEntriesToMapObject(entries: DrumSequencerFrameEntry[]): StringKeyedMap<{ startFrame: number; endFrame: number }> {
+        var map: StringKeyedMap<{ startFrame: number; endFrame: number }> = {};
+        var i: number;
         for (i = 0; i < entries.length; i += 1) {
             map[entries[i].pitch] = {
                 startFrame: entries[i].startFrame,
@@ -211,11 +225,11 @@
         return map;
     }
 
-    function formatFrameMapBlock(frameEntries) {
+    function formatFrameMapBlock(frameEntries: DrumSequencerFrameEntry[]): string[] {
         var lines = [MAP_BEGIN, "var pitchMap = {"];
-        var i;
-        var entry;
-        var comment;
+        var i: number;
+        var entry: DrumSequencerFrameEntry;
+        var comment: string;
         for (i = 0; i < frameEntries.length; i += 1) {
             entry = frameEntries[i];
             comment = entry.label ? " // " + entry.label : "";
@@ -236,11 +250,11 @@
         return lines;
     }
 
-    function formatDrumFrameListBlock(frameEntries) {
+    function formatDrumFrameListBlock(frameEntries: DrumSequencerFrameEntry[]): string[] {
         var lines = [LIST_BEGIN, "var drumFrameList = ["];
-        var i;
-        var entry;
-        var comment;
+        var i: number;
+        var entry: DrumSequencerFrameEntry;
+        var comment: string;
         for (i = 0; i < frameEntries.length; i += 1) {
             entry = frameEntries[i];
             comment = " // pitch " + entry.pitch;
@@ -267,7 +281,7 @@
     api.formatDrumSequencerFrameMapBlock = formatFrameMapBlock;
     api.formatDrumSequencerFrameListBlock = formatDrumFrameListBlock;
 
-    function namedDrumSequencerRuntime() {
+    function namedDrumSequencerRuntime(): string[] {
         return [
             "function sliderByName(effectName) {",
             '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
@@ -334,7 +348,7 @@
         ];
     }
 
-    function legacyDrumSequencerRuntime() {
+    function legacyDrumSequencerRuntime(): string[] {
         return [
             "function sliderByName(effectName) {",
             '    try { return midiLayer.effect(effectName)("Slider"); } catch (e) { return null; }',
@@ -375,21 +389,21 @@
         ];
     }
 
-    api.buildDrumSequencerExpression = function (options) {
-        options = options || {};
-        var frameEntries = options.frameEntries || [];
-        var header;
-        var mapBlock;
-        var runtime;
+    api.buildDrumSequencerExpression = function (options?: DrumSequencerExpressionOptions): string {
+        var input = options || {};
+        var frameEntries = input.frameEntries || [];
+        var header: string[];
+        var mapBlock: string[];
+        var runtime: string[];
 
-        if (options.useNamedDrumSliders) {
+        if (input.useNamedDrumSliders) {
             mapBlock = formatDrumFrameListBlock(frameEntries);
             header = [
                 "// Generated by ReOm MIDI Drum Sequencer",
                 "// Map each named drum slider to a frame range in your footage precomp.",
                 "// List order sets hit priority when multiple drums overlap (most recent active hit wins).",
                 "// Zone reference: Kick ~11-30, Snare ~33-52, Hats ~86-128 (edit startFrame/endFrame below).",
-                "var midiLayer = thisComp.layer(" + quote(options.sourceLayerName || "MIDI") + ");",
+                "var midiLayer = thisComp.layer(" + quote(input.sourceLayerName || "MIDI") + ");",
                 ""
             ];
             runtime = namedDrumSequencerRuntime();
@@ -399,9 +413,9 @@
                 "// Generated by ReOm MIDI Drum Sequencer",
                 "// Map each drum pitch to a frame range in your footage precomp.",
                 "// Zone reference: Kick ~11-30, Snare ~33-52, Hats ~86-128 (edit startFrame/endFrame below).",
-                "var midiLayer = thisComp.layer(" + quote(options.sourceLayerName || "MIDI") + ");",
-                "var pitchSliderName = " + quote(options.pitchSliderName || "T01 Ch10 pitch") + ";",
-                "var durSliderName = " + quote(options.durationSliderName || "T01 Ch10 duration") + ";",
+                "var midiLayer = thisComp.layer(" + quote(input.sourceLayerName || "MIDI") + ");",
+                "var pitchSliderName = " + quote(input.pitchSliderName || "T01 Ch10 pitch") + ";",
+                "var durSliderName = " + quote(input.durationSliderName || "T01 Ch10 duration") + ";",
                 ""
             ];
             runtime = legacyDrumSequencerRuntime();
@@ -410,12 +424,12 @@
         return joinLines(header.concat(mapBlock).concat([""]).concat(runtime));
     };
 
-    function parseDrumFrameListBlock(block) {
-        var entries = [];
+    function parseDrumFrameListBlock(block: string): DrumSequencerFrameEntry[] | null {
+        var entries: DrumSequencerFrameEntry[] = [];
         var re =
             /\{\s*effect\s*:\s*"((?:\\.|[^"\\])*)"\s*,\s*startFrame\s*:\s*(-?\d+)\s*,\s*endFrame\s*:\s*(-?\d+)\s*\}(?:\s*\/\/\s*pitch\s*(\d+)(?:\s+(.*))?)?/g;
-        var match;
-        var label;
+        var match: RegExpExecArray | null;
+        var label: string;
         while ((match = re.exec(block))) {
             label = match[5] ? String(match[5]).replace(/^\s+|\s+$/g, "") : "";
             entries.push({
@@ -429,11 +443,11 @@
         return entries.length ? entries : null;
     }
 
-    function parsePitchMapBlock(block) {
-        var entries = [];
+    function parsePitchMapBlock(block: string): DrumSequencerFrameEntry[] | null {
+        var entries: DrumSequencerFrameEntry[] = [];
         var re = /(\d+)\s*:\s*\{\s*startFrame\s*:\s*(-?\d+)\s*,\s*endFrame\s*:\s*(-?\d+)\s*\}(?:\s*\/\/\s*(.*))?/g;
-        var match;
-        var label;
+        var match: RegExpExecArray | null;
+        var label: string;
         while ((match = re.exec(block))) {
             label = match[4] ? String(match[4]).replace(/^\s+|\s+$/g, "") : "";
             entries.push({
@@ -447,13 +461,13 @@
         return entries.length ? entries : null;
     }
 
-    api.parseDrumSequencerFrameMapFromExpression = function (expression) {
+    api.parseDrumSequencerFrameMapFromExpression = function (expression: string): DrumSequencerFrameEntry[] | null {
         var text = String(expression || "");
         var listBegin = text.indexOf(LIST_BEGIN);
         var listEnd = text.indexOf(LIST_END);
         var mapBegin = text.indexOf(MAP_BEGIN);
         var mapEnd = text.indexOf(MAP_END);
-        var parsed;
+        var parsed: DrumSequencerFrameEntry[] | null;
 
         if (listBegin >= 0 && listEnd > listBegin) {
             parsed = parseDrumFrameListBlock(text.substring(listBegin, listEnd));
@@ -470,10 +484,10 @@
         return null;
     };
 
-    function existingMapFromExpression(expression) {
+    function existingMapFromExpression(expression: string): StringKeyedMap<{ startFrame: number; endFrame: number }> {
         var parsed = api.parseDrumSequencerFrameMapFromExpression(expression);
-        var byPitch = {};
-        var i;
+        var byPitch: StringKeyedMap<{ startFrame: number; endFrame: number }> = {};
+        var i: number;
         if (!parsed) {
             return byPitch;
         }
@@ -486,13 +500,16 @@
         return byPitch;
     }
 
-    function existingEntriesFromExpression(expression) {
+    function existingEntriesFromExpression(expression: string): DrumSequencerFrameEntry[] {
         return api.parseDrumSequencerFrameMapFromExpression(expression) || [];
     }
 
-    function findExistingFrameValues(existingEntries, entry) {
-        var i;
-        var existing;
+    function findExistingFrameValues(
+        existingEntries: DrumSequencerFrameEntry[],
+        entry: DrumSequencerFrameEntry
+    ): DrumSequencerFrameEntry | null {
+        var i: number;
+        var existing: DrumSequencerFrameEntry;
         for (i = 0; i < existingEntries.length; i += 1) {
             existing = existingEntries[i];
             if (entry.effectName && existing.effectName === entry.effectName) {
@@ -508,17 +525,21 @@
         return null;
     }
 
-    api.prepareDrumSequencerExpression = function (comp, sourceLayer, options) {
-        var range;
-        var frameEntries;
-        var expression;
-        var state;
-        var pitchSliderName;
-        var durationSliderName;
-        var padGroups;
-        var existingEntries;
-        var labelMode;
-        var useNamedDrumSliders;
+    api.prepareDrumSequencerExpression = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: DrumSequencerOptions
+    ): DrumSequencerPrepared {
+        var range: PitchValuesFromLayerResult;
+        var frameEntries: DrumSequencerFrameEntry[];
+        var expression: string;
+        var state: DrumSequencerState;
+        var pitchSliderName: string;
+        var durationSliderName: string;
+        var padGroups: NamedDrumPadGroup[];
+        var existingEntries: DrumSequencerFrameEntry[];
+        var labelMode: MidiMapLabelMode;
+        var useNamedDrumSliders: boolean;
 
         options = options || {};
         if (!sourceLayer) {
@@ -526,7 +547,7 @@
         }
 
         labelMode = options.labelMode || "drums";
-        existingEntries = existingEntriesFromExpression(options.existingExpression);
+        existingEntries = existingEntriesFromExpression(options.existingExpression || "");
         useNamedDrumSliders = api.layerHasNamedDrumSliders(sourceLayer);
         options.totalFrames = parseTotalFramesOption(options.totalFrames);
 
@@ -596,7 +617,7 @@
             range.pitches,
             labelMode,
             shouldPreserveDrumSequencerFrames(options)
-                ? options.preserveFrameMap || existingMapFromExpression(options.existingExpression)
+                ? options.preserveFrameMap || existingMapFromExpression(options.existingExpression || "")
                 : {},
             { totalFrames: options.totalFrames }
         );
@@ -636,13 +657,13 @@
         };
     };
 
-    api.regenerateDrumSequencerExpression = function (state, expression) {
+    api.regenerateDrumSequencerExpression = function (state: DrumSequencerState, expression: string): string {
         var existingEntries = existingEntriesFromExpression(expression);
-        var frameEntries = [];
-        var i;
-        var entry;
-        var match;
-        var existing;
+        var frameEntries: DrumSequencerFrameEntry[] = [];
+        var i: number;
+        var entry: DrumSequencerFrameEntry;
+        var match: DrumSequencerFrameEntry | null;
+        var existing: DrumSequencerFrameEntry;
 
         if (!state || !state.frameEntries || !state.frameEntries.length) {
             throw new Error("Generate a Drum Sequencer map from the selected layer first.");
@@ -670,7 +691,7 @@
         });
     };
 
-    function setPropExpression(prop, expression) {
+    function setPropExpression(prop: Property | null, expression: string): boolean {
         if (!prop) {
             return false;
         }
@@ -687,9 +708,9 @@
         return false;
     }
 
-    api.resolveTargetFootageLayer = function (comp) {
-        var layer;
-        var timeRemap;
+    api.resolveTargetFootageLayer = function (comp: CompItem): Layer {
+        var layer: Layer;
+        var timeRemap: Property | null;
 
         if (!comp || !comp.selectedLayers || comp.selectedLayers.length < 1) {
             throw new Error("Select a footage or precomp layer to receive the Time Remap expression.");
@@ -706,7 +727,7 @@
             );
         }
         try {
-            timeRemap = layer.property("ADBE Time Remapping");
+            timeRemap = layer.property("ADBE Time Remapping") as Property;
             if (!timeRemap) {
                 throw new Error("Time Remap property not found.");
             }
@@ -718,8 +739,12 @@
         return layer;
     };
 
-    api.applyDrumSequencerToLayer = function (comp, targetLayer, expression) {
-        var timeRemap;
+    api.applyDrumSequencerToLayer = function (
+        comp: CompItem,
+        targetLayer: Layer,
+        expression: string
+    ): DrumSequencerApplyResult {
+        var timeRemap: Property | null;
 
         if (!targetLayer) {
             throw new Error("Select a footage or precomp layer to receive the Time Remap expression.");
@@ -728,11 +753,11 @@
             throw new Error("The Drum Sequencer expression is empty.");
         }
         try {
-            targetLayer.timeRemapEnabled = true;
+            (targetLayer as AVLayer).timeRemapEnabled = true;
         } catch (enableErr) {
             throw new Error('Could not enable Time Remap on layer "' + targetLayer.name + '".');
         }
-        timeRemap = targetLayer.property("Time Remap");
+        timeRemap = targetLayer.property("Time Remap") as Property;
         if (!timeRemap || timeRemap.canSetExpression === false) {
             throw new Error('The Time Remap property on "' + targetLayer.name + '" cannot receive expressions.');
         }

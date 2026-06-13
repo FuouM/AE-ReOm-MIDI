@@ -368,3 +368,132 @@ interface BpmLayerResult {
 
 /** importMidiToComp returns channel count or a cancellation object. */
 type ImportResult = number | ImportCancelledResult;
+
+/** [pitch, label] pair used in MIDI map expressions. */
+type NoteLabelPair = [number, string];
+
+/** Persisted state for regenerating a MIDI map expression. */
+interface MidiMapState {
+    pitches: number[];
+    pitchSliderName: string;
+    sourceLayerName: string;
+    labelMode: MidiMapLabelMode;
+}
+
+/** Result of prepareMidiMapExpression. */
+interface MidiMapPrepared {
+    expression: string;
+    noteLabels: NoteLabelPair[];
+    range: PitchValuesFromLayerResult;
+    state: MidiMapState;
+    summary: string;
+}
+
+/** Result of createMidiMapTextLayer. */
+interface MidiMapTextLayerResult {
+    layerName: string;
+    expression: string;
+}
+
+/** Keyframe plan for tone layer frequency and level sliders. */
+interface ToneKeyframePlan {
+    frequency: KeyframeSeries;
+    level: KeyframeSeries;
+}
+
+/** Result of createToneLayer. */
+interface ToneLayerResult {
+    layerName: string;
+    notes: number;
+    keyframes: number;
+}
+
+/** Result of applyScreenFlip or bakeScreenFlip. */
+interface ScreenFlipResult {
+    sourceLayerName: string;
+    targetLayerName: string;
+    propertyName: string;
+    axis: "horizontal" | "vertical" | string;
+    triggers?: number;
+}
+
+/** Per-layer MIDI source reference for multi-source drum machine pads. */
+interface DrumMachineSourceRef {
+    sourceLayerName: string;
+    pitchSliderName: string;
+}
+
+/** Drum pad group for drum machine grid builders. */
+interface DrumPadGroup extends NamedDrumPadGroup {
+    layerIndex?: number;
+    layerInstrument?: boolean;
+    sourceRefs?: DrumMachineSourceRef[];
+}
+
+/** Drum machine pad rect mapped to comp grid coordinates. */
+interface DrumMachineRect extends PianoRollRect {
+    effectName: string;
+    hits: NamedDrumPadHit[];
+    hitCount: number;
+    sourceRefs: DrumMachineSourceRef[];
+    layerInstrument: boolean;
+    color: number[];
+}
+
+/** Grid center point for drum machine layout. */
+interface GridCenter {
+    x: number;
+    y: number;
+}
+
+/** Single frame-range entry in a drum sequencer map. */
+interface DrumSequencerFrameEntry {
+    pitch: number;
+    effectName: string;
+    startFrame: number;
+    endFrame: number;
+    label?: string;
+}
+
+/** Persisted state for regenerating a drum sequencer expression. */
+interface DrumSequencerState {
+    useNamedDrumSliders: boolean;
+    pitches: number[];
+    pitchSliderName: string;
+    durationSliderName: string;
+    sourceLayerName: string;
+    labelMode: MidiMapLabelMode;
+    totalFrames: number;
+    frameEntries: DrumSequencerFrameEntry[];
+}
+
+/** Result of prepareDrumSequencerExpression. */
+interface DrumSequencerPrepared {
+    expression: string;
+    frameEntries: DrumSequencerFrameEntry[];
+    range: PitchValuesFromLayerResult | { pitches: number[]; min: number; max: number };
+    state: DrumSequencerState;
+    summary: string;
+}
+
+/** Result of applyDrumSequencerToLayer. */
+interface DrumSequencerApplyResult {
+    layerName: string;
+    expression: string;
+}
+
+/** Result of createDrumMachineShapes. */
+interface DrumMachineShapesResult {
+    created: number;
+    types: number;
+    hits: number;
+    animated: number;
+    controller: string;
+    mode: "expression" | "bake" | string;
+}
+
+/** Frame range for one drum sequencer pad. */
+interface DrumSequencerFrameRange {
+    startFrame: number;
+    endFrame: number;
+}

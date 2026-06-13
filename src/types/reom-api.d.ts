@@ -218,5 +218,97 @@ interface ReOmMIDIApi {
     layerHasNamedDrumSliders(layer: Layer): boolean;
     pianoRollYForPitch(pitch: number, rangeMin: number, rollBottom: number, laneHeight: number): number;
 
+    TONE_WAVEFORM_OPTIONS: ToneWaveform[];
+
+    formatMidiMapNoteLabelsBlock(noteLabels: NoteLabelPair[]): string[];
+    buildMidiMapDefaultLabels(pitches: number[], labelMode?: MidiMapLabelMode | string): NoteLabelPair[];
+    buildMidiMapExpression(options: MidiMapExpressionOptions): string;
+    parseMidiMapNoteLabelsFromExpression(expression: string): NoteLabelPair[] | null;
+    prepareMidiMapExpression(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiMapOptions
+    ): MidiMapPrepared;
+    regenerateMidiMapExpression(state: MidiMapState, labelMode?: MidiMapLabelMode | string): string;
+    createMidiMapTextLayer(
+        comp: CompItem,
+        sourceLayer: Layer | null,
+        expression: string
+    ): MidiMapTextLayerResult;
+
+    resolveToneLayerOptions(comp: CompItem | null, options?: ToneLayerOptionsInput): ToneLayerOptionsResolved;
+    buildToneLayerKeyframePlan(notes: PianoRollNote[], options?: ToneLayerOptionsResolved): ToneKeyframePlan;
+    createToneLayer(comp: CompItem, sourceLayer: Layer, options?: ToneLayerOptionsInput): ToneLayerResult;
+
+    resolveScreenFlipTargetProperty(comp: CompItem, axis: string): Property;
+    applyScreenFlip(comp: CompItem, axis: string, options?: MidiActionOptionsInput): ScreenFlipResult;
+    bakeScreenFlip(comp: CompItem, axis: string, options?: MidiActionOptionsInput): ScreenFlipResult;
+
+    resolveDrumSourceLayer(comp: CompItem, options?: MidiActionOptionsInput): Layer;
+    resolveDrumMachineSourceLayers(comp: CompItem, options?: DrumMachineOptionsInput): Layer[];
+    resolveDrumMachineSourceLayer(comp: CompItem, options?: DrumMachineOptionsInput): Layer;
+    drumMachineColorForPitch(pitch: number): number[];
+    buildDrumMachineColorMap(pitches: number[]): StringKeyedMap<number[]>;
+    resolveDrumMachineOptions(
+        comp: CompItem | null,
+        options: DrumMachineOptionsInput | null | undefined,
+        sourceLayer: Layer | null | undefined
+    ): DrumMachineOptionsResolved;
+    collectDrumMachineNotes(sourceLayer: Layer, options?: DrumMachineOptionsInput): PianoRollNote[];
+    collectDrumMachinePitchGroups(sourceLayer: Layer, options?: DrumMachineOptionsInput): DrumPadGroup[];
+    collectDrumMachinePitchGroupsFromLayers(
+        sourceLayers: Layer | Layer[],
+        options?: DrumMachineOptionsInput
+    ): DrumPadGroup[];
+    buildDrumMachineGridRects(
+        pitchGroups: DrumPadGroup[],
+        comp: CompItem | null,
+        options?: DrumMachineOptionsInput | DrumMachineOptionsResolved
+    ): DrumMachineRect[];
+    computeDrumMachineGridCenter(rects: DrumMachineRect[]): GridCenter;
+    buildDrumMachineRects(
+        sourceLayerOrLayers: Layer | Layer[],
+        comp: CompItem | null,
+        options?: DrumMachineOptionsInput
+    ): DrumMachineRect[];
+    buildDrumMachinePadExpression(options?: DrumMachinePadExpressionOptions): string;
+    buildDrumMachineHitExpression(options?: DrumMachinePadExpressionOptions): string;
+    buildDrumMachineExpression(options?: DrumMachinePadExpressionOptions): string;
+    buildDrumMachineMultiSourcePumpExpression(options?: DrumMachinePadExpressionOptions): string;
+    createDrumMachineShapes(
+        comp: CompItem,
+        sourceLayerOrLayers: Layer | Layer[],
+        options?: DrumMachineOptionsInput
+    ): DrumMachineShapesResult;
+    createDrumMachineShapesWithExpression(
+        comp: CompItem,
+        sourceLayer: Layer | Layer[],
+        options?: DrumMachineOptionsInput
+    ): DrumMachineShapesResult;
+    createDrumMachineShapesWithBake(
+        comp: CompItem,
+        sourceLayer: Layer | Layer[],
+        options?: DrumMachineOptionsInput
+    ): DrumMachineShapesResult;
+
+    frameRangeForPadIndex(index: number, padCount: number, totalFrames: number | string): DrumSequencerFrameRange;
+    parseDrumSequencerTotalFrames(value: number | string): number;
+    formatDrumSequencerFrameMapBlock(frameEntries: DrumSequencerFrameEntry[]): string[];
+    formatDrumSequencerFrameListBlock(frameEntries: DrumSequencerFrameEntry[]): string[];
+    buildDrumSequencerExpression(options?: DrumSequencerExpressionOptions): string;
+    parseDrumSequencerFrameMapFromExpression(expression: string): DrumSequencerFrameEntry[] | null;
+    prepareDrumSequencerExpression(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: DrumSequencerOptions
+    ): DrumSequencerPrepared;
+    regenerateDrumSequencerExpression(state: DrumSequencerState, expression: string): string;
+    resolveTargetFootageLayer(comp: CompItem): Layer;
+    applyDrumSequencerToLayer(
+        comp: CompItem,
+        targetLayer: Layer,
+        expression: string
+    ): DrumSequencerApplyResult;
+
     [key: string]: unknown;
 }
