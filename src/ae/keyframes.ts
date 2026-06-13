@@ -48,7 +48,11 @@
         api.setHoldInterpolation(property);
     }
 
-    function channelHasEvents(channel: MidiChannel, includeControllers?: boolean, includePitchBends?: boolean): boolean {
+    function channelHasEvents(
+        channel: MidiChannel,
+        includeControllers?: boolean,
+        includePitchBends?: boolean
+    ): boolean {
         var controller: string;
         if (channel.noteEvents.length || channel.notes.length) {
             return true;
@@ -177,7 +181,12 @@
         }
     }
 
-    function createLayer(comp: CompItem, midi: MidiFileData, channel: MidiChannel | null, options: ResolvedImportOptions): Layer {
+    function createLayer(
+        comp: CompItem,
+        midi: MidiFileData,
+        channel: MidiChannel | null,
+        options: ResolvedImportOptions
+    ): Layer {
         var layer = comp.layers.addNull(Math.max(midi.durationSeconds + 1, comp.duration || 1));
         var name = channel ? api.formatChannelName(channel) : "ReOm MIDI";
         layer.name = api.sanitizeName(options.layerNamePrefix + " " + name);

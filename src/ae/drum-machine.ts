@@ -291,7 +291,9 @@
         return collectOptions;
     }
 
-    function drumMachinePitchFilter(options: DrumMachineOptionsInput | DrumMachineOptionsResolved | null | undefined): number[] {
+    function drumMachinePitchFilter(
+        options: DrumMachineOptionsInput | DrumMachineOptionsResolved | null | undefined
+    ): number[] {
         if (!options || !options.pitchFilter) {
             return [];
         }
@@ -354,7 +356,10 @@
         return drumNotes;
     };
 
-    api.collectDrumMachinePitchGroups = function (sourceLayer: Layer, options?: DrumMachineOptionsInput): DrumPadGroup[] {
+    api.collectDrumMachinePitchGroups = function (
+        sourceLayer: Layer,
+        options?: DrumMachineOptionsInput
+    ): DrumPadGroup[] {
         var notes;
         var groups: StringKeyedMap<DrumPadGroup> = {};
         var order: number[] = [];
@@ -414,7 +419,10 @@
         return result;
     };
 
-    function collectDrumMachineLayerInstrumentGroups(layers: Layer[], options: DrumMachineOptionsInput): DrumPadGroup[] {
+    function collectDrumMachineLayerInstrumentGroups(
+        layers: Layer[],
+        options: DrumMachineOptionsInput
+    ): DrumPadGroup[] {
         var result: DrumPadGroup[] = [];
         var collectOptions;
         var notes;

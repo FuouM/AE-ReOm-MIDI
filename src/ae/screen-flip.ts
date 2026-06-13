@@ -81,7 +81,9 @@
         transform = api.safeProperty(layer, "ADBE Transform Group");
         if (!transform) {
             try {
-                transform = api.isPropContainerLike(layer.transform) ? layer.transform : (layer.transform as PropContainerLike);
+                transform = api.isPropContainerLike(layer.transform)
+                    ? layer.transform
+                    : (layer.transform as PropContainerLike);
             } catch (transformErr) {}
         }
         scale = api.safeProperty(transform, "ADBE Scale");
@@ -178,11 +180,7 @@
         return property;
     };
 
-    api.applyScreenFlip = function (
-        comp: CompItem,
-        axis: string,
-        options?: MidiActionOptionsInput
-    ): ScreenFlipResult {
+    api.applyScreenFlip = function (comp: CompItem, axis: string, options?: MidiActionOptionsInput): ScreenFlipResult {
         var sourceLayer: Layer;
         var property: Property;
         var resolved: MidiActionOptionsResolved;
@@ -202,11 +200,7 @@
         };
     };
 
-    api.bakeScreenFlip = function (
-        comp: CompItem,
-        axis: string,
-        options?: MidiActionOptionsInput
-    ): ScreenFlipResult {
+    api.bakeScreenFlip = function (comp: CompItem, axis: string, options?: MidiActionOptionsInput): ScreenFlipResult {
         var sourceLayer: Layer;
         var property: Property;
         var resolved: MidiActionOptionsResolved;

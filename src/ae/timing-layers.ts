@@ -1,5 +1,8 @@
 (function (api: ReOmMIDIApi) {
-    function resolveTimingLayerOptions(comp: CompItem | null, options?: TimingLayerOptions): ResolvedTimingLayerOptions {
+    function resolveTimingLayerOptions(
+        comp: CompItem | null,
+        options?: TimingLayerOptions
+    ): ResolvedTimingLayerOptions {
         var input = options || {};
         return {
             quantizeToFrames: !!input.quantizeToFrames,
@@ -14,7 +17,12 @@
         return time;
     }
 
-    function pushTimingKey(series: KeyframeSeries, time: number, value: number, options: ResolvedTimingLayerOptions): void {
+    function pushTimingKey(
+        series: KeyframeSeries,
+        time: number,
+        value: number,
+        options: ResolvedTimingLayerOptions
+    ): void {
         time = quantizeTimingTime(time, options);
         if (series.times.length && time === series.times[series.times.length - 1]) {
             series.values[series.values.length - 1] = value;
@@ -71,7 +79,10 @@
         return (midi.ticksPerBeat * 4) / signature.denominator;
     }
 
-    function buildBpmSeries(midi: MidiFileData | null | undefined, options: ResolvedTimingLayerOptions): KeyframeSeries {
+    function buildBpmSeries(
+        midi: MidiFileData | null | undefined,
+        options: ResolvedTimingLayerOptions
+    ): KeyframeSeries {
         var bpmSeries: KeyframeSeries = { times: [], values: [] };
         var tempoEvents: TempoEvent[] = [];
         var i: number;
@@ -101,7 +112,10 @@
         return bpmSeries;
     }
 
-    api.buildMetronomeSignatureSeries = function (midi: MidiFileData, options?: TimingLayerOptions): MetronomeSignatureSeries {
+    api.buildMetronomeSignatureSeries = function (
+        midi: MidiFileData,
+        options?: TimingLayerOptions
+    ): MetronomeSignatureSeries {
         var signatures = normalizeTimeSignatures(midi);
         var xSeries: KeyframeSeries = { times: [], values: [] };
         var ySeries: KeyframeSeries = { times: [], values: [] };
@@ -146,7 +160,11 @@
         var resolved: ResolvedTimingLayerOptions;
 
         if (!midi || !midi.isMidi) {
-            return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, resolveTimingLayerOptions(null, options)) };
+            return {
+                beat: beatSeries,
+                bar: barSeries,
+                bpm: buildBpmSeries(midi, resolveTimingLayerOptions(null, options))
+            };
         }
 
         resolved = resolveTimingLayerOptions(null, options);
@@ -199,7 +217,11 @@
         return true;
     }
 
-    api.createMetronomeLayer = function (comp: CompItem, midi: MidiFileData, options?: TimingLayerOptions): MetronomeLayerResult {
+    api.createMetronomeLayer = function (
+        comp: CompItem,
+        midi: MidiFileData,
+        options?: TimingLayerOptions
+    ): MetronomeLayerResult {
         var resolved: ResolvedTimingLayerOptions;
         var signatureSeries: MetronomeSignatureSeries;
         var layer: Layer;

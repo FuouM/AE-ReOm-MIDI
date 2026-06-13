@@ -67,11 +67,7 @@ let sectionMatch;
 while ((sectionMatch = sectionPattern.exec(bundleSource)) !== null) {
   bundleSections.push(sectionMatch[1]);
 }
-assert.deepStrictEqual(
-  bundleSections,
-  sourceFiles,
-  "bundle section order should match scripts/build.js sourceFiles"
-);
+assert.deepStrictEqual(bundleSections, sourceFiles, "bundle section order should match scripts/build.js sourceFiles");
 
 const forbiddenPatterns = [
   { pattern: /\bObject\.assign\b/, label: "Object.assign" },

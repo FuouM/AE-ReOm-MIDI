@@ -1739,7 +1739,11 @@ function asScriptUiPenHost(g) {
         var beatTime;
         var resolved;
         if (!midi || !midi.isMidi) {
-            return { beat: beatSeries, bar: barSeries, bpm: buildBpmSeries(midi, resolveTimingLayerOptions(null, options)) };
+            return {
+                beat: beatSeries,
+                bar: barSeries,
+                bpm: buildBpmSeries(midi, resolveTimingLayerOptions(null, options))
+            };
         }
         resolved = resolveTimingLayerOptions(null, options);
         for (s = 0; s < signatures.length; s += 1) {
@@ -5299,10 +5303,14 @@ function asScriptUiPenHost(g) {
         return api.safeProperty(transform, "ADBE Opacity");
     }
     function shapeFillColorProp(fill) {
-        return api.safeProperty(fill, "ADBE Vector Fill Color") || api.safeProperty(fill, "Color") || api.safeProperty(fill, 4);
+        return (api.safeProperty(fill, "ADBE Vector Fill Color") ||
+            api.safeProperty(fill, "Color") ||
+            api.safeProperty(fill, 4));
     }
     function shapeStrokeColorProp(stroke) {
-        return (api.safeProperty(stroke, "ADBE Vector Stroke Color") || api.safeProperty(stroke, "Color") || api.safeProperty(stroke, 4));
+        return (api.safeProperty(stroke, "ADBE Vector Stroke Color") ||
+            api.safeProperty(stroke, "Color") ||
+            api.safeProperty(stroke, 4));
     }
     function shapeStrokeOpacityProp(stroke) {
         return (api.safeProperty(stroke, "ADBE Vector Stroke Opacity") ||
@@ -6745,7 +6753,9 @@ function asScriptUiPenHost(g) {
         transform = api.safeProperty(layer, "ADBE Transform Group");
         if (!transform) {
             try {
-                transform = api.isPropContainerLike(layer.transform) ? layer.transform : layer.transform;
+                transform = api.isPropContainerLike(layer.transform)
+                    ? layer.transform
+                    : layer.transform;
             }
             catch (transformErr) { }
         }

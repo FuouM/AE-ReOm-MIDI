@@ -23,7 +23,10 @@
         return String(pitch);
     }
 
-    api.buildMidiMapDefaultLabels = function (pitches: number[], labelMode?: MidiMapLabelMode | string): NoteLabelPair[] {
+    api.buildMidiMapDefaultLabels = function (
+        pitches: number[],
+        labelMode?: MidiMapLabelMode | string
+    ): NoteLabelPair[] {
         var labels: NoteLabelPair[] = [];
         var i: number;
         for (i = 0; i < pitches.length; i += 1) {
@@ -179,10 +182,7 @@
         };
     };
 
-    api.regenerateMidiMapExpression = function (
-        state: MidiMapState,
-        labelMode?: MidiMapLabelMode | string
-    ): string {
+    api.regenerateMidiMapExpression = function (state: MidiMapState, labelMode?: MidiMapLabelMode | string): string {
         var noteLabels: NoteLabelPair[];
         if (!state || !state.pitches || !state.pitches.length) {
             throw new Error("Generate a MIDI Map from the selected layer first.");

@@ -33,10 +33,7 @@ interface ReOmMIDIApi {
     addSliderControl(layer: Layer, sliderName: string): Property;
     setHoldInterpolation(property: Property | null | undefined): void;
 
-    safeProperty(
-        group: AePropertyTreeRoot | null | undefined,
-        nameOrIndex: string | number
-    ): PropContainerLike | null;
+    safeProperty(group: AePropertyTreeRoot | null | undefined, nameOrIndex: string | number): PropContainerLike | null;
     isPropContainerLike(value: unknown): value is PropContainerLike;
     asPropContainerLike(value: unknown): PropContainerLike | null;
     isSliderPropertyLike(value: unknown): value is SliderPropertyLike;
@@ -73,10 +70,7 @@ interface ReOmMIDIApi {
         sourceLayer: Layer,
         options?: MidiActionOptionsInput | MidiActionOptionsResolved
     ): MidiActionTrigger[];
-    collectPitchValuesFromLayer(
-        sourceLayer: Layer,
-        options?: MidiActionOptionsInput
-    ): PitchValuesFromLayerResult;
+    collectPitchValuesFromLayer(sourceLayer: Layer, options?: MidiActionOptionsInput): PitchValuesFromLayerResult;
 
     resolveMidiActionOptions(
         comp: CompItem | null | undefined,
@@ -90,14 +84,7 @@ interface ReOmMIDIApi {
     rememberMidiActionSourceLayer(layer: Layer): void;
 
     countLayerSliderEffects(layer: Layer): number;
-    mapRange(
-        value: number,
-        inMin: number,
-        inMax: number,
-        outMin: number,
-        outMax: number,
-        clamp?: boolean
-    ): number;
+    mapRange(value: number, inMin: number, inMax: number, outMin: number, outMax: number, clamp?: boolean): number;
 
     buildMidiActionBakePlan(
         triggers: MidiActionTrigger[],
@@ -105,10 +92,7 @@ interface ReOmMIDIApi {
         comp: CompItem | null | undefined,
         options: MidiActionOptionsInput | MidiActionOptionsResolved
     ): MidiActionBakePlan;
-    bakeMidiActionToSelectedProperties(
-        comp: CompItem,
-        options?: MidiActionOptionsInput
-    ): BakeSelectedPropertiesResult;
+    bakeMidiActionToSelectedProperties(comp: CompItem, options?: MidiActionOptionsInput): BakeSelectedPropertiesResult;
     bakeMidiActionToProperty(
         property: Property,
         comp: CompItem,
@@ -132,11 +116,7 @@ interface ReOmMIDIApi {
         sourceLayer: Layer,
         options?: MidiActionOptionsInput
     ): MidiActionPreviewLayout;
-    previewMidiAction(
-        comp: CompItem,
-        sourceLayer: Layer,
-        options?: MidiActionOptionsInput
-    ): MidiActionPreviewLayout;
+    previewMidiAction(comp: CompItem, sourceLayer: Layer, options?: MidiActionOptionsInput): MidiActionPreviewLayout;
 
     prepareMidiActionExpression(
         comp: CompItem | null | undefined,
@@ -207,11 +187,7 @@ interface ReOmMIDIApi {
         compLike: CompItem | PianoRollCompLike,
         options?: PianoRollMapOptions
     ): PianoRollPreviewHtml;
-    previewPianoRollMap(
-        comp: CompItem,
-        sourceLayer: Layer,
-        options?: PianoRollMapOptions
-    ): PianoRollMapPreviewResult;
+    previewPianoRollMap(comp: CompItem, sourceLayer: Layer, options?: PianoRollMapOptions): PianoRollMapPreviewResult;
     createPianoRollControllerNull(
         comp: CompItem,
         sourceLayer: Layer,
@@ -220,11 +196,7 @@ interface ReOmMIDIApi {
     wireShapeStrokeFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void;
     wireShapeMasterOpacityFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void;
     createShapeRectLayer(comp: CompItem, rect: PianoRollRect): ShapeRectLayerResult;
-    createPianoRollMapLayers(
-        comp: CompItem,
-        sourceLayer: Layer,
-        options?: PianoRollMapOptions
-    ): PianoRollMapResult;
+    createPianoRollMapLayers(comp: CompItem, sourceLayer: Layer, options?: PianoRollMapOptions): PianoRollMapResult;
     channelPrefixFromLayer(layer: Layer | null | undefined): string | null;
     layerHasNamedDrumSliders(layer: Layer): boolean;
     pianoRollYForPitch(pitch: number, rangeMin: number, rollBottom: number, laneHeight: number): number;
@@ -235,17 +207,9 @@ interface ReOmMIDIApi {
     buildMidiMapDefaultLabels(pitches: number[], labelMode?: MidiMapLabelMode | string): NoteLabelPair[];
     buildMidiMapExpression(options: MidiMapExpressionOptions): string;
     parseMidiMapNoteLabelsFromExpression(expression: string): NoteLabelPair[] | null;
-    prepareMidiMapExpression(
-        comp: CompItem,
-        sourceLayer: Layer,
-        options?: MidiMapOptions
-    ): MidiMapPrepared;
+    prepareMidiMapExpression(comp: CompItem, sourceLayer: Layer, options?: MidiMapOptions): MidiMapPrepared;
     regenerateMidiMapExpression(state: MidiMapState, labelMode?: MidiMapLabelMode | string): string;
-    createMidiMapTextLayer(
-        comp: CompItem,
-        sourceLayer: Layer | null,
-        expression: string
-    ): MidiMapTextLayerResult;
+    createMidiMapTextLayer(comp: CompItem, sourceLayer: Layer | null, expression: string): MidiMapTextLayerResult;
 
     resolveToneLayerOptions(comp: CompItem | null, options?: ToneLayerOptionsInput): ToneLayerOptionsResolved;
     buildToneLayerKeyframePlan(notes: PianoRollNote[], options?: ToneLayerOptionsResolved): ToneKeyframePlan;
@@ -315,11 +279,7 @@ interface ReOmMIDIApi {
     ): DrumSequencerPrepared;
     regenerateDrumSequencerExpression(state: DrumSequencerState, expression: string): string;
     resolveTargetFootageLayer(comp: CompItem): Layer;
-    applyDrumSequencerToLayer(
-        comp: CompItem,
-        targetLayer: Layer,
-        expression: string
-    ): DrumSequencerApplyResult;
+    applyDrumSequencerToLayer(comp: CompItem, targetLayer: Layer, expression: string): DrumSequencerApplyResult;
 
     PREVIEW_SIM_STEP_SEC?: number;
     PREVIEW_MAX_DURATION_SEC?: number;

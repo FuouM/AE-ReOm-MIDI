@@ -213,7 +213,9 @@
         return totalFrames === previousTotalFrames;
     }
 
-    function frameEntriesToMapObject(entries: DrumSequencerFrameEntry[]): StringKeyedMap<{ startFrame: number; endFrame: number }> {
+    function frameEntriesToMapObject(
+        entries: DrumSequencerFrameEntry[]
+    ): StringKeyedMap<{ startFrame: number; endFrame: number }> {
         var map: StringKeyedMap<{ startFrame: number; endFrame: number }> = {};
         var i: number;
         for (i = 0; i < entries.length; i += 1) {

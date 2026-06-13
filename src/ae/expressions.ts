@@ -67,7 +67,10 @@
         return "[" + filter.join(", ") + "]";
     }
 
-    function midiActionPitchMatchesFilter(pitch: number, options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined): boolean {
+    function midiActionPitchMatchesFilter(
+        pitch: number,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined
+    ): boolean {
         var filter;
         var i;
 
@@ -84,7 +87,9 @@
         return false;
     }
 
-    function previewProgressHook(options: MidiActionOptionsInput | PianoRollMapOptions | null | undefined): PreviewProgressHook | null {
+    function previewProgressHook(
+        options: MidiActionOptionsInput | PianoRollMapOptions | null | undefined
+    ): PreviewProgressHook | null {
         if (options && options.__previewProgressHook) {
             return options.__previewProgressHook;
         }
@@ -240,9 +245,7 @@
         };
     }
 
-    function resolveAccumulatorDurationExpression(
-        options: MidiActionOptionsInput | MidiActionOptionsResolved
-    ): string {
+    function resolveAccumulatorDurationExpression(options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         if (options.useOutputSliders) {
             return outputSliderExpression(MIDI_ACTION_DURATION_SLIDER);
         }
@@ -745,7 +748,10 @@
         return api.buildPumpExpression(options);
     };
 
-    api.collectMidiActionTriggers = function (midi: MidiFileData, options?: MidiActionOptionsInput): MidiActionTrigger[] {
+    api.collectMidiActionTriggers = function (
+        midi: MidiFileData,
+        options?: MidiActionOptionsInput
+    ): MidiActionTrigger[] {
         var triggers = [];
         var noteEvents = midi.notes || [];
         var i;
@@ -805,7 +811,9 @@
         return 1 - x;
     }
 
-    function midiActionUsesTriggerLimits(options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined): boolean {
+    function midiActionUsesTriggerLimits(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined
+    ): boolean {
         return !!(options && options.limitTriggers);
     }
 
@@ -2309,7 +2317,9 @@
         return maxNotes < 0 || notes.length < maxNotes;
     }
 
-    function pianoRollHasTimeFilter(options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined): boolean {
+    function pianoRollHasTimeFilter(
+        options: PianoRollMapOptions | ResolvedPianoRollMapOptions | null | undefined
+    ): boolean {
         return !!(
             options &&
             (options.useWorkArea || typeof options.timeStart !== "undefined" || typeof options.timeEnd !== "undefined")
@@ -2946,10 +2956,7 @@
         }
     }
 
-    api.collectPianoRollNotesFromLayer = function (
-        layer: Layer,
-        options?: PianoRollMapOptions
-    ): PianoRollNote[] {
+    api.collectPianoRollNotesFromLayer = function (layer: Layer, options?: PianoRollMapOptions): PianoRollNote[] {
         options = options || {};
         var maxNotes = parsePianoRollMaxNotes(options.maxNotes, 10);
         var notes: PianoRollNote[] = [];
@@ -3125,10 +3132,7 @@
         return false;
     }
 
-    api.collectDrumHitNotesFromLayer = function (
-        layer: Layer,
-        options?: PianoRollMapOptions
-    ): PianoRollNote[] {
+    api.collectDrumHitNotesFromLayer = function (layer: Layer, options?: PianoRollMapOptions): PianoRollNote[] {
         var maxNotes: number;
         var notes: PianoRollNote[] = [];
         var drumChannels: { [channel: number]: boolean } = {};
@@ -3706,7 +3710,11 @@
         };
     };
 
-    function setPropValue(group: PropContainerLike | null | undefined, name: string, value: number | number[] | string): boolean {
+    function setPropValue(
+        group: PropContainerLike | null | undefined,
+        name: string,
+        value: number | number[] | string
+    ): boolean {
         var prop = api.safeProperty(group, name);
         if (prop && prop.setValue) {
             try {
@@ -3935,12 +3943,18 @@
     }
 
     function shapeFillColorProp(fill: PropContainerLike | null): PropContainerLike | null {
-        return api.safeProperty(fill, "ADBE Vector Fill Color") || api.safeProperty(fill, "Color") || api.safeProperty(fill, 4);
+        return (
+            api.safeProperty(fill, "ADBE Vector Fill Color") ||
+            api.safeProperty(fill, "Color") ||
+            api.safeProperty(fill, 4)
+        );
     }
 
     function shapeStrokeColorProp(stroke: PropContainerLike | null): PropContainerLike | null {
         return (
-            api.safeProperty(stroke, "ADBE Vector Stroke Color") || api.safeProperty(stroke, "Color") || api.safeProperty(stroke, 4)
+            api.safeProperty(stroke, "ADBE Vector Stroke Color") ||
+            api.safeProperty(stroke, "Color") ||
+            api.safeProperty(stroke, 4)
         );
     }
 

@@ -2606,11 +2606,7 @@
         try {
             var linkGraphics = githubLink.graphics;
             var linkGfx = asScriptUiPenHost(linkGraphics);
-            var bluePen = linkGfx.newPen(
-                linkGfx.PenType.SOLID_COLOR,
-                [0.29, 0.56, 0.89, 1.0],
-                1
-            );
+            var bluePen = linkGfx.newPen(linkGfx.PenType.SOLID_COLOR, [0.29, 0.56, 0.89, 1.0], 1);
             linkGfx.foregroundColor = bluePen;
         } catch (colorErr) {}
 
