@@ -41,7 +41,12 @@
         };
     }
 
-    function addLabeledControl(parent: Window | Panel | Tab | Group, labelText: string, controlType: string, controlText?: string | string[]) {
+    function addLabeledControl(
+        parent: Window | Panel | Tab | Group,
+        labelText: string,
+        controlType: string,
+        controlText?: string | string[]
+    ) {
         var group = parent.add("group");
         var label = group.add("statictext", undefined, labelText);
         var control = group.add(controlType as "edittext", undefined, controlText as string) as unknown as _Control;
@@ -154,7 +159,10 @@
         return [0.22, 0.74, 0.97, opacity];
     }
 
-    function drawPianoRollPreviewCanvas(canvasPanel: Group, layout: PianoRollPreviewLayout & { loading?: boolean }): void {
+    function drawPianoRollPreviewCanvas(
+        canvasPanel: Group,
+        layout: PianoRollPreviewLayout & { loading?: boolean }
+    ): void {
         var g = canvasPanel.graphics;
         var dims = previewCanvasSize(canvasPanel);
         var w = dims[0];
@@ -189,7 +197,11 @@
         if (hasGraph) {
             dataW = Math.max(1, bounds.right - bounds.left);
             dataH = Math.max(1, bounds.bottom - bounds.top);
-            axisPen = g.newPen(g.PenType.SOLID_COLOR as never, colorWithOpacity([0.396, 0.439, 0.525], graphOpacity), 1);
+            axisPen = g.newPen(
+                g.PenType.SOLID_COLOR as never,
+                colorWithOpacity([0.396, 0.439, 0.525], graphOpacity),
+                1
+            );
 
             g.newPath();
             g.moveTo(pad, pad + plotH);
@@ -215,7 +227,10 @@
         }
     }
 
-    function bindPianoRollPreviewCanvas(canvasPanel: Group, layout: PianoRollPreviewLayout & { loading?: boolean }): void {
+    function bindPianoRollPreviewCanvas(
+        canvasPanel: Group,
+        layout: PianoRollPreviewLayout & { loading?: boolean }
+    ): void {
         canvasPanel._pianoRollPreviewLayout = layout;
         canvasPanel._pianoRollPreviewRevision = (canvasPanel._pianoRollPreviewRevision || 0) + 1;
         canvasPanel.onDraw = function () {
@@ -282,7 +297,12 @@
         refreshScriptUiHost(state.win);
     }
 
-    function bindPanelResizeHandlers(win: Window | Panel, panelState: ReOmPanelUiState, mapPreviewState: ReOmPreviewState, actionPreviewState: ReOmPreviewState): void {
+    function bindPanelResizeHandlers(
+        win: Window | Panel,
+        panelState: ReOmPanelUiState,
+        mapPreviewState: ReOmPreviewState,
+        actionPreviewState: ReOmPreviewState
+    ): void {
         function relayoutPanelHost() {
             if (
                 win instanceof Window &&
@@ -349,7 +369,10 @@
         repaintScriptUiHost(state.win);
     };
 
-    function previewStateForFlush(flushName: string, state: ReOmPanelUiState | null | undefined): ReOmPreviewState | null {
+    function previewStateForFlush(
+        flushName: string,
+        state: ReOmPanelUiState | null | undefined
+    ): ReOmPreviewState | null {
         if (!state) {
             return null;
         }
@@ -450,7 +473,10 @@
         } catch (notifyErr) {}
     }
 
-    function relayoutPreviewHost(rootWin: Window | Panel | null | undefined, canvasPanel: _Control | Group | null | undefined): void {
+    function relayoutPreviewHost(
+        rootWin: Window | Panel | null | undefined,
+        canvasPanel: _Control | Group | null | undefined
+    ): void {
         var tab = findPreviewHostTab(canvasPanel);
         if (rootWin && rootWin.layout && rootWin.layout.resize) {
             rootWin.layout.resize();
@@ -507,7 +533,10 @@
 
     api.flushActionPreviewCanvas = flushActionPreviewCanvasNow;
 
-    function queueActionPreviewRedraw(canvasPanel: Group | null | undefined, rootWin: Window | Panel | null | undefined): void {
+    function queueActionPreviewRedraw(
+        canvasPanel: Group | null | undefined,
+        rootWin: Window | Panel | null | undefined
+    ): void {
         if (!canvasPanel) {
             return;
         }
@@ -529,7 +558,10 @@
 
     api.flushPianoRollPreviewCanvas = flushPianoRollPreviewCanvasNow;
 
-    function queuePianoRollPreviewRedraw(canvasPanel: Group | null | undefined, rootWin: Window | Panel | null | undefined): void {
+    function queuePianoRollPreviewRedraw(
+        canvasPanel: Group | null | undefined,
+        rootWin: Window | Panel | null | undefined
+    ): void {
         if (!canvasPanel) {
             return;
         }
@@ -540,7 +572,10 @@
         flushPianoRollPreviewCanvasNow();
     }
 
-    function invalidatePianoRollPreviewCanvas(canvasPanel: Group | null | undefined, rootWin: Window | Panel | null | undefined): void {
+    function invalidatePianoRollPreviewCanvas(
+        canvasPanel: Group | null | undefined,
+        rootWin: Window | Panel | null | undefined
+    ): void {
         queuePianoRollPreviewRedraw(canvasPanel, rootWin);
     }
 
@@ -599,7 +634,10 @@
             return;
         }
         now = new Date().getTime();
-        if (typeof hook.percent !== "number" || (hook.percent < 100 && hook.lastUiMs && now - hook.lastUiMs < PREVIEW_PROGRESS_UI_MS)) {
+        if (
+            typeof hook.percent !== "number" ||
+            (hook.percent < 100 && hook.lastUiMs && now - hook.lastUiMs < PREVIEW_PROGRESS_UI_MS)
+        ) {
             return;
         }
         hook.lastUiMs = now;
@@ -704,7 +742,10 @@
         return [color[0], color[1], color[2], opacity];
     }
 
-    function pianoRollPreviewLoadingLayout(canvasPanel: Group, sourceLabel: string): PianoRollPreviewLayout & { loading?: boolean; loadingFrame?: number } {
+    function pianoRollPreviewLoadingLayout(
+        canvasPanel: Group,
+        sourceLabel: string
+    ): PianoRollPreviewLayout & { loading?: boolean; loadingFrame?: number } {
         var previous = canvasPanel && canvasPanel._pianoRollPreviewLayout;
         if (previous && previous.rects && previous.rects.length && !previous.loading) {
             return {
@@ -740,7 +781,10 @@
         }
         targets = host.ensure();
         if (targets.canvas) {
-            bindPianoRollPreviewCanvas(targets.canvas, pianoRollPreviewLoadingLayout(targets.canvas, sourceLabel || ""));
+            bindPianoRollPreviewCanvas(
+                targets.canvas,
+                pianoRollPreviewLoadingLayout(targets.canvas, sourceLabel || "")
+            );
         }
         globalState().previewCanvas = targets.canvas as unknown as _Control;
         globalState().previewCanvasRoot = host.win || null;
@@ -778,7 +822,10 @@
 
     api.refreshPianoRollPreviewPanel = flushPianoRollPreviewCanvasNow;
 
-    function midiActionPreviewLoadingLayout(canvasPanel: Group, sourceLabel: string): MidiActionPreviewLayout & { loading?: boolean; loadingFrame?: number } {
+    function midiActionPreviewLoadingLayout(
+        canvasPanel: Group,
+        sourceLabel: string
+    ): MidiActionPreviewLayout & { loading?: boolean; loadingFrame?: number } {
         var previous = canvasPanel && canvasPanel._midiActionPreviewLayout;
         if (previous && previous.points && previous.points.length && !previous.loading) {
             return {
@@ -806,7 +853,9 @@
         };
     }
 
-    function previewCanvasLayout(canvasPanel: Group): PianoRollPreviewLayout | (MidiActionPreviewLayout & { loading?: boolean }) | null {
+    function previewCanvasLayout(
+        canvasPanel: Group
+    ): PianoRollPreviewLayout | (MidiActionPreviewLayout & { loading?: boolean }) | null {
         return (canvasPanel && (canvasPanel._pianoRollPreviewLayout || canvasPanel._midiActionPreviewLayout)) || null;
     }
 
@@ -848,7 +897,12 @@
         host: ReOmPreviewHost | null | undefined,
         targets: ReOmPreviewState,
         sourceLabel: string,
-        startAnimationFn: (canvasPanel: Group, rootWin: Window | Panel | undefined, summaryControl: _Control, sourceLabel: string) => void
+        startAnimationFn: (
+            canvasPanel: Group,
+            rootWin: Window | Panel | undefined,
+            summaryControl: _Control,
+            sourceLabel: string
+        ) => void
     ): void {
         if (host && host.previewState && host.win) {
             primePreviewHostLayout(host.previewState, host.win);
@@ -970,7 +1024,12 @@
         }
     }
 
-    function startMidiActionPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel | undefined, summaryControl: _Control, sourceLabel: string): void {
+    function startMidiActionPreviewLoadingAnimation(
+        canvasPanel: Group,
+        rootWin: Window | Panel | undefined,
+        summaryControl: _Control,
+        sourceLabel: string
+    ): void {
         stopMidiActionPreviewLoadingAnimation();
         globalState().actionPreviewLoading = true;
         globalState().actionPreviewLoadingSummary = summaryControl;
@@ -990,7 +1049,12 @@
         }
     }
 
-    function startPianoRollPreviewLoadingAnimation(canvasPanel: Group, rootWin: Window | Panel | undefined, summaryControl: _Control, sourceLabel: string): void {
+    function startPianoRollPreviewLoadingAnimation(
+        canvasPanel: Group,
+        rootWin: Window | Panel | undefined,
+        summaryControl: _Control,
+        sourceLabel: string
+    ): void {
         stopPianoRollPreviewLoadingAnimation();
         globalState().pianoRollPreviewLoading = true;
         globalState().pianoRollPreviewLoadingSummary = summaryControl;
@@ -1007,7 +1071,10 @@
         }
     }
 
-    function drawMidiActionPreviewCanvas(canvasPanel: Group, layout: MidiActionPreviewLayout & { loading?: boolean }): void {
+    function drawMidiActionPreviewCanvas(
+        canvasPanel: Group,
+        layout: MidiActionPreviewLayout & { loading?: boolean }
+    ): void {
         var g = canvasPanel.graphics;
         var dims = previewCanvasSize(canvasPanel);
         var w = dims[0];
@@ -1048,8 +1115,16 @@
         if (hasGraph) {
             dataW = Math.max(0.001, bounds.right - bounds.left);
             dataH = Math.max(0.001, bounds.top - bounds.bottom);
-            axisPen = g.newPen(g.PenType.SOLID_COLOR as never, colorWithOpacity([0.396, 0.439, 0.525], graphOpacity), 1);
-            triggerPen = g.newPen(g.PenType.SOLID_COLOR as never, colorWithOpacity([0.82, 0.62, 0.28], graphOpacity), 1);
+            axisPen = g.newPen(
+                g.PenType.SOLID_COLOR as never,
+                colorWithOpacity([0.396, 0.439, 0.525], graphOpacity),
+                1
+            );
+            triggerPen = g.newPen(
+                g.PenType.SOLID_COLOR as never,
+                colorWithOpacity([0.82, 0.62, 0.28], graphOpacity),
+                1
+            );
             curvePen = g.newPen(g.PenType.SOLID_COLOR as never, colorWithOpacity([0.49, 0.83, 0.99], graphOpacity), 2);
 
             g.newPath();
@@ -1081,7 +1156,10 @@
         }
     }
 
-    function bindMidiActionPreviewCanvas(canvasPanel: Group, layout: MidiActionPreviewLayout & { loading?: boolean }): void {
+    function bindMidiActionPreviewCanvas(
+        canvasPanel: Group,
+        layout: MidiActionPreviewLayout & { loading?: boolean }
+    ): void {
         canvasPanel._midiActionPreviewLayout = layout;
         canvasPanel._midiActionPreviewRevision = (canvasPanel._midiActionPreviewRevision || 0) + 1;
         canvasPanel.onDraw = function () {
@@ -1104,7 +1182,10 @@
         }
         targets = host.ensure();
         if (targets.canvas) {
-            bindMidiActionPreviewCanvas(targets.canvas, midiActionPreviewLoadingLayout(targets.canvas, sourceLabel || ""));
+            bindMidiActionPreviewCanvas(
+                targets.canvas,
+                midiActionPreviewLoadingLayout(targets.canvas, sourceLabel || "")
+            );
         }
         globalState().actionPreviewCanvas = targets.canvas as unknown as _Control;
         globalState().actionPreviewCanvasRoot = host.win || null;
@@ -1853,7 +1934,10 @@
             setLabeledControlLabel(falloff, "Falloff");
 
             setScriptUiGroupVisible(actionSettingsPairGroup as unknown as _Control, presetShowsActive(preset));
-            setScriptUiGroupVisible(actionSettingsAmountGroup as unknown as _Control, presetShowsAmountDuration(preset));
+            setScriptUiGroupVisible(
+                actionSettingsAmountGroup as unknown as _Control,
+                presetShowsAmountDuration(preset)
+            );
             setScriptUiGroupVisible(actionSettingsFalloffGroup as unknown as _Control, presetShowsFalloff(preset));
             relayoutActionSettingsPanel(preset);
         }
@@ -2226,7 +2310,9 @@
                 "Zone reference: Kick frames ~11\u201330, Snare ~33\u201352, Hats ~86\u2013128."
         );
 
-        drumSeqSummary = tab.add("statictext", undefined, "No map generated yet.", { multiline: true }) as unknown as _Control;
+        drumSeqSummary = tab.add("statictext", undefined, "No map generated yet.", {
+            multiline: true
+        }) as unknown as _Control;
         drumSeqSummary.alignment = ["fill", "top"];
 
         drumSeqSettingsPanel = addOptionsPanel(tab, "Drum Sequencer Settings");
@@ -2363,7 +2449,9 @@
                 "To copy the final expression, click inside the editor box, press Ctrl+A, then Ctrl+C, and paste it into the Source Text expression of any Text Layer."
         );
 
-        midiMapSummary = tab.add("statictext", undefined, "No map generated yet.", { multiline: true }) as unknown as _Control;
+        midiMapSummary = tab.add("statictext", undefined, "No map generated yet.", {
+            multiline: true
+        }) as unknown as _Control;
         midiMapSummary.alignment = ["fill", "top"];
 
         midiMapLabelWarning = tab.add(
@@ -2751,7 +2839,7 @@
             }
             featureTabs.selection = tab;
             if (tab === (actionsUi.tab as Tab)) {
-                ((actionsUi.refreshActionPresetFieldVisibility as unknown) as () => void)();
+                (actionsUi.refreshActionPresetFieldVisibility as unknown as () => void)();
             }
             resizeScriptUiHost(win);
             refreshExpandedPreviewHosts(win, mapPreviewState, actionPreviewState);
@@ -2788,7 +2876,7 @@
 
         featureTabs.onChange = function () {
             if (featureTabs.selection === (actionsUi.tab as Tab)) {
-                ((actionsUi.refreshActionPresetFieldVisibility as unknown) as () => void)();
+                (actionsUi.refreshActionPresetFieldVisibility as unknown as () => void)();
             }
         };
 
@@ -2797,17 +2885,17 @@
             isPanel: isPanel,
             lockedWindowHeight: PANEL_LOCKED_HEIGHT,
             featureTabs: featureTabs,
-            importTab: (importUi.tab as unknown) as Tab,
-            pianoRollTab: (pianoRollUi.tab as unknown) as Tab,
-            actionsTab: (actionsUi.tab as unknown) as Tab,
-            drumMachineTab: (drumMachineUi.tab as unknown) as Tab,
-            drumSequencerTab: (drumSequencerUi.tab as unknown) as Tab,
-            mapTab: (mapUi.tab as unknown) as Tab,
-            miscTab: (miscUi.tab as unknown) as Tab,
+            importTab: importUi.tab as unknown as Tab,
+            pianoRollTab: pianoRollUi.tab as unknown as Tab,
+            actionsTab: actionsUi.tab as unknown as Tab,
+            drumMachineTab: drumMachineUi.tab as unknown as Tab,
+            drumSequencerTab: drumSequencerUi.tab as unknown as Tab,
+            mapTab: mapUi.tab as unknown as Tab,
+            miscTab: miscUi.tab as unknown as Tab,
             mapPreviewState: mapPreviewState,
             actionPreviewState: actionPreviewState,
-            syncActionPresetUi: (actionsUi.syncActionPresetUi as unknown) as () => void,
-            refreshActionPresetFieldVisibility: (actionsUi.refreshActionPresetFieldVisibility as unknown) as () => void
+            syncActionPresetUi: actionsUi.syncActionPresetUi as unknown as () => void,
+            refreshActionPresetFieldVisibility: actionsUi.refreshActionPresetFieldVisibility as unknown as () => void
         };
         api.selectFeatureTab = selectFeatureTab;
         api.refreshPanelLayout = function () {

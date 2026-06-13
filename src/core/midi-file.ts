@@ -100,7 +100,11 @@
         return new (MidiFile as MidiFileConstructor)(result, filePath);
     };
 
-    MidiFile.prototype.getChannel = function (this: MidiFileData, trackIndex: number, midiChannel: number): MidiChannel {
+    MidiFile.prototype.getChannel = function (
+        this: MidiFileData,
+        trackIndex: number,
+        midiChannel: number
+    ): MidiChannel {
         var index = trackIndex * 16 + midiChannel;
         var channel = this.channels[index];
         var track = this.tracks[trackIndex];
@@ -263,7 +267,12 @@
         return midi._timeSegments;
     }
 
-    MidiFile.prototype.parseTrack = function (this: MidiFileData, trackIndex: number, start: number, end: number): void {
+    MidiFile.prototype.parseTrack = function (
+        this: MidiFileData,
+        trackIndex: number,
+        start: number,
+        end: number
+    ): void {
         var data = this.data;
         var offset = start;
         var ticks = 0;

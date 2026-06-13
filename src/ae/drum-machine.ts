@@ -339,7 +339,11 @@
             if (!pitchMatchesFilter(note.pitch, drumMachinePitchFilter(options))) {
                 continue;
             }
-            if (options.useWorkArea && typeof options.timeStart !== "undefined" && typeof options.timeEnd !== "undefined") {
+            if (
+                options.useWorkArea &&
+                typeof options.timeStart !== "undefined" &&
+                typeof options.timeEnd !== "undefined"
+            ) {
                 if (note.time < options.timeStart || note.time >= options.timeEnd) {
                     continue;
                 }
@@ -1099,7 +1103,9 @@
         controllerOptions = { includeFillControls: false } as PianoRollMapOptions;
         for (key in options) {
             if (options.hasOwnProperty(key)) {
-                (controllerOptions as StringKeyedMap<unknown>)[key] = (options as unknown as StringKeyedMap<unknown>)[key];
+                (controllerOptions as StringKeyedMap<unknown>)[key] = (options as unknown as StringKeyedMap<unknown>)[
+                    key
+                ];
             }
         }
         controllerInfo = api.createPianoRollControllerNull(comp, sourceLayer, controllerOptions);

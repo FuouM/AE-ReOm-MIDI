@@ -1480,8 +1480,7 @@ function asScriptUiPenHost(g) {
         var i;
         for (i = 0; i < midi.channels.length; i += 1) {
             var channelEntry = midi.channels[i];
-            if (channelEntry &&
-                channelHasEvents(channelEntry, options.includeControllers, options.includePitchBends)) {
+            if (channelEntry && channelHasEvents(channelEntry, options.includeControllers, options.includePitchBends)) {
                 channels.push(channelEntry);
             }
         }
@@ -2581,7 +2580,10 @@ function asScriptUiPenHost(g) {
         var note;
         for (i = 0; i < noteEvents.length; i += 1) {
             note = noteEvents[i];
-            if (!note || note.velocity <= 0 || !midiActionPitchMatchesFilter(note.pitch, options) || typeof note.time === "undefined") {
+            if (!note ||
+                note.velocity <= 0 ||
+                !midiActionPitchMatchesFilter(note.pitch, options) ||
+                typeof note.time === "undefined") {
                 continue;
             }
             triggers.push({
@@ -3764,13 +3766,16 @@ function asScriptUiPenHost(g) {
             }
             if (n >= 0 && time <= triggers[n].time + windowDuration) {
                 from = addDeltaValue(to, -triggers[n].amount);
-                f = 1 - falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration);
+                f =
+                    1 -
+                        falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration);
                 return addDeltaValue(from, triggers[n].amount * f);
             }
             return to;
         }
         if (n >= 0 && time <= triggers[n].time + windowDuration) {
-            return addDeltaValue(base, amount * falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration));
+            return addDeltaValue(base, amount *
+                falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration));
         }
         return cloneValue(base);
     }
@@ -7270,7 +7275,9 @@ function asScriptUiPenHost(g) {
             if (!pitchMatchesFilter(note.pitch, drumMachinePitchFilter(options))) {
                 continue;
             }
-            if (options.useWorkArea && typeof options.timeStart !== "undefined" && typeof options.timeEnd !== "undefined") {
+            if (options.useWorkArea &&
+                typeof options.timeStart !== "undefined" &&
+                typeof options.timeEnd !== "undefined") {
                 if (note.time < options.timeStart || note.time >= options.timeEnd) {
                     continue;
                 }
@@ -9260,7 +9267,8 @@ function asScriptUiPenHost(g) {
             return;
         }
         now = new Date().getTime();
-        if (typeof hook.percent !== "number" || (hook.percent < 100 && hook.lastUiMs && now - hook.lastUiMs < PREVIEW_PROGRESS_UI_MS)) {
+        if (typeof hook.percent !== "number" ||
+            (hook.percent < 100 && hook.lastUiMs && now - hook.lastUiMs < PREVIEW_PROGRESS_UI_MS)) {
             return;
         }
         hook.lastUiMs = now;
@@ -10707,7 +10715,9 @@ function asScriptUiPenHost(g) {
             "Generate a drum-to-frame expression (default pitch order in drumFrameList), reorder entries by editing drumFrameList in the expression box to set overlap priority, edit startFrame/endFrame as needed, then Apply to enable Time Remap. " +
             "Legacy layers without named drum sliders still use the pitch slider map. " +
             "Zone reference: Kick frames ~11\u201330, Snare ~33\u201352, Hats ~86\u2013128.");
-        drumSeqSummary = tab.add("statictext", undefined, "No map generated yet.", { multiline: true });
+        drumSeqSummary = tab.add("statictext", undefined, "No map generated yet.", {
+            multiline: true
+        });
         drumSeqSummary.alignment = ["fill", "top"];
         drumSeqSettingsPanel = addOptionsPanel(tab, "Drum Sequencer Settings");
         drumSeqTotalFrames = addLabeledControl(drumSeqSettingsPanel, "Total frames", "edittext", "0");
@@ -10822,7 +10832,9 @@ function asScriptUiPenHost(g) {
         tab.alignment = ["fill", "fill"];
         addWrappedHintText(tab, "Select an imported MIDI null layer in the timeline, detect its pitch range, and customize the string map values in the expression editor box below. " +
             "To copy the final expression, click inside the editor box, press Ctrl+A, then Ctrl+C, and paste it into the Source Text expression of any Text Layer.");
-        midiMapSummary = tab.add("statictext", undefined, "No map generated yet.", { multiline: true });
+        midiMapSummary = tab.add("statictext", undefined, "No map generated yet.", {
+            multiline: true
+        });
         midiMapSummary.alignment = ["fill", "top"];
         midiMapLabelWarning = tab.add("statictext", undefined, "Warning: Switching note/drum labels will overwrite any manual modifications made in the expression box.", { multiline: true });
         midiMapLabelWarning.alignment = ["fill", "top"];

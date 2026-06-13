@@ -75,10 +75,7 @@
         var i: number;
         for (i = 0; i < midi.channels.length; i += 1) {
             var channelEntry = midi.channels[i];
-            if (
-                channelEntry &&
-                channelHasEvents(channelEntry, options.includeControllers, options.includePitchBends)
-            ) {
+            if (channelEntry && channelHasEvents(channelEntry, options.includeControllers, options.includePitchBends)) {
                 channels.push(channelEntry);
             }
         }
@@ -172,12 +169,7 @@
                         if (!controllerEvent || typeof controllerEvent.time === "undefined") {
                             continue;
                         }
-                        pushKey(
-                            cc,
-                            controllerEvent.time,
-                            controllerEvent.value,
-                            options
-                        );
+                        pushKey(cc, controllerEvent.time, controllerEvent.value, options);
                     }
                     applySeries(layer, api.formatStandardEffectName(channel, "CC " + controller), cc);
                 }

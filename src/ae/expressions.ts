@@ -764,7 +764,12 @@
 
         for (i = 0; i < noteEvents.length; i += 1) {
             note = noteEvents[i];
-            if (!note || note.velocity <= 0 || !midiActionPitchMatchesFilter(note.pitch, options) || typeof note.time === "undefined") {
+            if (
+                !note ||
+                note.velocity <= 0 ||
+                !midiActionPitchMatchesFilter(note.pitch, options) ||
+                typeof note.time === "undefined"
+            ) {
                 continue;
             }
             triggers.push({
@@ -1820,7 +1825,10 @@
         sourceLayer: Layer,
         options?: MidiActionOptionsInput | MidiActionOptionsResolved
     ): MidiActionTrigger[] {
-        return filterMidiActionTriggers(sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)), options || {});
+        return filterMidiActionTriggers(
+            sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)),
+            options || {}
+        );
     };
 
     function parseValueLiteral(
@@ -2093,7 +2101,9 @@
             }
             if (n >= 0 && time <= triggers[n].time + windowDuration) {
                 from = addDeltaValue(to, -triggers[n].amount);
-                f = 1 - falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration);
+                f =
+                    1 -
+                    falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration);
                 return addDeltaValue(from, triggers[n].amount * f);
             }
             return to;
@@ -2101,7 +2111,8 @@
         if (n >= 0 && time <= triggers[n].time + windowDuration) {
             return addDeltaValue(
                 base,
-                amount * falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration)
+                amount *
+                    falloffValue(time, triggers[n].time, duration, options.falloff || "linear", options.frameDuration)
             );
         }
         return cloneValue(base);
@@ -2497,7 +2508,15 @@
         pitchSlider = sliderFromEffectIndex(sliderIndex, prefix + " pitch");
         velSlider = sliderFromEffectIndex(sliderIndex, prefix + " velocity");
         durSlider = sliderFromEffectIndex(sliderIndex, prefix + " duration");
-        appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
+        appendPitchSliderNotes(
+            pitchSlider || null,
+            velSlider || null,
+            durSlider || null,
+            notes,
+            maxNotes,
+            midiChannel,
+            options
+        );
     }
 
     function collectDrumNotesForPrefix(
@@ -2708,7 +2727,15 @@
             }
             velSlider = group.velocity;
             durSlider = group.duration;
-            appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
+            appendPitchSliderNotes(
+                pitchSlider || null,
+                velSlider || null,
+                durSlider || null,
+                notes,
+                maxNotes,
+                midiChannel,
+                options
+            );
             if (!pianoRollCanAddMore(notes, maxNotes)) {
                 return;
             }
@@ -2983,7 +3010,15 @@
             }
         }
         if (pitchSlider) {
-            appendPitchSliderNotes(pitchSlider || null, velSlider || null, durSlider || null, notes, maxNotes, midiChannel, options);
+            appendPitchSliderNotes(
+                pitchSlider || null,
+                velSlider || null,
+                durSlider || null,
+                notes,
+                maxNotes,
+                midiChannel,
+                options
+            );
         }
     }
 
@@ -4492,7 +4527,10 @@
                 }
                 n = triggerIndex;
                 if (n >= 0 && evalTime <= triggers[n].time + windowDuration) {
-                    from = addDeltaValue(accumTotal === null ? (0 as MidiActionPropertyValue) : accumTotal, -triggers[n].amount);
+                    from = addDeltaValue(
+                        accumTotal === null ? (0 as MidiActionPropertyValue) : accumTotal,
+                        -triggers[n].amount
+                    );
                     f =
                         1 -
                         falloffValue(
