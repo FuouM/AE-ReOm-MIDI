@@ -1,6 +1,8 @@
 /** ExtendScript / Node host globals used by ReOm MIDI core modules. */
 
 interface ReOmGlobalState {
+    actionSourceLayerName?: string;
+    pitchSliderCache?: { [layerName: string]: string };
     [key: string]: unknown;
 }
 

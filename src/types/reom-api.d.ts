@@ -47,5 +47,165 @@ interface ReOmMIDIApi {
     createMetronomeLayer(comp: CompItem, midi: MidiFileData, options?: TimingLayerOptions): MetronomeLayerResult;
     createBpmLayer(comp: CompItem, midi: MidiFileData, options?: TimingLayerOptions): BpmLayerResult;
 
+    midiActionUsesBaseField(preset: MidiActionPreset | string): boolean;
+    midiActionUsesActiveField(preset: MidiActionPreset | string): boolean;
+    midiActionUsesAmountDurationFields(preset: MidiActionPreset | string): boolean;
+    midiActionUsesFalloffField(preset: MidiActionPreset | string): boolean;
+
+    buildToggleExpression(options: MidiActionOptionsInput | MidiActionOptionsResolved): string;
+    buildInterpolateExpression(options: MidiActionOptionsInput | MidiActionOptionsResolved): string;
+    buildPumpExpression(options: MidiActionOptionsInput | MidiActionOptionsResolved): string;
+    buildAccumulatorExpression(options: MidiActionOptionsInput | MidiActionOptionsResolved): string;
+    buildMidiActionExpression(options?: MidiActionOptionsInput | MidiActionOptionsResolved): string;
+    buildScreenFlipExpression(options?: MidiActionOptionsInput | MidiActionOptionsResolved): string;
+
+    collectMidiActionTriggers(midi: MidiFileData, options?: MidiActionOptionsInput): MidiActionTrigger[];
+    collectMidiActionTriggersFromLayer(
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionTrigger[];
+    collectPitchValuesFromLayer(
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): PitchValuesFromLayerResult;
+
+    resolveMidiActionOptions(
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | null | undefined,
+        sourceLayer: Layer | null | undefined
+    ): MidiActionOptionsResolved;
+    resolveMidiSourceLayer(comp: CompItem, options?: MidiActionOptionsInput): Layer;
+    resolvePitchSliderName(layer: Layer, options?: MidiActionOptionsInput): string;
+    resolveDurationSliderName(layer: Layer, options?: MidiActionOptionsInput): string;
+    detectPitchSliderName(layer: Layer | null | undefined): string | null;
+    rememberMidiActionSourceLayer(layer: Layer): void;
+
+    countLayerSliderEffects(layer: Layer): number;
+    mapRange(
+        value: number,
+        inMin: number,
+        inMax: number,
+        outMin: number,
+        outMax: number,
+        clamp?: boolean
+    ): number;
+
+    buildMidiActionBakePlan(
+        triggers: MidiActionTrigger[],
+        property: Property,
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionBakePlan;
+    bakeMidiActionToSelectedProperties(
+        comp: CompItem,
+        options?: MidiActionOptionsInput
+    ): BakeSelectedPropertiesResult;
+    bakeMidiActionToProperty(
+        property: Property,
+        comp: CompItem,
+        sourceLayer: Layer,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): BakePropertyResult;
+
+    simulateMidiAction(midi: MidiFileData, options?: MidiActionOptionsInput): MidiActionSimulation;
+    simulateMidiActionFromLayer(
+        sourceLayer: Layer,
+        comp: CompItem | null | undefined,
+        options?: MidiActionOptionsInput
+    ): MidiActionSimulation;
+    buildMidiActionPreviewLayout(
+        sourceLayer: Layer,
+        comp: CompItem | null | undefined,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionPreviewLayout;
+    computeMidiActionPreviewLayout(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): MidiActionPreviewLayout;
+    previewMidiAction(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): MidiActionPreviewLayout;
+
+    prepareMidiActionExpression(
+        comp: CompItem | null | undefined,
+        sourceLayer: Layer | null | undefined,
+        options?: MidiActionOptionsInput
+    ): PrepareMidiActionExpressionResult;
+    buildMidiActionExpressionFromLayer(
+        comp: CompItem | null | undefined,
+        sourceLayer: Layer | null | undefined,
+        options?: MidiActionOptionsInput
+    ): string;
+    createMidiActionNullWithExpression(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): CreateMidiActionNullResult;
+    createMidiActionNullWithBake(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): CreateMidiActionNullBakeResult;
+    applyExpressionToSelectedProperties(
+        comp: CompItem,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): ApplyExpressionResult;
+    applyMidiActionExpressionToProperty(property: Property, expression: string): boolean;
+    resolveScreenFlipActionOptions(
+        comp: CompItem,
+        property: Property,
+        axis: string,
+        options: MidiActionOptionsInput | null | undefined,
+        sourceLayer: Layer
+    ): MidiActionOptionsResolved;
+
+    getCompSelectedLayers(comp: CompItem | null | undefined): Layer[];
+    isMidiImportSourceLayer(layer: Layer | null | undefined): boolean;
+
+    getActivePreviewProgressHook?(): PreviewProgressHook | null;
+    endPreviewProgress?(hook: PreviewProgressHook): void;
+    showMidiActionPreviewInPanel?(layout: MidiActionPreviewLayout): void;
+    showPianoRollPreviewInPanel?(layout: unknown): void;
+    showPianoRollPreviewLoadingInPanel?(sourceLabel: string): void;
+
+    resolvePianoRollMapOptions(
+        comp: CompItem | null | undefined,
+        options?: PianoRollMapOptions
+    ): ResolvedPianoRollMapOptions;
+    collectPianoRollNotesFromLayer(layer: Layer, options?: PianoRollMapOptions): PianoRollNote[];
+    collectPianoRollNotes(midi: MidiFileData, options?: PianoRollMapOptions): PianoRollNote[];
+    buildPianoRollRects(
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): PianoRollRect[];
+    buildPianoRollPreviewLayout(
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): unknown;
+    buildPianoRollPreviewHtml(
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): unknown;
+    previewPianoRollMap(comp: CompItem, sourceLayer: Layer, options?: PianoRollMapOptions): unknown;
+    createPianoRollControllerNull(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): unknown;
+    createPianoRollMapLayers(
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: PianoRollMapOptions
+    ): unknown;
+    channelPrefixFromLayer(layer: Layer | null | undefined): string | null;
+    layerHasNamedDrumSliders(layer: Layer): boolean;
+    pianoRollYForPitch(pitch: number, rangeMin: number, rollBottom: number, laneHeight: number): number;
+
     [key: string]: unknown;
 }

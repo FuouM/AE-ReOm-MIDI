@@ -1817,7 +1817,6 @@
 
 
 // ---- dist/compiled/ae/expressions.jsx ----
-// @ts-nocheck
 (function (api) {
     function quote(value) {
         value = String(value || "");
@@ -1826,7 +1825,7 @@
         return '"' + value + '"';
     }
     function numeric(value, fallback) {
-        var parsed = parseFloat(value);
+        var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
         return isNaN(parsed) ? fallback : parsed;
     }
     function normalizePitchFilter(value) {
@@ -1844,7 +1843,7 @@
         }
         if (value && value.length !== undefined && typeof value !== "string") {
             for (i = 0; i < value.length; i += 1) {
-                n = Math.round(parseFloat(value[i]));
+                n = Math.round(parseFloat(String(value[i])));
                 if (n > 0 && n <= 127 && !seen[n]) {
                     seen[n] = true;
                     out.push(n);
@@ -3830,6 +3829,7 @@
     function pianoRollCanAddMore(notes, maxNotes) {
         return maxNotes < 0 || notes.length < maxNotes;
     }
+    // @ts-nocheck — piano roll collectors/builders deferred to Phase 3b
     function pianoRollHasTimeFilter(options) {
         return !!(options &&
             (options.useWorkArea || typeof options.timeStart !== "undefined" || typeof options.timeEnd !== "undefined"));
@@ -4734,6 +4734,8 @@
         };
     }
     api.buildPianoRollRects = function (source, compLike, options) {
+        var layerSource = source;
+        var midiSource = source;
         compLike = compLike || {};
         if (compLike instanceof CompItem) {
             options = api.resolvePianoRollMapOptions(compLike, options || {});
@@ -4748,15 +4750,15 @@
             notes = options.notes;
             fallbackEnd = inferPianoRollDuration(notes, compLike);
         }
-        else if (source && source.Effects) {
-            notes = api.collectPianoRollNotesFromLayer(source, options);
+        else if (source && layerSource.Effects) {
+            notes = api.collectPianoRollNotesFromLayer(layerSource, options);
             fallbackEnd = inferPianoRollDuration(notes, compLike);
         }
         else {
-            notes = api.collectPianoRollNotes(source, options);
+            notes = api.collectPianoRollNotes(midiSource, options);
             fallbackEnd = inferPianoRollDuration(notes, compLike);
             if (!notes.length) {
-                fallbackEnd = source.durationSeconds || compLike.duration || 1;
+                fallbackEnd = midiSource.durationSeconds || compLike.duration || 1;
             }
         }
         timeRange = resolvePianoRollTimeRange(notes, options, fallbackEnd);
@@ -4841,6 +4843,7 @@
         return parts.join(" ");
     }
     api.buildPianoRollPreviewLayout = function (source, compLike, options) {
+        var layerSource = source;
         var svgWidth;
         var svgHeight;
         var mapOptions;
@@ -4863,14 +4866,14 @@
             yMax: numeric(options.yMax, 40)
         };
         reportPreviewProgress(options, "notes", 0, 1, "Collecting notes");
-        if (source && source.Effects) {
-            mapOptions.notes = api.collectPianoRollNotesFromLayer(source, mapOptions);
+        if (source && layerSource.Effects) {
+            mapOptions.notes = api.collectPianoRollNotesFromLayer(layerSource, mapOptions);
         }
         reportPreviewProgress(options, "notes", 1, 1, "Collecting notes");
         reportPreviewProgress(options, "rects");
         rects = api.buildPianoRollRects(source, compLike, mapOptions);
         reportPreviewProgress(options, "finalize", 1, 1, "Finishing preview");
-        sourceLabel = options.sourceLabel || (source && source.name) || "MIDI";
+        sourceLabel = options.sourceLabel || (layerSource && layerSource.name) || "MIDI";
         return {
             rects: rects,
             noteCount: rects.length,

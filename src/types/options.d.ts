@@ -47,6 +47,7 @@ interface MidiActionOptionsInput extends WorkAreaOptions, QuantizeOptions {
     preset?: MidiActionPreset;
     triggerMode?: TriggerMode;
     pitchSliderName?: string;
+    durationSliderName?: string;
     drumMap?: string;
     pitchMap?: string;
     baseValue?: number | string;
@@ -63,10 +64,40 @@ interface MidiActionOptionsInput extends WorkAreaOptions, QuantizeOptions {
     previewBaseValue?: number;
     previewActiveValue?: number;
     sourceLayerName?: string;
-    frameDuration?: number;
+    outputLayerName?: string;
+    addOutputSliders?: boolean;
+    midiDuration?: number;
+    screenFlipAxis?: "horizontal" | "vertical";
+    screenFlipDimensions?: number;
+    __previewSliderCaches?: PreviewSliderCaches;
+    __previewProgressHook?: PreviewProgressHook;
 }
 
-/** Piano roll map / preview layout options. */
+/** MidiActionOptionsInput after resolveMidiActionOptions fills defaults. */
+interface MidiActionOptionsResolved extends MidiActionOptionsInput {
+    triggerMode: TriggerMode;
+    preset: MidiActionPreset;
+    pitchSliderName: string;
+    drumMap: string;
+    pitchMap: string;
+    falloff: FalloffMode;
+    useWorkArea: boolean;
+    limitTriggers: boolean;
+    pitchFilter: number[];
+    timeStart?: number;
+    timeEnd?: number;
+}
+
+/** Minimal comp-like object accepted by piano-roll layout helpers. */
+interface PianoRollCompLike {
+    width?: number;
+    height?: number;
+    duration?: number;
+    frameDuration?: number;
+    workAreaStart?: number;
+    workAreaDuration?: number;
+}
+
 interface PianoRollMapOptions extends WorkAreaOptions {
     notes?: PianoRollNote[];
     maxNotes?: number | string;
@@ -77,7 +108,24 @@ interface PianoRollMapOptions extends WorkAreaOptions {
     yMax?: number | string;
     useDrumLanes?: boolean;
     limitTriggers?: boolean;
-    __previewProgressHook?: unknown;
+    color?: string;
+    previewWidth?: number;
+    previewHeight?: number;
+    sourceLabel?: string;
+    fillColor?: number[];
+    fillOpacity?: number;
+    strokeColor?: number[];
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    masterOpacity?: number;
+    controllerName?: string;
+    includeFillControls?: boolean;
+    __previewProgressHook?: PreviewProgressHook;
+}
+
+/** PianoRollMapOptions after resolvePianoRollMapOptions. */
+interface ResolvedPianoRollMapOptions extends PianoRollMapOptions {
+    useWorkArea: boolean;
 }
 
 /** Tone layer generation options. */
@@ -85,4 +133,10 @@ interface ToneLayerOptionsInput extends QuantizeOptions, WorkAreaOptions {
     waveform?: ToneWaveform | string;
     level?: number | string;
     useDrumLanes?: boolean;
+}
+
+/** Options accepted by createMidiActionOutputNull. */
+interface MidiActionOutputNullOptions extends MidiActionOptionsResolved {
+    outputLayerName?: string;
+    addOutputSliders?: boolean;
 }

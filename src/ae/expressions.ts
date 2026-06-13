@@ -1,18 +1,17 @@
-// @ts-nocheck
-(function (api) {
-    function quote(value) {
+(function (api: ReOmMIDIApi) {
+    function quote(value: string | number | null | undefined): string {
         value = String(value || "");
         value = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         value = value.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
         return '"' + value + '"';
     }
 
-    function numeric(value, fallback) {
-        var parsed = parseFloat(value);
+    function numeric(value: string | number | null | undefined, fallback: number): number {
+        var parsed = parseFloat(String(value === null || typeof value === "undefined" ? "" : value));
         return isNaN(parsed) ? fallback : parsed;
     }
 
-    function normalizePitchFilter(value) {
+    function normalizePitchFilter(value: string | number | number[] | null | undefined): number[] {
         var parts;
         var out = [];
         var seen = {};
@@ -28,7 +27,7 @@
         }
         if (value && value.length !== undefined && typeof value !== "string") {
             for (i = 0; i < value.length; i += 1) {
-                n = Math.round(parseFloat(value[i]));
+                n = Math.round(parseFloat(String(value[i])));
                 if (n > 0 && n <= 127 && !seen[n]) {
                     seen[n] = true;
                     out.push(n);
@@ -60,7 +59,7 @@
         return out;
     }
 
-    function formatPitchFilterLiteral(filter) {
+    function formatPitchFilterLiteral(filter: string | number | number[] | null | undefined): string {
         filter = normalizePitchFilter(filter);
         if (!filter.length) {
             return "[]";
@@ -68,7 +67,7 @@
         return "[" + filter.join(", ") + "]";
     }
 
-    function midiActionPitchMatchesFilter(pitch, options) {
+    function midiActionPitchMatchesFilter(pitch: number, options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined): boolean {
         var filter;
         var i;
 
@@ -85,7 +84,7 @@
         return false;
     }
 
-    function previewProgressHook(options) {
+    function previewProgressHook(options: MidiActionOptionsInput | PianoRollMapOptions | null | undefined): PreviewProgressHook | null {
         if (options && options.__previewProgressHook) {
             return options.__previewProgressHook;
         }
@@ -95,7 +94,13 @@
         return null;
     }
 
-    function reportPreviewProgress(options, stageId, done, total, detail) {
+    function reportPreviewProgress(
+        options: MidiActionOptionsInput | PianoRollMapOptions | null | undefined,
+        stageId?: string | null,
+        done?: number,
+        total?: number,
+        detail?: string
+    ): void {
         var hook = previewProgressHook(options);
         if (!hook) {
             return;
@@ -110,7 +115,7 @@
         }
     }
 
-    function expressionValue(value, fallback) {
+    function expressionValue(value: string | number | null | undefined, fallback: string): string {
         value = String(value || "").replace(/^\s+|\s+$/g, "");
         return value || fallback;
     }
@@ -120,19 +125,19 @@
     var MIDI_ACTION_AMOUNT_SLIDER = "Amount";
     var MIDI_ACTION_DURATION_SLIDER = "Duration";
 
-    function midiActionUsesAmountDurationSliders(preset) {
+    function midiActionUsesAmountDurationSliders(preset: MidiActionPreset | string): boolean {
         return preset === "pump" || preset === "accumulator";
     }
 
-    function midiActionUsesActiveSlider(preset) {
+    function midiActionUsesActiveSlider(preset: MidiActionPreset | string): boolean {
         return preset === "toggle" || preset === "interpolate";
     }
 
-    function midiActionUsesBaseSlider(preset) {
+    function midiActionUsesBaseSlider(preset: MidiActionPreset | string): boolean {
         return !!preset;
     }
 
-    function midiActionUsesFalloffField(preset) {
+    function midiActionUsesFalloffField(preset: MidiActionPreset | string): boolean {
         return preset === "pump" || preset === "interpolate" || preset === "accumulator";
     }
 
@@ -141,27 +146,33 @@
     api.midiActionUsesAmountDurationFields = midiActionUsesAmountDurationSliders;
     api.midiActionUsesFalloffField = midiActionUsesFalloffField;
 
-    function outputSliderExpression(effectName) {
+    function outputSliderExpression(effectName: string): string {
         return "thisLayer.effect(" + quote(api.limitEffectName(effectName)) + ')("Slider")';
     }
 
-    function resolveMidiActionBaseExpression(options, literalFallback) {
+    function resolveMidiActionBaseExpression(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        literalFallback: string
+    ): string {
         if (options.useOutputSliders && midiActionUsesBaseSlider(options.preset || "pump")) {
             return outputSliderExpression(MIDI_ACTION_BASE_SLIDER);
         }
         return expressionValue(options.baseValue, literalFallback);
     }
 
-    function resolveMidiActionActiveExpression(options, literalFallback) {
+    function resolveMidiActionActiveExpression(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        literalFallback: string
+    ): string {
         if (options.useOutputSliders && midiActionUsesActiveSlider(options.preset || "pump")) {
             return outputSliderExpression(MIDI_ACTION_ACTIVE_SLIDER);
         }
         return expressionValue(options.activeValue, literalFallback);
     }
 
-    function defaultBaseSliderValue(options) {
+    function defaultBaseSliderValue(options: MidiActionOptionsInput | MidiActionOptionsResolved): number {
         var preset = options.preset || "pump";
-        var normalized = {};
+        var normalized: MidiActionOptionsInput = {};
         var i;
         for (i in options) {
             if (options.hasOwnProperty(i)) {
@@ -179,8 +190,8 @@
         return numeric(parseValueLiteral(normalized.baseValue, 0), 0);
     }
 
-    function defaultActiveSliderValue(options) {
-        var normalized = {};
+    function defaultActiveSliderValue(options: MidiActionOptionsInput | MidiActionOptionsResolved): number {
+        var normalized: MidiActionOptionsInput = {};
         var i;
         for (i in options) {
             if (options.hasOwnProperty(i)) {
@@ -198,11 +209,11 @@
         return 0;
     }
 
-    function joinExpressionLines(lines) {
+    function joinExpressionLines(lines: string[]): string {
         return lines.join("\n");
     }
 
-    function expressionTryCatch(bodyLines, fallbackExpr) {
+    function expressionTryCatch(bodyLines: string[], fallbackExpr: string): string[] {
         var lines = ["try {"];
         var i;
         for (i = 0; i < bodyLines.length; i += 1) {
@@ -214,7 +225,9 @@
         return lines;
     }
 
-    function resolveAmountDurationExpressions(options) {
+    function resolveAmountDurationExpressions(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): AmountDurationExpressions {
         if (options.useOutputSliders) {
             return {
                 amount: outputSliderExpression(MIDI_ACTION_AMOUNT_SLIDER),
@@ -227,7 +240,9 @@
         };
     }
 
-    function resolveAccumulatorDurationExpression(options) {
+    function resolveAccumulatorDurationExpression(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): string {
         if (options.useOutputSliders) {
             return outputSliderExpression(MIDI_ACTION_DURATION_SLIDER);
         }
@@ -237,7 +252,7 @@
         return String(numeric(options.duration, 0.1));
     }
 
-    function resolveAccumulatorInterpolation(options) {
+    function resolveAccumulatorInterpolation(options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         if (options.falloff === "instant") {
             return "linear";
         }
@@ -461,7 +476,7 @@
         ]
     };
 
-    function resolveRequiredFunctions(preset) {
+    function resolveRequiredFunctions(preset: MidiActionPreset | string): string[] {
         var roots = PRESET_FUNCTIONS[preset] || PRESET_FUNCTIONS["pump"];
         var required = {};
         var queue = [].concat(roots);
@@ -490,7 +505,7 @@
         return sorted;
     }
 
-    function midiActionRuntime(preset) {
+    function midiActionRuntime(preset: MidiActionPreset | string): string {
         var requiredNames = resolveRequiredFunctions(preset);
         var lines = ["", "// ---- Runtime Helpers ----"];
         var i;
@@ -503,7 +518,7 @@
         return joinExpressionLines(lines);
     }
 
-    function commonHeader(options) {
+    function commonHeader(options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var sourceLayer = options.sourceLayerName || "MIDI";
         var pitchSlider = options.pitchSliderName || "T01 Ch01 pitch";
         var preset = options.preset || "pump";
@@ -519,7 +534,7 @@
         ]);
     }
 
-    function coerceScalarPresetLiteral(value, fallback) {
+    function coerceScalarPresetLiteral(value: string | number | null | undefined, fallback: string): string {
         var pair;
         var parsed;
         var text;
@@ -542,7 +557,9 @@
         return text || fallback;
     }
 
-    function normalizeTogglePresetOptions(options) {
+    function normalizeTogglePresetOptions(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined
+    ): MidiActionOptionsInput | MidiActionOptionsResolved {
         options = options || {};
         if ((options.preset || "pump") !== "toggle") {
             return options;
@@ -556,7 +573,7 @@
         return options;
     }
 
-    api.buildToggleExpression = function (options) {
+    api.buildToggleExpression = function (options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         options = normalizeTogglePresetOptions(options || {});
         var baseValue = resolveMidiActionBaseExpression(options, "1");
         var activeValue = resolveMidiActionActiveExpression(options, "-1");
@@ -574,7 +591,7 @@
         );
     };
 
-    function splitBracketPair(text) {
+    function splitBracketPair(text: string | number | null | undefined): BracketPair | null {
         var match = String(text || "")
             .replace(/^\s+|\s+$/g, "")
             .match(/^\[\s*([^,\]]+)\s*,\s*([^\]]+)\s*\]$/);
@@ -587,7 +604,9 @@
         };
     }
 
-    function normalizeInterpolatePresetOptions(options) {
+    function normalizeInterpolatePresetOptions(
+        options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined
+    ): MidiActionOptionsInput | MidiActionOptionsResolved {
         var pair;
         options = options || {};
         if ((options.preset || "pump") !== "interpolate") {
@@ -609,7 +628,7 @@
         return options;
     }
 
-    api.buildInterpolateExpression = function (options) {
+    api.buildInterpolateExpression = function (options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         options = normalizeInterpolatePresetOptions(options || {});
         var baseValue = resolveMidiActionBaseExpression(options, "25");
         var activeValue = resolveMidiActionActiveExpression(options, "100");
@@ -649,7 +668,7 @@
         );
     };
 
-    api.buildPumpExpression = function (options) {
+    api.buildPumpExpression = function (options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var baseValue = resolveMidiActionBaseExpression(options, "0");
         var falloff = options.falloff || "linear";
         var amountDuration = resolveAmountDurationExpressions(options || {});
@@ -677,7 +696,7 @@
         );
     };
 
-    api.buildAccumulatorExpression = function (options) {
+    api.buildAccumulatorExpression = function (options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var baseValue = resolveMidiActionBaseExpression(options, "0");
         var durationExpr = resolveAccumulatorDurationExpression(options || {});
         var interpolation = resolveAccumulatorInterpolation(options || {});
@@ -712,7 +731,7 @@
         );
     };
 
-    api.buildMidiActionExpression = function (options) {
+    api.buildMidiActionExpression = function (options?: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         options = options || {};
         if (options.preset === "toggle") {
             return api.buildToggleExpression(options);
@@ -726,7 +745,7 @@
         return api.buildPumpExpression(options);
     };
 
-    api.collectMidiActionTriggers = function (midi, options) {
+    api.collectMidiActionTriggers = function (midi: MidiFileData, options?: MidiActionOptionsInput): MidiActionTrigger[] {
         var triggers = [];
         var noteEvents = midi.notes || [];
         var i;
@@ -753,7 +772,13 @@
         );
     };
 
-    function falloffValue(t, start, duration, falloff, step) {
+    function falloffValue(
+        t: number,
+        start: number,
+        duration: number,
+        falloff: FalloffMode | string,
+        step?: number
+    ): number {
         var x;
         if (falloff === "instant") {
             return t >= start && t < start + (step || 0.0001) ? 1 : 0;
@@ -780,11 +805,14 @@
         return 1 - x;
     }
 
-    function midiActionUsesTriggerLimits(options) {
+    function midiActionUsesTriggerLimits(options: MidiActionOptionsInput | MidiActionOptionsResolved | null | undefined): boolean {
         return !!(options && options.limitTriggers);
     }
 
-    function midiActionTriggerInTimeRange(trigger, options) {
+    function midiActionTriggerInTimeRange(
+        trigger: MidiActionTrigger,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): boolean {
         var start;
         var end;
         if (!midiActionUsesTriggerLimits(options) || !options.useWorkArea) {
@@ -795,14 +823,17 @@
         return trigger.time >= start && trigger.time < end;
     }
 
-    function limitMidiActionTriggers(triggers, maxNotes) {
+    function limitMidiActionTriggers(triggers: MidiActionTrigger[], maxNotes: number): MidiActionTrigger[] {
         if (maxNotes < 0 || triggers.length <= maxNotes) {
             return triggers;
         }
         return triggers.slice(0, maxNotes);
     }
 
-    function filterMidiActionTriggers(triggers, options) {
+    function filterMidiActionTriggers(
+        triggers: MidiActionTrigger[],
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionTrigger[] {
         var filtered = [];
         var i;
         var maxNotes;
@@ -818,8 +849,12 @@
         return limitMidiActionTriggers(filtered, maxNotes);
     }
 
-    api.resolveMidiActionOptions = function (comp, options, sourceLayer) {
-        var resolved = {};
+    api.resolveMidiActionOptions = function (
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | null | undefined,
+        sourceLayer: Layer | null | undefined
+    ): MidiActionOptionsResolved {
+        var resolved = {} as MidiActionOptionsResolved;
         options = options || {};
         resolved.triggerMode = "pitch";
         resolved.preset = options.preset || "pump";
@@ -959,7 +994,10 @@
         return null;
     }
 
-    function buildSliderKeyCache(slider, options) {
+    function buildSliderKeyCache(
+        slider: Property | null,
+        options?: MidiActionOptionsInput | PianoRollMapOptions | null
+    ): SliderKeyCache {
         var cache = {
             times: [],
             values: []
@@ -1137,7 +1175,7 @@
         return dedupeLayers(layers);
     }
 
-    api.resolveMidiSourceLayer = function (comp, options) {
+    api.resolveMidiSourceLayer = function (comp: CompItem, options?: MidiActionOptionsInput): Layer {
         var selected = getCompSelectedLayers(comp);
         var imported = [];
         var remembered;
@@ -1727,7 +1765,10 @@
         };
     };
 
-    api.collectMidiActionTriggersFromLayer = function (sourceLayer, options) {
+    api.collectMidiActionTriggersFromLayer = function (
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionTrigger[] {
         return filterMidiActionTriggers(sortTriggers(collectPitchTriggersFromLayer(sourceLayer, options)), options);
     };
 
@@ -1927,7 +1968,14 @@
         }
     }
 
-    function valueAtBakedTime(triggers, time, base, active, options, knownIndex) {
+    function valueAtBakedTime(
+        triggers: MidiActionTrigger[],
+        time: number,
+        base: MidiActionPropertyValue,
+        active: MidiActionPropertyValue,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        knownIndex?: number
+    ): MidiActionPropertyValue {
         var n = typeof knownIndex === "number" ? knownIndex : latestTriggerIndex(triggers, time);
         var duration = numeric(options.duration, 0.2);
         var amount = numeric(options.amount, 20);
@@ -1974,7 +2022,12 @@
         return cloneValue(base);
     }
 
-    api.buildMidiActionBakePlan = function (triggers, property, comp, options) {
+    api.buildMidiActionBakePlan = function (
+        triggers: MidiActionTrigger[],
+        property: Property,
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionBakePlan {
         var step = comp && comp.frameDuration ? comp.frameDuration : numeric(options.previewStep, 1 / 24);
         var duration = numeric(options.duration, 0.2);
         var base = parseValueLiteral(
@@ -2048,7 +2101,10 @@
         return true;
     }
 
-    api.bakeMidiActionToSelectedProperties = function (comp, options) {
+    api.bakeMidiActionToSelectedProperties = function (
+        comp: CompItem,
+        options?: MidiActionOptionsInput
+    ): BakeSelectedPropertiesResult {
         var properties;
         var sourceLayer;
         var triggers;
@@ -2174,7 +2230,7 @@
         };
     }
 
-    function parsePianoRollMaxNotes(value, fallback) {
+    function parsePianoRollMaxNotes(value: string | number | null | undefined, fallback: number): number {
         var parsed = numeric(value, fallback);
         if (parsed < 0) {
             return -1;
@@ -2182,10 +2238,11 @@
         return Math.max(1, Math.floor(parsed));
     }
 
-    function pianoRollCanAddMore(notes, maxNotes) {
+    function pianoRollCanAddMore(notes: PianoRollNote[], maxNotes: number): boolean {
         return maxNotes < 0 || notes.length < maxNotes;
     }
 
+    // @ts-nocheck — piano roll collectors/builders deferred to Phase 3b
     function pianoRollHasTimeFilter(options) {
         return !!(
             options &&
@@ -2225,8 +2282,11 @@
         return noteStart < end && noteEnd > start;
     }
 
-    api.resolvePianoRollMapOptions = function (comp, options) {
-        var resolved = {};
+    api.resolvePianoRollMapOptions = function (
+        comp: CompItem | null | undefined,
+        options?: PianoRollMapOptions
+    ): ResolvedPianoRollMapOptions {
+        var resolved = {} as ResolvedPianoRollMapOptions;
         options = options || {};
         resolved.maxNotes = options.maxNotes;
         resolved.noteHeight = options.noteHeight;
@@ -3183,7 +3243,13 @@
         };
     }
 
-    api.buildPianoRollRects = function (source, compLike, options) {
+    api.buildPianoRollRects = function (
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): PianoRollRect[] {
+        var layerSource = source as Layer;
+        var midiSource = source as MidiFileData;
         compLike = compLike || {};
         if (compLike instanceof CompItem) {
             options = api.resolvePianoRollMapOptions(compLike, options || {});
@@ -3196,14 +3262,14 @@
         if (options.notes && options.notes.length) {
             notes = options.notes;
             fallbackEnd = inferPianoRollDuration(notes, compLike);
-        } else if (source && source.Effects) {
-            notes = api.collectPianoRollNotesFromLayer(source, options);
+        } else if (source && (layerSource as Layer & { Effects?: PropertyGroup }).Effects) {
+            notes = api.collectPianoRollNotesFromLayer(layerSource, options);
             fallbackEnd = inferPianoRollDuration(notes, compLike);
         } else {
-            notes = api.collectPianoRollNotes(source, options);
+            notes = api.collectPianoRollNotes(midiSource, options);
             fallbackEnd = inferPianoRollDuration(notes, compLike);
             if (!notes.length) {
-                fallbackEnd = source.durationSeconds || compLike.duration || 1;
+                fallbackEnd = midiSource.durationSeconds || compLike.duration || 1;
             }
         }
         timeRange = resolvePianoRollTimeRange(notes, options, fallbackEnd);
@@ -3292,7 +3358,12 @@
         return parts.join(" ");
     }
 
-    api.buildPianoRollPreviewLayout = function (source, compLike, options) {
+    api.buildPianoRollPreviewLayout = function (
+        source: Layer | MidiFileData,
+        compLike: CompItem | PianoRollCompLike,
+        options?: PianoRollMapOptions
+    ): unknown {
+        var layerSource = source as Layer;
         var svgWidth;
         var svgHeight;
         var mapOptions;
@@ -3315,14 +3386,14 @@
             yMax: numeric(options.yMax, 40)
         };
         reportPreviewProgress(options, "notes", 0, 1, "Collecting notes");
-        if (source && source.Effects) {
-            mapOptions.notes = api.collectPianoRollNotesFromLayer(source, mapOptions);
+        if (source && (layerSource as Layer & { Effects?: PropertyGroup }).Effects) {
+            mapOptions.notes = api.collectPianoRollNotesFromLayer(layerSource, mapOptions);
         }
         reportPreviewProgress(options, "notes", 1, 1, "Collecting notes");
         reportPreviewProgress(options, "rects");
         rects = api.buildPianoRollRects(source, compLike, mapOptions);
         reportPreviewProgress(options, "finalize", 1, 1, "Finishing preview");
-        sourceLabel = options.sourceLabel || (source && source.name) || "MIDI";
+        sourceLabel = options.sourceLabel || (layerSource && layerSource.name) || "MIDI";
         return {
             rects: rects,
             noteCount: rects.length,
@@ -3974,12 +4045,12 @@
         };
     };
 
-    function previewScalarValue(value) {
+    function previewScalarValue(value: unknown): number {
         if (typeof value === "number" && !isNaN(value)) {
             return value;
         }
-        if (value && value.length !== undefined && typeof value !== "string") {
-            return typeof value[0] === "number" ? value[0] : 0;
+        if (value && (value as number[]).length !== undefined && typeof value !== "string") {
+            return typeof (value as number[])[0] === "number" ? (value as number[])[0] : 0;
         }
         if (typeof value === "string") {
             return value ? 1 : 0;
@@ -3987,7 +4058,11 @@
         return 0;
     }
 
-    function resolveMidiActionPreviewRange(comp, options, triggers) {
+    function resolveMidiActionPreviewRange(
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        triggers?: MidiActionTrigger[]
+    ): MidiActionPreviewRange {
         var step = comp && comp.frameDuration ? comp.frameDuration : numeric(options.previewStep, 1 / 24);
         var startTime = 0;
         var endTime = 0;
@@ -4133,7 +4208,11 @@
         });
     }
 
-    function buildMidiActionSimulationPoints(triggers, comp, options) {
+    function buildMidiActionSimulationPoints(
+        triggers: MidiActionTrigger[],
+        comp: CompItem | null | undefined,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionSimulationPoint[] {
         var range = resolveMidiActionPreviewRange(comp, options, triggers);
         var sampleEntries = buildMidiActionPreviewSampleEntries(range, triggers, options);
         var previewBaseFallback = options.baseValue === "value" ? 100 : numeric(options.previewBaseValue, 0);
@@ -4271,7 +4350,11 @@
         return parts.join(" ");
     }
 
-    api.simulateMidiActionFromLayer = function (sourceLayer, comp, options) {
+    api.simulateMidiActionFromLayer = function (
+        sourceLayer: Layer,
+        comp: CompItem | null | undefined,
+        options?: MidiActionOptionsInput
+    ): MidiActionSimulation {
         var triggers;
         options = api.resolveMidiActionOptions(comp, options || {}, sourceLayer);
         triggers = api.collectMidiActionTriggersFromLayer(sourceLayer, options);
@@ -4281,7 +4364,11 @@
         };
     };
 
-    api.buildMidiActionPreviewLayout = function (sourceLayer, comp, options) {
+    api.buildMidiActionPreviewLayout = function (
+        sourceLayer: Layer,
+        comp: CompItem | null | undefined,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): MidiActionPreviewLayout {
         var triggers;
         var points;
         var range;
@@ -4303,7 +4390,11 @@
         };
     };
 
-    api.computeMidiActionPreviewLayout = function (comp, sourceLayer, options) {
+    api.computeMidiActionPreviewLayout = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): MidiActionPreviewLayout {
         var layout;
         if (!comp || !(comp instanceof CompItem)) {
             throw new Error("Open or select a composition before previewing MIDI Actions.");
@@ -4332,7 +4423,11 @@
         return layout;
     };
 
-    api.previewMidiAction = function (comp, sourceLayer, options) {
+    api.previewMidiAction = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): MidiActionPreviewLayout {
         var layout;
         options = options || {};
         try {
@@ -4348,7 +4443,7 @@
         return layout;
     };
 
-    api.simulateMidiAction = function (midi, options) {
+    api.simulateMidiAction = function (midi: MidiFileData, options?: MidiActionOptionsInput): MidiActionSimulation {
         var triggers;
         options = options || {};
         options.midiDuration = midi.durationSeconds || 1;
@@ -4430,7 +4525,11 @@
         };
     }
 
-    api.prepareMidiActionExpression = function (comp, sourceLayer, options) {
+    api.prepareMidiActionExpression = function (
+        comp: CompItem | null | undefined,
+        sourceLayer: Layer | null | undefined,
+        options?: MidiActionOptionsInput
+    ): PrepareMidiActionExpressionResult {
         var resolved;
         var expression;
         if (!sourceLayer) {
@@ -4449,11 +4548,19 @@
         };
     };
 
-    api.buildMidiActionExpressionFromLayer = function (comp, sourceLayer, options) {
+    api.buildMidiActionExpressionFromLayer = function (
+        comp: CompItem | null | undefined,
+        sourceLayer: Layer | null | undefined,
+        options?: MidiActionOptionsInput
+    ): string {
         return api.prepareMidiActionExpression(comp, sourceLayer, options).expression;
     };
 
-    api.createMidiActionNullWithExpression = function (comp, sourceLayer, options) {
+    api.createMidiActionNullWithExpression = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): CreateMidiActionNullResult {
         var prepared;
         var resolved;
         var output;
@@ -4488,7 +4595,11 @@
         };
     };
 
-    api.createMidiActionNullWithBake = function (comp, sourceLayer, options) {
+    api.createMidiActionNullWithBake = function (
+        comp: CompItem,
+        sourceLayer: Layer,
+        options?: MidiActionOptionsInput
+    ): CreateMidiActionNullBakeResult {
         var resolved;
         var output;
         var triggers;
@@ -4517,7 +4628,10 @@
         };
     };
 
-    api.applyExpressionToSelectedProperties = function (comp, options) {
+    api.applyExpressionToSelectedProperties = function (
+        comp: CompItem,
+        options?: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): ApplyExpressionResult {
         var properties;
         var expression;
         var applied = 0;
@@ -4590,7 +4704,7 @@
         };
     }
 
-    api.buildScreenFlipExpression = function (options) {
+    api.buildScreenFlipExpression = function (options?: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var axisIndex;
         var body;
         options = options || {};
@@ -4625,7 +4739,13 @@
         return commonHeader(options) + joinExpressionLines(body);
     };
 
-    api.resolveScreenFlipActionOptions = function (comp, property, axis, options, sourceLayer) {
+    api.resolveScreenFlipActionOptions = function (
+        comp: CompItem,
+        property: Property,
+        axis: string,
+        options: MidiActionOptionsInput | null | undefined,
+        sourceLayer: Layer
+    ): MidiActionOptionsResolved {
         var resolved;
         var toggleValues;
         resolved = api.resolveMidiActionOptions(comp, options || {}, sourceLayer);
@@ -4642,7 +4762,7 @@
         return resolved;
     };
 
-    api.applyMidiActionExpressionToProperty = function (property, expression) {
+    api.applyMidiActionExpressionToProperty = function (property: Property, expression: string): boolean {
         if (!property || !property.canSetExpression) {
             throw new Error("The target property cannot receive an expression.");
         }
@@ -4651,7 +4771,12 @@
         return true;
     };
 
-    api.bakeMidiActionToProperty = function (property, comp, sourceLayer, options) {
+    api.bakeMidiActionToProperty = function (
+        property: Property,
+        comp: CompItem,
+        sourceLayer: Layer,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved
+    ): BakePropertyResult {
         var triggers;
         var plan;
         if (!property) {
