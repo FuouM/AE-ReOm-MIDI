@@ -5,7 +5,10 @@
     }
 
     function quote(text: string | number | null | undefined): string {
-        return JSON.stringify(String(text || ""));
+        var value = String(text || "");
+        value = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        value = value.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+        return '"' + value + '"';
     }
 
     function parseMaxNotes(value: string | number | null | undefined, fallback: number): number {

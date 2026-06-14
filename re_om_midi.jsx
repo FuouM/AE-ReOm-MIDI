@@ -16,6 +16,39 @@
  Original script lineage: Omino MIDI File Reader / om_midi.jsx by David Van Brink.
 */
 
+// ---- dist/compiled/core/polyfill.jsx ----
+"use strict";
+// ExtendScript targets ECMAScript 3. TypeScript only downlevels syntax, not missing APIs.
+// Install polyfills before any other ReOm MIDI code runs.
+(function () {
+    if (!Array.prototype.map) {
+        Array.prototype.map = function (callbackFn, thisArg) {
+            var result = [];
+            var i;
+            for (i = 0; i < this.length; i++) {
+                result[i] = callbackFn.call(thisArg, this[i], i, this);
+            }
+            return result;
+        };
+    }
+    if (!Object.keys) {
+        Object.keys = function (obj) {
+            var keys = [];
+            var key;
+            if (obj !== Object(obj)) {
+                throw new TypeError("Object.keys called on non-object");
+            }
+            for (key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    keys.push(key);
+                }
+            }
+            return keys;
+        };
+    }
+})();
+
+
 // ---- dist/compiled/core/namespace.jsx ----
 "use strict";
 function reomScriptRoot() {
@@ -7016,7 +7049,10 @@ function asScriptUiPenHost(g) {
         return isNaN(parsed) ? fallback : parsed;
     }
     function quote(text) {
-        return JSON.stringify(String(text || ""));
+        var value = String(text || "");
+        value = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        value = value.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+        return '"' + value + '"';
     }
     function parseMaxNotes(value, fallback) {
         var parsed = numeric(value, fallback);

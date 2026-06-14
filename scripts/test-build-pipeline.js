@@ -69,6 +69,15 @@ while ((sectionMatch = sectionPattern.exec(bundleSource)) !== null) {
   bundleSections.push(sectionMatch[1]);
 }
 assert.deepStrictEqual(bundleSections, sourceFiles, "bundle section order should match scripts/build.js sourceFiles");
+assert.strictEqual(
+  bundleSections[0],
+  "dist/compiled/core/polyfill.jsx",
+  "ExtendScript ES3 polyfills must load before any other bundle section"
+);
+assert.ok(
+  bundleSource.indexOf("Array.prototype.map") >= 0,
+  "bundle should install an Array.prototype.map polyfill for ExtendScript"
+);
 
 const forbiddenPatterns = [
   { pattern: /\bObject\.assign\b/, label: "Object.assign" },

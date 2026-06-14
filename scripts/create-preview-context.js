@@ -3,6 +3,7 @@ const vm = require("vm");
 const { readSource } = require("./source-loader");
 
 const DEFAULT_PREVIEW_SOURCES = [
+  "dist/compiled/core/polyfill.jsx",
   "dist/compiled/core/namespace.jsx",
   "dist/compiled/core/midi-file.jsx",
   "dist/compiled/ae/expressions.jsx"
