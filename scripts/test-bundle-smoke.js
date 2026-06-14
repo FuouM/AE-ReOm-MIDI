@@ -50,7 +50,10 @@ panelContext.$.global = panelContext;
 panelContext.global = panelContext;
 vm.createContext(panelContext);
 vm.runInContext(bundleSource, panelContext, { filename: "re_om_midi_panel.jsx" });
-assert.ok(panelContext.ReOmMIDI && panelContext.ReOmMIDI.VERSION, "panel context should initialize ReOmMIDI on $.global");
+assert.ok(
+  panelContext.ReOmMIDI && panelContext.ReOmMIDI.VERSION,
+  "panel context should initialize ReOmMIDI on $.global"
+);
 assert.strictEqual(
   typeof panelContext.ReOmMIDI.buildUI,
   "function",
@@ -1163,6 +1166,21 @@ const pumpHoldIndex = twoHitPumpPlan.times.findIndex(
   (time, index) => time > 0.1 && time < 1 && twoHitPumpPlan.values[index] === 100
 );
 assert.ok(pumpHoldIndex >= 0, "pump bake should add a rest keyframe before the next trigger");
+assert.ok(
+  twoHitPumpPlan.holdAtTimes && twoHitPumpPlan.holdAtTimes.length >= 2,
+  "pump bake should mark decay-end and rest segments for hold interpolation"
+);
+assert.ok(
+  twoHitPumpPlan.holdAtTimes.some((time) => Math.abs(time - 0.1) < 0.0001),
+  "pump bake should hold after each trigger window ends"
+);
+
+const pumpBakeTarget = createBakeTarget(100);
+assert.ok(
+  context.ReOmMIDI.applyMidiActionBakePlan(pumpBakeTarget, twoHitPumpPlan),
+  "applyMidiActionBakePlan should write pump keyframes"
+);
+assert.ok(pumpBakeTarget.interpolationCalls.length >= 2, "pump bake should apply hold interpolation on rest segments");
 
 function createFakeSlider(keys) {
   return {
@@ -1211,6 +1229,23 @@ function createBakeTarget(value) {
       this.times = Array.prototype.slice.call(times);
       this.values = Array.prototype.slice.call(values);
       this.numKeys = times.length;
+    },
+    nearestKeyIndex(time) {
+      var bestIndex = 1;
+      var bestDistance = Infinity;
+      var i;
+      var distance;
+      for (i = 0; i < this.times.length; i += 1) {
+        distance = Math.abs(this.times[i] - time);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = i + 1;
+        }
+      }
+      return bestIndex;
+    },
+    keyTime(index) {
+      return this.times[index - 1];
     },
     setInterpolationTypeAtKey(index, type) {
       this.interpolationCalls.push({ index, type });

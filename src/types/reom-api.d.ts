@@ -92,6 +92,7 @@ interface ReOmMIDIApi {
         comp: CompItem | null | undefined,
         options: MidiActionOptionsInput | MidiActionOptionsResolved
     ): MidiActionBakePlan;
+    applyMidiActionBakePlan(property: Property | null | undefined, plan: MidiActionBakePlan): boolean;
     bakeMidiActionToSelectedProperties(comp: CompItem, options?: MidiActionOptionsInput): BakeSelectedPropertiesResult;
     bakeMidiActionToProperty(
         property: Property,

@@ -693,7 +693,7 @@
             "var drumEffectName = " + quote(options.drumEffectName || "") + ";",
             drumMachineFalloffRuntime(),
             "function drumSlider() {",
-            '    try { return midiLayer.effect(drumEffectName)(1); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(drumEffectName)(1); } catch (e) { return null; }",
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -868,27 +868,6 @@
         return true;
     }
 
-    function applyBakePlan(property: PropContainerLike | null, plan: MidiActionBakePlan): boolean {
-        var prop = property as Property | null;
-        var i: number;
-        if (!prop) {
-            return false;
-        }
-        if (prop.setValuesAtTimes) {
-            prop.setValuesAtTimes(plan.times, plan.values);
-        } else if (prop.setValueAtTime) {
-            for (i = 0; i < plan.times.length; i += 1) {
-                prop.setValueAtTime(plan.times[i], plan.values[i]);
-            }
-        } else {
-            return false;
-        }
-        if (prop.canSetExpression) {
-            prop.expressionEnabled = false;
-        }
-        return true;
-    }
-
     function drumMachineTriggersFromRect(rect: DrumMachineRect): MidiActionTrigger[] {
         var triggers: MidiActionTrigger[] = [];
         var hits = rect.hits || [];
@@ -994,7 +973,7 @@
             frameDuration: comp && comp.frameDuration ? comp.frameDuration : 1 / 24
         };
         plan = api.buildMidiActionBakePlan(triggers, property as Property, comp, bakeOptions as MidiActionOptionsInput);
-        return applyBakePlan(property, plan);
+        return api.applyMidiActionBakePlan(property as Property, plan);
     }
 
     function applyDrumMachineAnimation(

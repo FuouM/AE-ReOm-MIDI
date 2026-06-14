@@ -240,6 +240,8 @@ interface MidiActionBakePlan {
     times: number[];
     values: MidiActionPropertyValue[];
     hold: boolean;
+    /** Pump/accumulator rest segments: hold interpolation after these keyframe times. */
+    holdAtTimes?: number[];
 }
 
 /** Summary returned by bakeMidiActionToSelectedProperties. */

@@ -286,7 +286,7 @@
     function namedDrumSequencerRuntime(): string[] {
         return [
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }",
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -353,7 +353,7 @@
     function legacyDrumSequencerRuntime(): string[] {
         return [
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }",
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",

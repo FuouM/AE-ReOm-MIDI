@@ -2043,18 +2043,20 @@
         currentTriggerTime: number,
         nextTriggerTime: number,
         options: MidiActionOptionsInput | MidiActionOptionsResolved
-    ): void {
+    ): number | null {
         var step = options.frameDuration || 1 / 24;
         var windowEnd = currentTriggerTime + triggerWindowDuration(options);
         var holdTime;
 
         if (nextTriggerTime <= windowEnd) {
-            return;
+            return null;
         }
         holdTime = nextTriggerTime - step;
         if (holdTime > windowEnd && holdTime < nextTriggerTime) {
             times.push(holdTime);
+            return holdTime;
         }
+        return null;
     }
 
     function valueAtBakedTime(
@@ -2133,6 +2135,9 @@
         var active = parseValueLiteral(options.activeValue, base);
         var times = [];
         var values = [];
+        var holdAtTimes: number[] = [];
+        var windowEnd;
+        var restTime;
         var i;
 
         options.frameDuration = step;
@@ -2151,20 +2156,34 @@
             }
         } else {
             times.push(0);
+            if (triggers.length && triggers[0].time > step) {
+                holdAtTimes.push(0);
+            }
             for (i = 0; i < triggers.length; i += 1) {
                 addWindowTimes(times, triggers[i].time, options.falloff === "instant" ? step : duration, step);
+                windowEnd = triggers[i].time + triggerWindowDuration(options);
+                holdAtTimes.push(windowEnd);
                 if (i < triggers.length - 1) {
-                    addRestKeyframeBeforeNextTrigger(times, triggers[i].time, triggers[i + 1].time, options);
+                    restTime = addRestKeyframeBeforeNextTrigger(times, triggers[i].time, triggers[i + 1].time, options);
+                    if (restTime !== null) {
+                        holdAtTimes.push(restTime);
+                    }
                 }
             }
         }
 
         times = uniqueSortedTimes(times);
+        holdAtTimes = uniqueSortedTimes(holdAtTimes);
         for (i = 0; i < times.length; i += 1) {
             values.push(fitValueToProperty(property, valueAtBakedTime(triggers, times[i], base, active, options)));
         }
 
-        return { times: times, values: values, hold: options.preset === "toggle" };
+        return {
+            times: times,
+            values: values,
+            hold: options.preset === "toggle",
+            holdAtTimes: holdAtTimes.length ? holdAtTimes : undefined
+        };
     };
 
     function setHoldInterpolation(property: Property | null | undefined): void {
@@ -2174,6 +2193,33 @@
         }
         for (i = 1; i <= property.numKeys; i += 1) {
             property.setInterpolationTypeAtKey(i, KeyframeInterpolationType.HOLD);
+        }
+    }
+
+    function setHoldInterpolationAtTimes(property: Property | null | undefined, times: number[] | undefined): void {
+        var i;
+        var keyIndex;
+        var keyTime;
+        if (
+            !property ||
+            !times ||
+            !times.length ||
+            !property.setInterpolationTypeAtKey ||
+            !property.nearestKeyIndex ||
+            typeof KeyframeInterpolationType === "undefined"
+        ) {
+            return;
+        }
+        for (i = 0; i < times.length; i += 1) {
+            keyIndex = property.nearestKeyIndex(times[i]);
+            if (keyIndex < 1) {
+                continue;
+            }
+            keyTime = property.keyTime(keyIndex);
+            if (Math.abs(keyTime - times[i]) > 0.0001) {
+                continue;
+            }
+            property.setInterpolationTypeAtKey(keyIndex, KeyframeInterpolationType.HOLD);
         }
     }
 
@@ -2193,9 +2239,18 @@
         }
         if (plan.hold) {
             setHoldInterpolation(property);
+        } else if (plan.holdAtTimes) {
+            setHoldInterpolationAtTimes(property, plan.holdAtTimes);
         }
         return true;
     }
+
+    api.applyMidiActionBakePlan = function (property: Property | null | undefined, plan: MidiActionBakePlan): boolean {
+        if (!property) {
+            return false;
+        }
+        return applyBakePlan(property, plan);
+    };
 
     api.bakeMidiActionToSelectedProperties = function (
         comp: CompItem,
@@ -3830,11 +3885,7 @@
                 ")(1) / 100; } catch (e) { 100; }"
             );
         }
-        return (
-            "try { thisLayer.parent.effect(" +
-            quote(controllerEffects.masterOpacity) +
-            ")(1); } catch (e) { 100; }"
-        );
+        return "try { thisLayer.parent.effect(" + quote(controllerEffects.masterOpacity) + ")(1); } catch (e) { 100; }";
     }
 
     function addPianoRollControllerSlider(layer: Layer, name: string, value: number): PropertyGroup | null {
@@ -3872,9 +3923,7 @@
         fx = effectsLayer.Effects.addProperty("ADBE Color Control") as PropertyGroup;
         fx.name = api.limitEffectName(name);
         colorProp =
-            api.safeProperty(fx, 1) ||
-            api.safeProperty(fx, "ADBE Color Control-0001") ||
-            api.safeProperty(fx, "Color");
+            api.safeProperty(fx, 1) || api.safeProperty(fx, "ADBE Color Control-0001") || api.safeProperty(fx, "Color");
         if (colorProp && colorProp.setValue) {
             colorProp.setValue(rgb);
         }
@@ -4034,18 +4083,9 @@
         if (!stroke) {
             return;
         }
-        setPropExpression(
-            shapeStrokeColorProp(stroke),
-            pianoRollControlExpression(controllerEffects.strokeColor)
-        );
-        setPropExpression(
-            shapeStrokeOpacityProp(stroke),
-            pianoRollControlExpression(controllerEffects.strokeOpacity)
-        );
-        setPropExpression(
-            shapeStrokeWidthProp(stroke),
-            pianoRollControlExpression(controllerEffects.strokeWidth)
-        );
+        setPropExpression(shapeStrokeColorProp(stroke), pianoRollControlExpression(controllerEffects.strokeColor));
+        setPropExpression(shapeStrokeOpacityProp(stroke), pianoRollControlExpression(controllerEffects.strokeOpacity));
+        setPropExpression(shapeStrokeWidthProp(stroke), pianoRollControlExpression(controllerEffects.strokeWidth));
     }
 
     function wireShapeMasterOpacityFromController(layer: Layer, controllerEffects: PianoRollControllerEffects): void {

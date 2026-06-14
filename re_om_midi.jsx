@@ -1,6 +1,6 @@
 #targetengine "reom_midi"
 /*
- ReOm MIDI v1.1.2
+ ReOm MIDI v1.1.3
  Modernized After Effects MIDI import script.
 
  Copyright (c) 2026 Fuou Marinas
@@ -69,7 +69,7 @@ if (!reomRoot.ReOmMIDI) {
 }
 var ReOmMIDI = reomRoot.ReOmMIDI;
 (function (api) {
-    api.VERSION = "1.1.2";
+    api.VERSION = "1.1.3";
     api.getGlobalState = function () {
         try {
             if (typeof $ === "undefined" || !$.global) {
@@ -3774,12 +3774,14 @@ function asScriptUiPenHost(g) {
         var windowEnd = currentTriggerTime + triggerWindowDuration(options);
         var holdTime;
         if (nextTriggerTime <= windowEnd) {
-            return;
+            return null;
         }
         holdTime = nextTriggerTime - step;
         if (holdTime > windowEnd && holdTime < nextTriggerTime) {
             times.push(holdTime);
+            return holdTime;
         }
+        return null;
     }
     function valueAtBakedTime(triggers, time, base, active, options, knownIndex) {
         var n = typeof knownIndex === "number" ? knownIndex : latestTriggerIndex(triggers, time);
@@ -3833,6 +3835,9 @@ function asScriptUiPenHost(g) {
         var active = parseValueLiteral(options.activeValue, base);
         var times = [];
         var values = [];
+        var holdAtTimes = [];
+        var windowEnd;
+        var restTime;
         var i;
         options.frameDuration = step;
         if (options.preset === "toggle") {
@@ -3852,18 +3857,32 @@ function asScriptUiPenHost(g) {
         }
         else {
             times.push(0);
+            if (triggers.length && triggers[0].time > step) {
+                holdAtTimes.push(0);
+            }
             for (i = 0; i < triggers.length; i += 1) {
                 addWindowTimes(times, triggers[i].time, options.falloff === "instant" ? step : duration, step);
+                windowEnd = triggers[i].time + triggerWindowDuration(options);
+                holdAtTimes.push(windowEnd);
                 if (i < triggers.length - 1) {
-                    addRestKeyframeBeforeNextTrigger(times, triggers[i].time, triggers[i + 1].time, options);
+                    restTime = addRestKeyframeBeforeNextTrigger(times, triggers[i].time, triggers[i + 1].time, options);
+                    if (restTime !== null) {
+                        holdAtTimes.push(restTime);
+                    }
                 }
             }
         }
         times = uniqueSortedTimes(times);
+        holdAtTimes = uniqueSortedTimes(holdAtTimes);
         for (i = 0; i < times.length; i += 1) {
             values.push(fitValueToProperty(property, valueAtBakedTime(triggers, times[i], base, active, options)));
         }
-        return { times: times, values: values, hold: options.preset === "toggle" };
+        return {
+            times: times,
+            values: values,
+            hold: options.preset === "toggle",
+            holdAtTimes: holdAtTimes.length ? holdAtTimes : undefined
+        };
     };
     function setHoldInterpolation(property) {
         var i;
@@ -3872,6 +3891,30 @@ function asScriptUiPenHost(g) {
         }
         for (i = 1; i <= property.numKeys; i += 1) {
             property.setInterpolationTypeAtKey(i, KeyframeInterpolationType.HOLD);
+        }
+    }
+    function setHoldInterpolationAtTimes(property, times) {
+        var i;
+        var keyIndex;
+        var keyTime;
+        if (!property ||
+            !times ||
+            !times.length ||
+            !property.setInterpolationTypeAtKey ||
+            !property.nearestKeyIndex ||
+            typeof KeyframeInterpolationType === "undefined") {
+            return;
+        }
+        for (i = 0; i < times.length; i += 1) {
+            keyIndex = property.nearestKeyIndex(times[i]);
+            if (keyIndex < 1) {
+                continue;
+            }
+            keyTime = property.keyTime(keyIndex);
+            if (Math.abs(keyTime - times[i]) > 0.0001) {
+                continue;
+            }
+            property.setInterpolationTypeAtKey(keyIndex, KeyframeInterpolationType.HOLD);
         }
     }
     function applyBakePlan(property, plan) {
@@ -3893,8 +3936,17 @@ function asScriptUiPenHost(g) {
         if (plan.hold) {
             setHoldInterpolation(property);
         }
+        else if (plan.holdAtTimes) {
+            setHoldInterpolationAtTimes(property, plan.holdAtTimes);
+        }
         return true;
     }
+    api.applyMidiActionBakePlan = function (property, plan) {
+        if (!property) {
+            return false;
+        }
+        return applyBakePlan(property, plan);
+    };
     api.bakeMidiActionToSelectedProperties = function (comp, options) {
         var properties;
         var sourceLayer;
@@ -5279,9 +5331,7 @@ function asScriptUiPenHost(g) {
                 quote(controllerEffects.fillOpacity) +
                 ")(1) / 100; } catch (e) { 100; }");
         }
-        return ("try { thisLayer.parent.effect(" +
-            quote(controllerEffects.masterOpacity) +
-            ")(1); } catch (e) { 100; }");
+        return "try { thisLayer.parent.effect(" + quote(controllerEffects.masterOpacity) + ")(1); } catch (e) { 100; }";
     }
     function addPianoRollControllerSlider(layer, name, value) {
         var fx;
@@ -5319,9 +5369,7 @@ function asScriptUiPenHost(g) {
         fx = effectsLayer.Effects.addProperty("ADBE Color Control");
         fx.name = api.limitEffectName(name);
         colorProp =
-            api.safeProperty(fx, 1) ||
-                api.safeProperty(fx, "ADBE Color Control-0001") ||
-                api.safeProperty(fx, "Color");
+            api.safeProperty(fx, 1) || api.safeProperty(fx, "ADBE Color Control-0001") || api.safeProperty(fx, "Color");
         if (colorProp && colorProp.setValue) {
             colorProp.setValue(rgb);
         }
@@ -6379,7 +6427,7 @@ function asScriptUiPenHost(g) {
             .concat(mapBlock)
             .concat([
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }",
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -7648,7 +7696,7 @@ function asScriptUiPenHost(g) {
             "var drumEffectName = " + quote(options.drumEffectName || "") + ";",
             drumMachineFalloffRuntime(),
             "function drumSlider() {",
-            '    try { return midiLayer.effect(drumEffectName)(1); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(drumEffectName)(1); } catch (e) { return null; }",
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -7810,28 +7858,6 @@ function asScriptUiPenHost(g) {
         property.expressionEnabled = true;
         return true;
     }
-    function applyBakePlan(property, plan) {
-        var prop = property;
-        var i;
-        if (!prop) {
-            return false;
-        }
-        if (prop.setValuesAtTimes) {
-            prop.setValuesAtTimes(plan.times, plan.values);
-        }
-        else if (prop.setValueAtTime) {
-            for (i = 0; i < plan.times.length; i += 1) {
-                prop.setValueAtTime(plan.times[i], plan.values[i]);
-            }
-        }
-        else {
-            return false;
-        }
-        if (prop.canSetExpression) {
-            prop.expressionEnabled = false;
-        }
-        return true;
-    }
     function drumMachineTriggersFromRect(rect) {
         var triggers = [];
         var hits = rect.hits || [];
@@ -7918,7 +7944,7 @@ function asScriptUiPenHost(g) {
             frameDuration: comp && comp.frameDuration ? comp.frameDuration : 1 / 24
         };
         plan = api.buildMidiActionBakePlan(triggers, property, comp, bakeOptions);
-        return applyBakePlan(property, plan);
+        return api.applyMidiActionBakePlan(property, plan);
     }
     function applyDrumMachineAnimation(layer, comp, rect, options) {
         var scaleProp;
@@ -8358,7 +8384,7 @@ function asScriptUiPenHost(g) {
     function namedDrumSequencerRuntime() {
         return [
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }",
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
@@ -8424,7 +8450,7 @@ function asScriptUiPenHost(g) {
     function legacyDrumSequencerRuntime() {
         return [
             "function sliderByName(effectName) {",
-            '    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }',
+            "    try { return midiLayer.effect(effectName)(1); } catch (e) { return null; }",
             "}",
             "function lastKeyAtOrBefore(prop, t) {",
             "    if (!prop || prop.numKeys < 1) { return 0; }",
