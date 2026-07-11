@@ -83,6 +83,12 @@ interface MidiActionOptionsInput extends WorkAreaOptions, QuantizeOptions {
     __previewProgressHook?: PreviewProgressHook;
 }
 
+/** Drum slider descriptor used by the MIDI action for per-slider trigger collection. */
+interface DrumSliderDescriptor {
+    effectName: string;
+    pitch: number;
+}
+
 /** MidiActionOptionsInput after resolveMidiActionOptions fills defaults. */
 interface MidiActionOptionsResolved extends MidiActionOptionsInput {
     triggerMode: TriggerMode;
@@ -96,6 +102,7 @@ interface MidiActionOptionsResolved extends MidiActionOptionsInput {
     pitchFilter: number[];
     timeStart?: number;
     timeEnd?: number;
+    drumSliders?: DrumSliderDescriptor[];
 }
 
 interface PianoRollMapOptions extends WorkAreaOptions {

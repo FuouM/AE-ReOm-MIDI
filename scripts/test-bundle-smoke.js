@@ -963,6 +963,67 @@ assert.strictEqual(filteredLayerTriggers.length, 1, "pitch filter should limit l
 assert.strictEqual(filteredLayerTriggers[0].value, 64, "pitch filter should keep only matching pitches");
 assert.ok(pumpExpression.indexOf("hit.amount") < 0, "pump should use Amount only, not pitch map amounts");
 
+// --- Drum channel pitch filter tests ---
+const drumFilterLayer = createFakeLayer();
+drumFilterLayer.name = "MIDI T03 Ch10 Drums";
+const dfKick = drumFilterLayer.Effects.addProperty("Slider Control");
+dfKick.name = "T03 Ch10 d36 Kick";
+dfKick.valueProperty.setValuesAtTimes([0.01, 0.5], [100, 0]);
+const dfSnare = drumFilterLayer.Effects.addProperty("Slider Control");
+dfSnare.name = "T03 Ch10 d38 Snare";
+dfSnare.valueProperty.setValuesAtTimes([0.02, 0.6], [100, 0]);
+const dfHat = drumFilterLayer.Effects.addProperty("Slider Control");
+dfHat.name = "T03 Ch10 d42 Hi-Hat";
+dfHat.valueProperty.setValuesAtTimes([0.03, 0.7], [100, 0]);
+delete dfKick.valueProperty.key;
+delete dfSnare.valueProperty.key;
+delete dfHat.valueProperty.key;
+
+assert.strictEqual(
+  context.ReOmMIDI.layerHasNamedDrumSliders(drumFilterLayer),
+  true,
+  "multi-drum layer should report named drum sliders"
+);
+
+const drumAllTriggers = context.ReOmMIDI.collectMidiActionTriggersFromLayer(drumFilterLayer, {});
+assert.strictEqual(drumAllTriggers.length, 3, "unfiltered drum layer should collect triggers from all drum sliders");
+
+const drumKickOnly = context.ReOmMIDI.collectMidiActionTriggersFromLayer(drumFilterLayer, {
+  pitchFilter: [36]
+});
+assert.strictEqual(drumKickOnly.length, 1, "drum pitch filter should keep only matching drum slider");
+assert.strictEqual(drumKickOnly[0].value, 36, "drum pitch filter should return the correct pitch");
+
+const drumKickSnare = context.ReOmMIDI.collectMidiActionTriggersFromLayer(drumFilterLayer, {
+  pitchFilter: [36, 38]
+});
+assert.strictEqual(drumKickSnare.length, 2, "multi-note drum pitch filter should keep matching drum sliders");
+
+const drumExpressionFromLayer = context.ReOmMIDI.buildMidiActionExpressionFromLayer(fakeComp, drumFilterLayer, {
+  preset: "pump",
+  pitchFilter: "36, 42"
+});
+assert.ok(
+  drumExpressionFromLayer.indexOf("var drumSliders") >= 0,
+  "drum layer expression should emit drumSliders array"
+);
+assert.ok(
+  drumExpressionFromLayer.indexOf("d36 Kick") >= 0,
+  "drum layer expression should list kick slider in drumSliders"
+);
+assert.ok(
+  drumExpressionFromLayer.indexOf("d42 Hi-Hat") >= 0,
+  "drum layer expression should list hi-hat slider in drumSliders"
+);
+assert.ok(
+  drumExpressionFromLayer.indexOf("pitchFilter = [36, 42]") >= 0,
+  "drum layer expression should include the pitch filter"
+);
+assert.ok(
+  drumExpressionFromLayer.indexOf("ds.name") >= 0,
+  "drum layer expression runtime should iterate drum sliders by name"
+);
+
 const highMapPump = context.ReOmMIDI.simulateMidiAction(fakeMidi, {
   preset: "pump",
   previewBaseValue: 100,

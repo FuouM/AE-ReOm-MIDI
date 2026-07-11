@@ -339,15 +339,31 @@
         pitchHitCountAt: [
             "// Counts total valid note triggers that have occurred up to time t",
             "function pitchHitCountAt(t) {",
-            "    var ps = pitchSlider();",
             "    var count = 0;",
             "    var pk;",
             "    var pitch;",
-            "    if (ps) {",
-            "        for (pk = 1; pk <= ps.numKeys; pk++) {",
-            "            if (ps.key(pk).time <= t) {",
-            "                pitch = Math.round(ps.key(pk).value);",
-            "                if (pitch > 0 && pitchAllowed(pitch)) { count++; }",
+            "    var d;",
+            "    var ds;",
+            "    var ps;",
+            "    if (typeof drumSliders !== 'undefined' && drumSliders.length) {",
+            "        for (d = 0; d < drumSliders.length; d++) {",
+            "            ds = drumSliders[d];",
+            "            if (!pitchAllowed(ds.pitch)) { continue; }",
+            "            ps = sliderByName(ds.name);",
+            "            if (ps) {",
+            "                for (pk = 1; pk <= ps.numKeys; pk++) {",
+            "                    if (ps.key(pk).time <= t && ps.key(pk).value > 0) { count++; }",
+            "                }",
+            "            }",
+            "        }",
+            "    } else {",
+            "        ps = pitchSlider();",
+            "        if (ps) {",
+            "            for (pk = 1; pk <= ps.numKeys; pk++) {",
+            "                if (ps.key(pk).time <= t) {",
+            "                    pitch = Math.round(ps.key(pk).value);",
+            "                    if (pitch > 0 && pitchAllowed(pitch)) { count++; }",
+            "                }",
             "            }",
             "        }",
             "    }",
@@ -358,13 +374,29 @@
             "// Collects sorted timestamps of all valid note triggers",
             "function pitchEventTimes() {",
             "    var times = [];",
-            "    var ps = pitchSlider();",
             "    var pk;",
             "    var pitch;",
-            "    if (ps) {",
-            "        for (pk = 1; pk <= ps.numKeys; pk++) {",
-            "            pitch = Math.round(ps.key(pk).value);",
-            "            if (pitch > 0 && pitchAllowed(pitch)) { times[times.length] = ps.key(pk).time; }",
+            "    var d;",
+            "    var ds;",
+            "    var ps;",
+            "    if (typeof drumSliders !== 'undefined' && drumSliders.length) {",
+            "        for (d = 0; d < drumSliders.length; d++) {",
+            "            ds = drumSliders[d];",
+            "            if (!pitchAllowed(ds.pitch)) { continue; }",
+            "            ps = sliderByName(ds.name);",
+            "            if (ps) {",
+            "                for (pk = 1; pk <= ps.numKeys; pk++) {",
+            "                    if (ps.key(pk).value > 0) { times[times.length] = ps.key(pk).time; }",
+            "                }",
+            "            }",
+            "        }",
+            "    } else {",
+            "        ps = pitchSlider();",
+            "        if (ps) {",
+            "            for (pk = 1; pk <= ps.numKeys; pk++) {",
+            "                pitch = Math.round(ps.key(pk).value);",
+            "                if (pitch > 0 && pitchAllowed(pitch)) { times[times.length] = ps.key(pk).time; }",
+            "            }",
             "        }",
             "    }",
             "    times.sort(function(a, b) { return a - b; });",
@@ -374,17 +406,46 @@
         latestPitchHit: [
             "// Finds details of the most recent valid pitch event at or before time t",
             "function latestPitchHit(t) {",
-            "    var s = pitchSlider();",
-            "    var n = lastKeyAtOrBefore(s, t);",
+            "    var best = null;",
+            "    var bestTime = -1;",
+            "    var s;",
+            "    var n;",
             "    var pitch;",
-            "    while (n >= 1) {",
-            "        pitch = Math.round(s.key(n).value);",
-            "        if (pitch > 0 && pitchAllowed(pitch)) {",
-            '            return {time: s.key(n).time, value: pitch, label: String(pitch), amount: 1, source: "pitch"};',
+            "    var d;",
+            "    var ds;",
+            "    var pk;",
+            "    var kt;",
+            "    if (typeof drumSliders !== 'undefined' && drumSliders.length) {",
+            "        for (d = 0; d < drumSliders.length; d++) {",
+            "            ds = drumSliders[d];",
+            "            if (!pitchAllowed(ds.pitch)) { continue; }",
+            "            s = sliderByName(ds.name);",
+            "            if (s && s.numKeys >= 1) {",
+            "                pk = s.nearestKey(t).index;",
+            "                if (s.key(pk).time > t) { pk--; }",
+            "                while (pk >= 1) {",
+            "                    kt = s.key(pk).time;",
+            "                    if (kt <= t && s.key(pk).value > 0 && kt > bestTime) {",
+            "                        bestTime = kt;",
+            '                        best = {time: kt, value: ds.pitch, label: String(ds.pitch), amount: 1, source: "pitch"};',
+            "                        break;",
+            "                    }",
+            "                    pk--;",
+            "                }",
+            "            }",
             "        }",
-            "        n--;",
+            "    } else {",
+            "        s = pitchSlider();",
+            "        n = lastKeyAtOrBefore(s, t);",
+            "        while (n >= 1) {",
+            "            pitch = Math.round(s.key(n).value);",
+            "            if (pitch > 0 && pitchAllowed(pitch)) {",
+            '                return {time: s.key(n).time, value: pitch, label: String(pitch), amount: 1, source: "pitch"};',
+            "            }",
+            "            n--;",
+            "        }",
             "    }",
-            "    return null;",
+            "    return best;",
             "}"
         ],
         latestHit: [
@@ -526,20 +587,39 @@
         return joinExpressionLines(lines);
     }
 
+    function formatDrumSlidersLiteral(descriptors: DrumSliderDescriptor[]): string {
+        var entries: string[] = [];
+        var i;
+        for (i = 0; i < descriptors.length; i += 1) {
+            entries.push(
+                "{name:" + quote(descriptors[i].effectName) + ",pitch:" + descriptors[i].pitch + "}"
+            );
+        }
+        return "[" + entries.join(",") + "]";
+    }
+
     function commonHeader(options: MidiActionOptionsInput | MidiActionOptionsResolved): string {
         var sourceLayer = options.sourceLayerName || "MIDI";
         var pitchSlider = options.pitchSliderName || "T01 Ch01 pitch";
         var preset = options.preset || "pump";
-
-        return joinExpressionLines([
+        var resolved = options as MidiActionOptionsResolved;
+        var drumSliders = resolved.drumSliders;
+        var lines = [
             "// Generated by ReOm MIDI Actions",
             "var midiLayer = thisComp.layer(" + quote(sourceLayer) + ");",
             "var pitchSliderName = " + quote(pitchSlider) + ";",
             "// pitchFilter: MIDI note numbers 1-127. [] = all notes. Example: [60, 64, 67]",
-            "var pitchFilter = " + formatPitchFilterLiteral(options.pitchFilter) + ";",
-            midiActionRuntime(preset),
-            ""
-        ]);
+            "var pitchFilter = " + formatPitchFilterLiteral(options.pitchFilter) + ";"
+        ];
+
+        if (drumSliders && drumSliders.length) {
+            lines.push("var drumSliders = " + formatDrumSlidersLiteral(drumSliders) + ";");
+        }
+
+        lines.push(midiActionRuntime(preset));
+        lines.push("");
+
+        return joinExpressionLines(lines);
     }
 
     function coerceScalarPresetLiteral(value: string | number | null | undefined, fallback: string): string {
@@ -897,6 +977,9 @@
         resolved.previewActiveValue = options.previewActiveValue;
         resolved.sourceLayerName = options.sourceLayerName;
         resolved.pitchFilter = normalizePitchFilter(options.pitchFilter);
+        if (sourceLayer && api.layerHasNamedDrumSliders(sourceLayer)) {
+            resolved.drumSliders = collectDrumSlidersForAction(sourceLayer);
+        }
         if (resolved.preset === "interpolate") {
             normalizeInterpolatePresetOptions(resolved);
         }
@@ -1730,6 +1813,12 @@
         options?: MidiActionOptionsInput | MidiActionOptionsResolved
     ): MidiActionTrigger[] {
         options = options || {};
+        var maxNotes = midiActionUsesTriggerLimits(options) ? parsePianoRollMaxNotes(options.maxNotes, 10) : -1;
+
+        if (api.layerHasNamedDrumSliders(sourceLayer)) {
+            return collectDrumTriggersFromLayer(sourceLayer, options, maxNotes);
+        }
+
         var resolved = resolvePitchSlider(sourceLayer, options);
         var pitchSlider = resolved.slider;
         var velSlider = findVelocitySliderForLayer(sourceLayer, resolved.effectName);
@@ -1742,7 +1831,6 @@
                   ? buildSliderKeyCache(velSlider, options)
                   : null;
         var triggers: MidiActionTrigger[] = [];
-        var maxNotes = midiActionUsesTriggerLimits(options) ? parsePianoRollMaxNotes(options.maxNotes, 10) : -1;
         var i;
         var time;
         var pitch;
@@ -1788,6 +1876,62 @@
                 value: pitch
             });
         }
+        return triggers;
+    }
+
+    function collectDrumTriggersFromLayer(
+        sourceLayer: Layer,
+        options: MidiActionOptionsInput | MidiActionOptionsResolved,
+        maxNotes: number
+    ): MidiActionTrigger[] {
+        var triggers: MidiActionTrigger[] = [];
+        var drumSliders = collectDrumSlidersForAction(sourceLayer);
+        var i;
+        var j;
+        var ds;
+        var slider;
+        var cache;
+        var time;
+        var velocity;
+        var pitchFilter = normalizePitchFilter(options.pitchFilter);
+
+        for (i = 0; i < drumSliders.length; i += 1) {
+            ds = drumSliders[i];
+            if (pitchFilter.length && !pitchMatchesFilter(ds.pitch, pitchFilter)) {
+                continue;
+            }
+            slider = sliderFromLayerEffectByName(sourceLayer, ds.effectName);
+            if (!slider) {
+                continue;
+            }
+            cache = buildSliderKeyCache(slider, options);
+            for (j = 0; j < cache.times.length; j += 1) {
+                if (maxNotes >= 0 && triggers.length >= maxNotes) {
+                    break;
+                }
+                if (cache.values[j] <= 0) {
+                    continue;
+                }
+                time = cache.times[j];
+                if (!midiActionTriggerInTimeRange({ time: time }, options)) {
+                    continue;
+                }
+                triggers.push({
+                    time: time,
+                    label: String(ds.pitch),
+                    amount: 1,
+                    source: "pitch",
+                    value: ds.pitch
+                });
+            }
+            if (maxNotes >= 0 && triggers.length >= maxNotes) {
+                break;
+            }
+        }
+
+        triggers.sort(function (a, b) {
+            return a.time - b.time;
+        });
         return triggers;
     }
 
@@ -3148,6 +3292,26 @@
         }
         return layerHasNamedDrumSliderEffects(layer, null);
     };
+
+    function collectDrumSlidersForAction(layer: Layer): DrumSliderDescriptor[] {
+        var prefix = channelPrefixFromLayer(layer);
+        var result: DrumSliderDescriptor[] = [];
+        forEachLayerEffect(layer, function (effect) {
+            var name = String(effect.name || "");
+            var parsed = parseDrumEffectName(name);
+            if (!parsed) {
+                return;
+            }
+            if (prefix && name.indexOf(prefix) !== 0) {
+                return;
+            }
+            var slider = sliderFromEffectGroup(effect);
+            if (slider) {
+                result.push({ effectName: name, pitch: parsed.pitch });
+            }
+        });
+        return result;
+    }
 
     api.collectNamedDrumPadGroupsFromLayer = function (
         layer: Layer,
