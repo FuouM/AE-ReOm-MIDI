@@ -1612,6 +1612,7 @@
         var importNamedDrumSliders;
         var includeControllers;
         var includePitchBends;
+        var forceDrumCheckbox;
         var layerNamePrefix;
         var importButtonRow;
         var getMidiInfoButton;
@@ -1683,6 +1684,10 @@
         includePitchBends = optionsPanel.add("checkbox", undefined, "Import pitch bend sliders");
         includePitchBends.value = false;
         includePitchBends.helpTip = "Import MIDI pitch wheel bend data as keyframed pitch-bend sliders.";
+        forceDrumCheckbox = optionsPanel.add("checkbox", undefined, "Force channels as drums");
+        forceDrumCheckbox.value = false;
+        forceDrumCheckbox.helpTip =
+            "Override drum channel detection. A dialog will appear during import to select which channels should be treated as drum channels.";
 
         importButtonRow = tab.add("group");
         importButtonRow.orientation = "row";
@@ -1743,6 +1748,7 @@
             importNamedDrumSliders: importNamedDrumSliders,
             includeControllers: includeControllers,
             includePitchBends: includePitchBends,
+            forceDrumCheckbox: forceDrumCheckbox,
             layerNamePrefix: layerNamePrefix,
             getMidiInfoButton: getMidiInfoButton,
             importButton: importButton,
@@ -1751,6 +1757,101 @@
             createBpmButton: createBpmButton,
             bpmQuantize: bpmQuantize
         };
+    }
+
+    function showForceDrumDialog(filePath: string, api: ReOmMIDIApi): number[] | null {
+        var midi;
+        var channels;
+        var i;
+        var ch;
+        var label;
+        var win = new Window("dialog", "Force Channels as Drums");
+        var desc;
+        var list;
+        var buttonRow;
+        var okButton;
+        var cancelButton;
+        var result: number[] | null = null;
+
+        try {
+            midi = api.MidiFile.fromFile(filePath);
+            if (!midi || !midi.isMidi) {
+                api.alertError("Could not parse the MIDI file.");
+                return null;
+            }
+        } catch (parseErr) {
+            api.alertError("Error reading MIDI file:\n" + String(parseErr));
+            return null;
+        }
+
+        channels = [];
+        for (i = 0; i < midi.channels.length; i += 1) {
+            ch = midi.channels[i];
+            if (ch && ch.notes.length > 0) {
+                channels.push(ch);
+            }
+        }
+
+        if (!channels.length) {
+            api.alertError("No channels with notes found in the MIDI file.");
+            try {
+                api.discardMidiFileData(midi);
+            } catch (discardErr) {}
+            return null;
+        }
+
+        win.orientation = "column";
+        win.alignChildren = ["fill", "top"];
+        win.margins = 16;
+        win.spacing = 10;
+
+        desc = win.add(
+            "statictext",
+            undefined,
+            "Select channels to treat as drum channels during import:",
+            { multiline: true }
+        );
+        desc.alignment = ["fill", "top"];
+
+        list = win.add("listbox", undefined, [], { multiselect: true });
+        list.preferredSize = [380, 160];
+        list.alignment = ["fill", "top"];
+
+        for (i = 0; i < channels.length; i += 1) {
+            ch = channels[i];
+            label = api.formatChannelName(ch);
+            label += "  (" + ch.notes.length + " notes)";
+            list.add("item", label);
+        }
+
+        for (i = 0; i < list.items.length; i += 1) {
+            if (api.isDrumChannel(channels[i].midiChannel)) {
+                list.items[i].selected = true;
+            }
+        }
+
+        buttonRow = win.add("group");
+        buttonRow.alignment = ["center", "top"];
+        buttonRow.spacing = 10;
+        okButton = buttonRow.add("button", undefined, "OK", { name: "ok" });
+        okButton.preferredSize = [100, 26];
+        cancelButton = buttonRow.add("button", undefined, "Cancel", { name: "cancel" });
+        cancelButton.preferredSize = [100, 26];
+
+        if (win.show() === 1) {
+            result = [];
+            for (i = 0; i < list.items.length; i += 1) {
+                if (list.items[i].selected) {
+                    result.push(i);
+                }
+            }
+        }
+
+        try {
+            api.discardMidiFileData(midi);
+        } catch (discardErr) {}
+
+        return result;
     }
 
     function wireImportTabHandlers(ui: StringKeyedMap<unknown>, api: ReOmMIDIApi): void {
@@ -1769,8 +1870,21 @@
         };
 
         importUi.importButton.onClick = function () {
+            var filePath = (importUi.fileText as EditText).text;
+            var forceDrum = !!(importUi.forceDrumCheckbox as Checkbox).value;
+            var forceDrumChannels: number[] = [];
+            var dialogResult;
+
+            if (forceDrum) {
+                dialogResult = showForceDrumDialog(filePath, api);
+                if (dialogResult === null) {
+                    return;
+                }
+                forceDrumChannels = dialogResult;
+            }
+
             api.runImport({
-                midiFileName: (importUi.fileText as EditText).text,
+                midiFileName: filePath,
                 layerMode:
                     (importUi.layerMode as DropDownList).selection &&
                     typeof (importUi.layerMode as DropDownList).selection !== "number" &&
@@ -1781,7 +1895,8 @@
                 quantizeToFrames: !!(importUi.quantizeToFrames as Checkbox).value,
                 importNamedDrumSliders: !!(importUi.importNamedDrumSliders as Checkbox).value,
                 includeControllers: !!(importUi.includeControllers as Checkbox).value,
-                includePitchBends: !!(importUi.includePitchBends as Checkbox).value
+                includePitchBends: !!(importUi.includePitchBends as Checkbox).value,
+                forceDrumChannels: forceDrumChannels
             } as UiImportRunOptions);
         };
 

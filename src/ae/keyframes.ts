@@ -17,6 +17,9 @@
         if (typeof resolved.importNamedDrumSliders === "undefined") {
             resolved.importNamedDrumSliders = true;
         }
+        if (!resolved.forceDrumChannels) {
+            resolved.forceDrumChannels = [];
+        }
         resolved.frameDuration = comp && comp.frameDuration ? comp.frameDuration : resolved.frameDuration;
         return resolved;
     }
@@ -89,12 +92,17 @@
         var note: MidiNote;
         var pitchKey: string;
         var series: DrumPitchSeries;
+        var isDrum = api.isDrumChannel(channel.midiChannel) || !!channel.forcedDrum;
 
-        if (!options.importNamedDrumSliders || !api.isDrumChannel(channel.midiChannel)) {
+        if (!options.importNamedDrumSliders || !isDrum) {
             return;
         }
 
         for (i = 0; i < channel.notes.length; i += 1) {
+            note = channel.notes[i];
+            if (note && !note.drumName) {
+                note.drumName = api.getDrumName(note.pitch);
+            }
             note = channel.notes[i];
             if (!note) {
                 continue;
@@ -225,6 +233,12 @@
         var cancelled = false;
         var imported = 0;
 
+        for (i = 0; i < channels.length; i += 1) {
+            if (resolved.forceDrumChannels.indexOf(i) !== -1) {
+                channels[i].forcedDrum = true;
+            }
+        }
+
         if (resolved.layerMode === "combined") {
             layer = createLayer(comp, midi, null, resolved);
             for (i = 0; i < channels.length; i += 1) {
@@ -248,6 +262,9 @@
                     break;
                 }
                 layer = createLayer(comp, midi, channels[i], resolved);
+                if (channels[i].forcedDrum && !api.isDrumChannel(channels[i].midiChannel)) {
+                    layer.name = layer.name + " Drums";
+                }
                 applyChannelToLayer(channels[i], layer, resolved);
                 imported += 1;
             }

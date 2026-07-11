@@ -18,6 +18,7 @@ interface ImportOptions extends QuantizeOptions {
     importNamedDrumSliders?: boolean;
     includeControllers?: boolean;
     includePitchBends?: boolean;
+    forceDrumChannels?: number[];
 }
 
 /** Options for timing-layer builders (metronome, BPM). */
@@ -28,6 +29,7 @@ interface ResolvedImportOptions extends ImportOptions {
     layerMode: LayerMode;
     layerNamePrefix: string;
     importNamedDrumSliders: boolean;
+    forceDrumChannels: number[];
 }
 
 /** TimingLayerOptions after resolveTimingLayerOptions. */

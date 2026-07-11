@@ -1479,6 +1479,9 @@ function asScriptUiPenHost(g) {
         if (typeof resolved.importNamedDrumSliders === "undefined") {
             resolved.importNamedDrumSliders = true;
         }
+        if (!resolved.forceDrumChannels) {
+            resolved.forceDrumChannels = [];
+        }
         resolved.frameDuration = comp && comp.frameDuration ? comp.frameDuration : resolved.frameDuration;
         return resolved;
     }
@@ -1540,10 +1543,15 @@ function asScriptUiPenHost(g) {
         var note;
         var pitchKey;
         var series;
-        if (!options.importNamedDrumSliders || !api.isDrumChannel(channel.midiChannel)) {
+        var isDrum = api.isDrumChannel(channel.midiChannel) || !!channel.forcedDrum;
+        if (!options.importNamedDrumSliders || !isDrum) {
             return;
         }
         for (i = 0; i < channel.notes.length; i += 1) {
+            note = channel.notes[i];
+            if (note && !note.drumName) {
+                note.drumName = api.getDrumName(note.pitch);
+            }
             note = channel.notes[i];
             if (!note) {
                 continue;
@@ -1653,6 +1661,11 @@ function asScriptUiPenHost(g) {
         var i;
         var cancelled = false;
         var imported = 0;
+        for (i = 0; i < channels.length; i += 1) {
+            if (resolved.forceDrumChannels.indexOf(i) !== -1) {
+                channels[i].forcedDrum = true;
+            }
+        }
         if (resolved.layerMode === "combined") {
             layer = createLayer(comp, midi, null, resolved);
             for (i = 0; i < channels.length; i += 1) {
@@ -1673,6 +1686,9 @@ function asScriptUiPenHost(g) {
                     break;
                 }
                 layer = createLayer(comp, midi, channels[i], resolved);
+                if (channels[i].forcedDrum && !api.isDrumChannel(channels[i].midiChannel)) {
+                    layer.name = layer.name + " Drums";
+                }
                 applyChannelToLayer(channels[i], layer, resolved);
                 imported += 1;
             }
@@ -10229,6 +10245,7 @@ function asScriptUiPenHost(g) {
         var importNamedDrumSliders;
         var includeControllers;
         var includePitchBends;
+        var forceDrumCheckbox;
         var layerNamePrefix;
         var importButtonRow;
         var getMidiInfoButton;
@@ -10286,6 +10303,10 @@ function asScriptUiPenHost(g) {
         includePitchBends = optionsPanel.add("checkbox", undefined, "Import pitch bend sliders");
         includePitchBends.value = false;
         includePitchBends.helpTip = "Import MIDI pitch wheel bend data as keyframed pitch-bend sliders.";
+        forceDrumCheckbox = optionsPanel.add("checkbox", undefined, "Force channels as drums");
+        forceDrumCheckbox.value = false;
+        forceDrumCheckbox.helpTip =
+            "Override drum channel detection. A dialog will appear during import to select which channels should be treated as drum channels.";
         importButtonRow = tab.add("group");
         importButtonRow.orientation = "row";
         importButtonRow.alignChildren = ["fill", "center"];
@@ -10334,6 +10355,7 @@ function asScriptUiPenHost(g) {
             importNamedDrumSliders: importNamedDrumSliders,
             includeControllers: includeControllers,
             includePitchBends: includePitchBends,
+            forceDrumCheckbox: forceDrumCheckbox,
             layerNamePrefix: layerNamePrefix,
             getMidiInfoButton: getMidiInfoButton,
             importButton: importButton,
@@ -10342,6 +10364,86 @@ function asScriptUiPenHost(g) {
             createBpmButton: createBpmButton,
             bpmQuantize: bpmQuantize
         };
+    }
+    function showForceDrumDialog(filePath, api) {
+        var midi;
+        var channels;
+        var i;
+        var ch;
+        var label;
+        var win = new Window("dialog", "Force Channels as Drums");
+        var desc;
+        var list;
+        var buttonRow;
+        var okButton;
+        var cancelButton;
+        var result = null;
+        try {
+            midi = api.MidiFile.fromFile(filePath);
+            if (!midi || !midi.isMidi) {
+                api.alertError("Could not parse the MIDI file.");
+                return null;
+            }
+        }
+        catch (parseErr) {
+            api.alertError("Error reading MIDI file:\n" + String(parseErr));
+            return null;
+        }
+        channels = [];
+        for (i = 0; i < midi.channels.length; i += 1) {
+            ch = midi.channels[i];
+            if (ch && ch.notes.length > 0) {
+                channels.push(ch);
+            }
+        }
+        if (!channels.length) {
+            api.alertError("No channels with notes found in the MIDI file.");
+            try {
+                api.discardMidiFileData(midi);
+            }
+            catch (discardErr) { }
+            return null;
+        }
+        win.orientation = "column";
+        win.alignChildren = ["fill", "top"];
+        win.margins = 16;
+        win.spacing = 10;
+        desc = win.add("statictext", undefined, "Select channels to treat as drum channels during import:", { multiline: true });
+        desc.alignment = ["fill", "top"];
+        list = win.add("listbox", undefined, [], { multiselect: true });
+        list.preferredSize = [380, 160];
+        list.alignment = ["fill", "top"];
+        for (i = 0; i < channels.length; i += 1) {
+            ch = channels[i];
+            label = api.formatChannelName(ch);
+            label += "  (" + ch.notes.length + " notes)";
+            list.add("item", label);
+        }
+        for (i = 0; i < list.items.length; i += 1) {
+            if (api.isDrumChannel(channels[i].midiChannel)) {
+                list.items[i].selected = true;
+            }
+        }
+        buttonRow = win.add("group");
+        buttonRow.alignment = ["center", "top"];
+        buttonRow.spacing = 10;
+        okButton = buttonRow.add("button", undefined, "OK", { name: "ok" });
+        okButton.preferredSize = [100, 26];
+        cancelButton = buttonRow.add("button", undefined, "Cancel", { name: "cancel" });
+        cancelButton.preferredSize = [100, 26];
+        if (win.show() === 1) {
+            result = [];
+            for (i = 0; i < list.items.length; i += 1) {
+                if (list.items[i].selected) {
+                    result.push(i);
+                }
+            }
+        }
+        try {
+            api.discardMidiFileData(midi);
+        }
+        catch (discardErr) { }
+        return result;
     }
     function wireImportTabHandlers(ui, api) {
         var importUi = ui;
@@ -10357,8 +10459,19 @@ function asScriptUiPenHost(g) {
             });
         };
         importUi.importButton.onClick = function () {
+            var filePath = importUi.fileText.text;
+            var forceDrum = !!importUi.forceDrumCheckbox.value;
+            var forceDrumChannels = [];
+            var dialogResult;
+            if (forceDrum) {
+                dialogResult = showForceDrumDialog(filePath, api);
+                if (dialogResult === null) {
+                    return;
+                }
+                forceDrumChannels = dialogResult;
+            }
             api.runImport({
-                midiFileName: importUi.fileText.text,
+                midiFileName: filePath,
                 layerMode: importUi.layerMode.selection &&
                     typeof importUi.layerMode.selection !== "number" &&
                     importUi.layerMode.selection.index === 1
@@ -10368,7 +10481,8 @@ function asScriptUiPenHost(g) {
                 quantizeToFrames: !!importUi.quantizeToFrames.value,
                 importNamedDrumSliders: !!importUi.importNamedDrumSliders.value,
                 includeControllers: !!importUi.includeControllers.value,
-                includePitchBends: !!importUi.includePitchBends.value
+                includePitchBends: !!importUi.includePitchBends.value,
+                forceDrumChannels: forceDrumChannels
             });
         };
         importUi.createMetronomeButton.onClick = function () {

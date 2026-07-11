@@ -2,3 +2,4 @@ dist/
 references/
 .cursorindexingignore
 node_modules
+.mimocode

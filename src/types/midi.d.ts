@@ -70,6 +70,7 @@ interface MidiChannel {
     controllers: ControllerMap;
     pitchBends: PitchBendEvent[];
     programs: ProgramChangeEvent[];
+    forcedDrum?: boolean;
 }
 
 /** Parsed MIDI track chunk metadata. */
